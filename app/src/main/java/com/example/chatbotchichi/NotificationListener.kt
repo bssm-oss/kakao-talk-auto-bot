@@ -16,7 +16,8 @@ import java.io.InputStreamReader
 
 class NotificationListener : NotificationListenerService() {
     private val TAG = "BotEngine-Listener"
-    private val processedNotifications = mutableSetOf<String>()
+    // 알림 키 -> 마지막 처리 시간 (중복 방지용)
+    private val processedNotifications = mutableMapOf<String, Long>()
 
     private val debugReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -70,9 +71,22 @@ class NotificationListener : NotificationListenerService() {
             sbn.packageName != packageName && 
             sbn.packageName != "com.android.shell") return
 
-        if (processedNotifications.contains(sbn.key)) return
-        processedNotifications.add(sbn.key)
-        if (processedNotifications.size > 200) processedNotifications.clear()
+        // 중복 방지 로직 개선: 시간 비교
+        val lastTime = processedNotifications[sbn.key] ?: 0L
+        if (sbn.postTime <= lastTime) {
+            // 이미 처리한 알림이거나 과거 알림이면 무시
+            return 
+        }
+        processedNotifications[sbn.key] = sbn.postTime
+        
+        // 맵 사이즈 관리 (오래된 키 제거)
+        if (processedNotifications.size > 200) {
+            val iterator = processedNotifications.iterator()
+            if (iterator.hasNext()) {
+                iterator.next()
+                iterator.remove()
+            }
+        }
 
         try {
             val extras = sbn.notification.extras ?: return
