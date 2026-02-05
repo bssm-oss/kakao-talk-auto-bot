@@ -4,7 +4,6 @@ import android.app.Notification
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.RemoteInput
 import kotlinx.coroutines.CoroutineScope
@@ -17,14 +16,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-/**
- * 알림 답장 및 외부 API (N8N) 연동 처리 클래스
- */
 class SessionReplier(
-    val sbn: StatusBarNotification?, // 디버그 모드일 땐 null 가능
     val context: Context,
-    val isDebug: Boolean = false, // 디버그 모드 여부
-    val debugRoom: String? = null // 디버그 답장 보낼 방 이름
+    val room: String, // 세션 조회를 위한 키 (방 이름)
+    val isDebug: Boolean = false // 디버그 모드 여부
 ) {
     private val TAG = "BotEngine-Replier"
     private val client = OkHttpClient.Builder()
@@ -33,39 +28,46 @@ class SessionReplier(
         .writeTimeout(10, TimeUnit.SECONDS)
         .build()
 
-    /**
-     * 카카오톡 알림에 답장을 보냅니다.
-     * 디버그 모드일 경우 Broadcast로 가상 답장을 전송합니다.
-     */
     fun reply(message: String): Boolean {
+        // 1. 디버그 모드 처리
         if (isDebug) {
-            Log.d(TAG, "[DEBUG] Reply intercepted: $message")
+            Log.d(TAG, "[DEBUG] Reply: $message")
             val intent = Intent("com.example.chatbotchichi.BOT_REPLY")
             intent.putExtra("msg", message)
-            intent.putExtra("room", debugRoom)
+            intent.putExtra("room", room)
             intent.setPackage(context.packageName)
             context.sendBroadcast(intent)
             return true
         }
 
+        // 2. 세션 매니저에서 캐싱된 Action 조회
+        val session = SessionManager.getSession(room)
+        if (session == null) {
+            Log.e(TAG, "Reply failed: No session found for room $room. (알림을 한 번도 받지 않았거나 세션 만료)")
+            return false
+        }
+
         try {
-            if (sbn == null) return false
-            val wearableExtender = androidx.core.app.NotificationCompat.WearableExtender(sbn.notification)
-            for (action in wearableExtender.actions) {
-                val remoteInputs = action.remoteInputs ?: continue
-                for (remoteInput in remoteInputs) {
-                    if (remoteInput.resultKey != null) {
-                        val intent = Intent()
-                        val bundle = Bundle()
-                        bundle.putCharSequence(remoteInput.resultKey, message)
-                        RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
-                        action.actionIntent.send(context, 0, intent)
-                        Log.d(TAG, "Reply sent: $message")
-                        return true
-                    }
+            val action = session.action
+            val remoteInputs = action.remoteInputs
+            
+            if (remoteInputs.isNullOrEmpty()) {
+                Log.e(TAG, "Reply failed: RemoteInput is null/empty")
+                return false
+            }
+
+            for (remoteInput in remoteInputs) {
+                if (remoteInput.resultKey != null) {
+                    val intent = Intent()
+                    val bundle = Bundle()
+                    bundle.putCharSequence(remoteInput.resultKey, message)
+                    RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
+                    
+                    action.actionIntent.send(context, 0, intent)
+                    Log.d(TAG, "Reply sent to $room: $message")
+                    return true
                 }
             }
-            Log.e(TAG, "No remote input found for reply")
             return false
         } catch (e: Exception) {
             Log.e(TAG, "Reply failed", e)
@@ -73,51 +75,35 @@ class SessionReplier(
         }
     }
 
-    /**
-     * N8N 웹훅을 호출합니다.
-     * @param actionType 액션 타입 (예: "buy", "log")
-     * @param data 추가 데이터 Map
-     */
     fun executeWorkflow(actionType: String, data: Map<String, Any>): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val json = JSONObject()
                 json.put("action", actionType)
                 json.put("timestamp", System.currentTimeMillis())
-                // 채팅방 정보가 있다면 추가
-                json.put("room", if (isDebug) debugRoom else sbn?.notification?.extras?.getString("android.subText") ?: "unknown")
+                json.put("room", room)
                 
                 for ((key, value) in data) {
                     json.put(key, value)
                 }
 
                 val body = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                
-                // 실제 N8N 주소로 변경 필요 (환경변수나 설정으로 빼는 것 권장)
                 val request = Request.Builder()
-                    .url("https://YOUR_N8N_DOMAIN/webhook/chatbot-hook") 
+                    .url("https://YOUR_N8N_DOMAIN/webhook/chatbot-hook") // 실제 주소로 변경 필요
                     .post(body)
                     .build()
 
                 client.newCall(request).execute().use { response ->
                     if (response.isSuccessful) {
-                        Log.d(TAG, "N8N workflow executed successfully: ${response.body?.string()}")
+                        Log.d(TAG, "N8N success: ${response.body?.string()}")
                     } else {
-                        Log.e(TAG, "N8N workflow failed: ${response.code} ${response.message}")
+                        Log.e(TAG, "N8N fail: ${response.code}")
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error executing workflow", e)
+                Log.e(TAG, "Workflow error", e)
             }
         }
         return true
-    }
-
-    /**
-     * 로컬 스크립트 함수 실행 (구현 예시)
-     */
-    fun executeLocalScript(functionName: String, vararg args: Any?): Any? {
-        Log.d(TAG, "executeLocalScript called: $functionName")
-        return null
     }
 }

@@ -14,14 +14,10 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.InputStreamReader
 
-/**
- * 카카오톡 알림 감지 + 가상 알림(디버깅) 처리 + 멀티 봇 실행 (파일 기반)
- */
 class NotificationListener : NotificationListenerService() {
     private val TAG = "BotEngine-Listener"
     private val processedNotifications = mutableSetOf<String>()
 
-    // 디버깅 메시지 수신용 리시버
     private val debugReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.example.chatbotchichi.DEBUG_MSG") {
@@ -32,8 +28,8 @@ class NotificationListener : NotificationListenerService() {
                 
                 Log.d(TAG, "가상 메시지 수신: $msg")
                 
-                // 디버깅용 Replier 생성
-                val debugReplier = SessionReplier(null, this@NotificationListener, true, room)
+                // 디버깅용 Replier (isDebug=true)
+                val debugReplier = SessionReplier(this@NotificationListener, room, true)
                 processMessage(room, msg, sender, true, debugReplier, null, pkgName)
             }
         }
@@ -91,13 +87,16 @@ class NotificationListener : NotificationListenerService() {
 
             if (msg == null) return
 
-            // 실제 알림 Replier (isDebug=false)
-            val replier = SessionReplier(sbn, this, false)
+            // *** 중요: 답장 세션 캐싱 (SessionManager) ***
+            SessionManager.bindSession(room, sbn.notification, sbn.packageName)
+
+            // Replier 생성 (이제 room 이름만 알면 됨)
+            val replier = SessionReplier(this, room, false)
             val imageDB = ImageDB(null, null)
 
             processMessage(room, msg, sender, isGroupChat, replier, imageDB, sbn.packageName)
 
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "알림 처리 중 에러", e)
         }
     }
@@ -118,14 +117,8 @@ class NotificationListener : NotificationListenerService() {
         intent.putExtra("log", logMsg)
         sendBroadcast(intent)
 
-        // 파일에서 봇 목록 로드 (BotManager 사용)
-        val allBots = BotManager.getBots(this) // Context 전달
+        val allBots = BotManager.getBots(this)
         val enabledBots = allBots.filter { it.isEnabled }
-
-        if (enabledBots.isEmpty()) {
-            // 봇이 하나도 없거나 다 꺼져있으면 로그만 남김
-            return
-        }
 
         for (bot in enabledBots) {
             runJsScript(bot, room, msg, sender, isGroupChat, replier, imageDB, packageName)
@@ -147,8 +140,7 @@ class NotificationListener : NotificationListenerService() {
         try {
             val scope = rhino.initStandardObjects()
 
-            // 파일에서 스크립트 읽기
-            val file = File(bot.fileName) // fileName은 절대 경로
+            val file = File(bot.fileName)
             if (!file.exists()) {
                 Log.e(TAG, "${bot.name}: 파일 없음")
                 return
@@ -166,9 +158,9 @@ class NotificationListener : NotificationListenerService() {
             }
         } catch (e: Throwable) {
             Log.e(TAG, "${bot.name} 실행 중 치명적 에러", e)
-            e.printStackTrace() // 스택 트레이스 전체 출력
+            e.printStackTrace()
             val errIntent = Intent("com.example.chatbotchichi.LOG_UPDATE")
-            errIntent.putExtra("log", "❌ ${bot.name} 에러: ${e.javaClass.simpleName} - ${e.message}")
+            errIntent.putExtra("log", "❌ ${bot.name} 에러: ${e.message}")
             sendBroadcast(errIntent)
         } finally {
             RhinoContext.exit()
