@@ -1,9 +1,11 @@
 package com.example.chatbotchichi
 
 import android.app.Notification
+import android.content.Context
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
+import org.json.JSONObject
 
 /**
  * 채팅방별 답장 세션(Action)을 캐싱하여 관리하는 싱글톤
@@ -11,9 +13,13 @@ import androidx.core.app.RemoteInput
  */
 object SessionManager {
     private val TAG = "BotEngine-Session"
+    private const val PREFS_NAME = "SessionPrefs"
+    private const val KEY_ROOM_TIMES = "room_times"
     
     // 방 이름 -> (Action, 패키지명) 맵
     private val sessionMap = mutableMapOf<String, CachedSession>()
+    private val roomLastSeen = mutableMapOf<String, Long>()
+    private var roomsLoaded = false
 
     data class CachedSession(
         val action: NotificationCompat.Action,
@@ -23,12 +29,12 @@ object SessionManager {
     /**
      * 알림에서 답장 가능한 Action을 추출하여 세션으로 저장
      */
-    fun bindSession(room: String, notification: Notification, packageName: String) {
+    fun bindSession(context: Context, room: String, notification: Notification, packageName: String) {
         // 1. WearableExtender에서 찾기 (카카오톡 등 대부분 여기 있음)
         val wearableExtender = NotificationCompat.WearableExtender(notification)
         for (action in wearableExtender.actions) {
             if (isValidRemoteInput(action)) {
-                save(room, action, packageName)
+                save(context, room, action, packageName)
                 return
             }
         }
@@ -38,7 +44,7 @@ object SessionManager {
         for (i in 0 until count) {
             val action = NotificationCompat.getAction(notification, i)
             if (action != null && isValidRemoteInput(action)) {
-                save(room, action, packageName)
+                save(context, room, action, packageName)
                 return
             }
         }
@@ -49,13 +55,76 @@ object SessionManager {
         return remoteInputs.isNotEmpty()
     }
 
-    private fun save(room: String, action: NotificationCompat.Action, packageName: String) {
+    private fun save(context: Context, room: String, action: NotificationCompat.Action, packageName: String) {
         // 최신 세션으로 갱신
         sessionMap[room] = CachedSession(action, packageName)
+        touchRoom(context, room)
         Log.d(TAG, "세션 갱신 완료: $room")
     }
 
     fun getSession(room: String): CachedSession? {
         return sessionMap[room]
+    }
+
+    /**
+     * 현재 세션이 저장된 방 이름 목록 반환
+     */
+    data class RoomEntry(
+        val name: String,
+        val isActive: Boolean,
+        val lastSeen: Long
+    )
+
+    fun getRegisteredRooms(context: Context): List<RoomEntry> {
+        loadRooms(context)
+        val active = sessionMap.keys
+        val activeSet = active.toSet()
+        val activeSorted = active.sorted()
+        val inactiveSorted = (roomLastSeen.keys - activeSet).sorted()
+
+        val ordered = activeSorted + inactiveSorted
+        return ordered.map { room ->
+            RoomEntry(
+                name = room,
+                isActive = activeSet.contains(room),
+                lastSeen = roomLastSeen[room] ?: 0L
+            )
+        }
+    }
+
+    private fun touchRoom(context: Context, room: String) {
+        if (room.isBlank()) return
+        roomLastSeen[room] = System.currentTimeMillis()
+        persistRooms(context)
+    }
+
+    private fun loadRooms(context: Context) {
+        if (roomsLoaded) return
+        roomsLoaded = true
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val jsonStr = prefs.getString(KEY_ROOM_TIMES, null) ?: return
+        try {
+            val json = JSONObject(jsonStr)
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                roomLastSeen[key] = json.optLong(key, 0L)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "세션 목록 로드 실패", e)
+        }
+    }
+
+    private fun persistRooms(context: Context) {
+        try {
+            val json = JSONObject()
+            for ((room, time) in roomLastSeen) {
+                json.put(room, time)
+            }
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putString(KEY_ROOM_TIMES, json.toString()).apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "세션 목록 저장 실패", e)
+        }
     }
 }

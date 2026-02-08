@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -13,6 +14,9 @@ import org.mozilla.javascript.Context as RhinoContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStreamReader
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class NotificationListener : NotificationListenerService() {
     private val TAG = "BotEngine-Listener"
@@ -39,7 +43,7 @@ class NotificationListener : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d(TAG, "NotificationListener connected")
-        updateStatus("연결됨 (작동 중)")
+        updateStatus("연결됨 (작동 중)", true)
         
         val filter = IntentFilter("com.example.chatbotchichi.DEBUG_MSG")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -47,26 +51,46 @@ class NotificationListener : NotificationListenerService() {
         } else {
             registerReceiver(debugReceiver, filter)
         }
+
+        if (AppSettings.isGlobalEnabled(this)) {
+            val replier = SessionReplier(this, "__SYSTEM__", false)
+            processMessage("__SYSTEM__", "__GLOBAL_START__", "SYSTEM", false, replier, null, packageName)
+        }
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         Log.d(TAG, "NotificationListener disconnected")
-        updateStatus("연결 끊김")
+        updateStatus("연결 끊김", false)
         try {
             unregisterReceiver(debugReceiver)
         } catch (e: Exception) {}
     }
 
-    private fun updateStatus(msg: String) {
+    private fun updateStatus(msg: String, isConnected: Boolean) {
+        StatusStore.save(this, msg, isConnected)
         val intent = Intent("com.example.chatbotchichi.STATUS_UPDATE")
         intent.putExtra("status", msg)
+        intent.putExtra("connected", isConnected)
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
+    }
+
+    private fun sendLog(message: String) {
+        val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val line = "[$time] $message"
+        LogStore.append(this, line)
+        val intent = Intent("com.example.chatbotchichi.LOG_UPDATE")
+        intent.putExtra("log", line)
+        intent.setPackage(packageName)
         sendBroadcast(intent)
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         super.onNotificationPosted(sbn)
         
+        if (!AppSettings.isGlobalEnabled(this)) return
+
         if (sbn.packageName != "com.kakao.talk" && 
             sbn.packageName != packageName && 
             sbn.packageName != "com.android.shell") return
@@ -90,19 +114,55 @@ class NotificationListener : NotificationListenerService() {
 
         try {
             val extras = sbn.notification.extras ?: return
-            
-            var msg: String? = extras.getCharSequence("android.text")?.toString()
-            if (msg == null) msg = extras.getCharSequence("android.bigText")?.toString()
-            
-            val sender = extras.getString("android.title") ?: "알수없음"
-            var room = extras.getString("android.subText") ?: extras.getString("android.summaryText")
-            val isGroupChat = room != null
-            if (room == null) room = sender
 
-            if (msg == null) return
+            var msg: String? = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+            if (msg.isNullOrBlank()) {
+                msg = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+            }
+
+            val conversationTitle = extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString()
+            var room: String? = conversationTitle?.trim()
+            var sender: String = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "알수없음"
+
+            val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
+            if (!messages.isNullOrEmpty()) {
+                val last = messages.last()
+                if (last is Bundle) {
+                    val text = last.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+                    val senderName = last.getCharSequence("sender")?.toString()
+                    if (!text.isNullOrBlank()) msg = text
+                    if (!senderName.isNullOrBlank()) sender = senderName
+                }
+            }
+
+            if (room.isNullOrBlank()) {
+                room = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()?.trim()
+            }
+            if (room.isNullOrBlank()) {
+                room = extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString()?.trim()
+            }
+            if (room.isNullOrBlank()) {
+                room = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim()
+            }
+
+            if (!msg.isNullOrBlank() && room == sender) {
+                val idx = msg.indexOf(": ")
+                if (idx in 1..40) {
+                    val possibleSender = msg.substring(0, idx).trim()
+                    val possibleMsg = msg.substring(idx + 2).trim()
+                    if (possibleSender.isNotBlank() && possibleMsg.isNotBlank()) {
+                        sender = possibleSender
+                        msg = possibleMsg
+                    }
+                }
+            }
+
+            if (msg.isNullOrBlank()) return
+            if (room.isNullOrBlank()) room = sender
+            val isGroupChat = room != sender
 
             // *** 중요: 답장 세션 캐싱 (SessionManager) ***
-            SessionManager.bindSession(room, sbn.notification, sbn.packageName)
+            SessionManager.bindSession(this, room, sbn.notification, sbn.packageName)
 
             // Replier 생성 (이제 room 이름만 알면 됨)
             val replier = SessionReplier(this, room, false)
@@ -126,10 +186,7 @@ class NotificationListener : NotificationListenerService() {
     ) {
         val logMsg = "[$room] $sender: $msg"
         Log.i(TAG, "처리 중: $logMsg")
-        
-        val intent = Intent("com.example.chatbotchichi.LOG_UPDATE")
-        intent.putExtra("log", logMsg)
-        sendBroadcast(intent)
+        sendLog(logMsg)
 
         val allBots = BotManager.getBots(this)
         val enabledBots = allBots.filter { it.isEnabled }
@@ -173,9 +230,7 @@ class NotificationListener : NotificationListenerService() {
         } catch (e: Throwable) {
             Log.e(TAG, "${bot.name} 실행 중 치명적 에러", e)
             e.printStackTrace()
-            val errIntent = Intent("com.example.chatbotchichi.LOG_UPDATE")
-            errIntent.putExtra("log", "❌ ${bot.name} 에러: ${e.message}")
-            sendBroadcast(errIntent)
+            sendLog("❌ ${bot.name} 에러: ${e.message}")
         } finally {
             RhinoContext.exit()
         }
