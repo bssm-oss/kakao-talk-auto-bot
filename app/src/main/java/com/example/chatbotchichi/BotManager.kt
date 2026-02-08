@@ -1,11 +1,13 @@
 package com.example.chatbotchichi
 
 import android.content.Context
+import android.util.Log
 import java.io.File
 
 object BotManager {
     private const val PREFS_NAME = "BotPrefs"
     private const val DIR_NAME = "bots"
+    private const val TAG = "BotManager"
 
     fun getBots(context: Context): List<BotInfo> {
         try {
@@ -72,6 +74,7 @@ object BotManager {
             val files = botDir.listFiles { _, name -> name.endsWith(".js") } ?: return emptyList()
 
             return files.map { file ->
+                migratePollingBotIfNeeded(context, file)
                 val name = file.name.removeSuffix(".js")
                 val isEnabled = prefs.getBoolean("bot_$name", true)
                 BotInfo(name, file.absolutePath, isEnabled)
@@ -108,5 +111,53 @@ object BotManager {
         val botDir = File(context.filesDir, DIR_NAME)
         val file = File(botDir, "$name.js")
         return if (file.exists()) file.readText() else ""
+    }
+
+    private fun migratePollingBotIfNeeded(context: Context, file: File) {
+        try {
+            val code = file.readText()
+            if (!looksLikePollingBot(code)) return
+            if (!needsPollingTemplateUpdate(code)) return
+
+            val url = extractConstString(code, "WEBHOOK_URL") ?: return
+            val room = extractConstString(code, "TRIGGER_ROOM") ?: ""
+            val intervalMs = extractConstLong(code, "INTERVAL_MS") ?: 1000L
+            val botId = file.name.removeSuffix(".js")
+
+            val newCode = PollingBotTemplate.generate(botId, url, room, intervalMs)
+            file.writeText(newCode)
+            LogStore.appendWithTimestamp(context, "폴링봇 템플릿 업데이트: ${file.name}")
+        } catch (e: Exception) {
+            Log.e(TAG, "폴링봇 템플릿 업데이트 실패: ${file.name}", e)
+        }
+    }
+
+    private fun looksLikePollingBot(code: String): Boolean {
+        val markers = listOf(
+            "const WEBHOOK_URL",
+            "function responseFix"
+        )
+        return markers.all { code.contains(it) }
+    }
+
+    private fun needsPollingTemplateUpdate(code: String): Boolean {
+        // TimerTask/JavaAdapter 사용, 또는 잘못된 이스케이프(\"...\")가 있으면 업데이트
+        if (code.contains("java.util.Timer") || code.contains("TimerTask") || code.contains("JavaAdapter")) {
+            return true
+        }
+        if (code.contains("= \\\"") || code.contains("\\\\\"")) {
+            return true
+        }
+        return false
+    }
+
+    private fun extractConstString(code: String, name: String): String? {
+        val regex = Regex("""const\s+$name\s*=\s*\"([^\"]*)\"""")
+        return regex.find(code)?.groupValues?.getOrNull(1)
+    }
+
+    private fun extractConstLong(code: String, name: String): Long? {
+        val regex = Regex("""const\s+$name\s*=\s*(\d+)""")
+        return regex.find(code)?.groupValues?.getOrNull(1)?.toLongOrNull()
     }
 }

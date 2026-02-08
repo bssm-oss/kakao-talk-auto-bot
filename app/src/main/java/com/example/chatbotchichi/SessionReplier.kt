@@ -29,50 +29,67 @@ class SessionReplier(
         .build()
 
     fun reply(message: String): Boolean {
-        // 1. 디버그 모드 처리
+        return replyToRoom(this.room, message)
+    }
+
+    /**
+     * 특정 방으로 메시지 전송 (스크립트에서 사용)
+     */
+    fun replyToRoom(targetRoom: String, message: String): Boolean {
+        // 1. 세션 매니저에서 캐싱된 실전 Action 조회 (우선 순위 높음)
+        val session = SessionManager.getSession(targetRoom)
+        
+        if (session != null) {
+            try {
+                val action = session.action
+                val remoteInputs = action.remoteInputs
+                
+                if (!remoteInputs.isNullOrEmpty()) {
+                    for (remoteInput in remoteInputs) {
+                        if (remoteInput.resultKey != null) {
+                            val intent = Intent()
+                            val bundle = Bundle()
+                            bundle.putCharSequence(remoteInput.resultKey, message)
+                            RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
+                            
+                            val pendingIntent = action.actionIntent
+                            if (pendingIntent == null) {
+                                Log.e(TAG, "Reply failed: PendingIntent is null for $targetRoom")
+                                return false
+                            }
+                            pendingIntent.send(context, 0, intent)
+                            Log.d(TAG, "Reply sent to $targetRoom: $message")
+                            
+                            // 디버그 모드에서 실전송 성공 시, 디버깅 룸에도 로그 남김
+                            if (isDebug) {
+                                val intentDebug = Intent("com.example.chatbotchichi.BOT_REPLY")
+                                intentDebug.putExtra("msg", "✅ [실전송] $targetRoom: $message")
+                                intentDebug.putExtra("room", room) // 현재 디버깅 중인 방에 표시
+                                intentDebug.setPackage(context.packageName)
+                                context.sendBroadcast(intentDebug)
+                            }
+                            return true
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Reply failed", e)
+            }
+        }
+
+        // 2. 실전 세션이 없고 디버그 모드인 경우 (가상 시뮬레이션)
         if (isDebug) {
-            Log.d(TAG, "[DEBUG] Reply: $message")
+            Log.d(TAG, "[DEBUG] Simulation Reply to $targetRoom: $message")
             val intent = Intent("com.example.chatbotchichi.BOT_REPLY")
-            intent.putExtra("msg", message)
+            intent.putExtra("msg", "🛠 [가상] $targetRoom: $message")
             intent.putExtra("room", room)
             intent.setPackage(context.packageName)
             context.sendBroadcast(intent)
             return true
         }
 
-        // 2. 세션 매니저에서 캐싱된 Action 조회
-        val session = SessionManager.getSession(room)
-        if (session == null) {
-            Log.e(TAG, "Reply failed: No session found for room $room. (알림을 한 번도 받지 않았거나 세션 만료)")
-            return false
-        }
-
-        try {
-            val action = session.action
-            val remoteInputs = action.remoteInputs
-            
-            if (remoteInputs.isNullOrEmpty()) {
-                Log.e(TAG, "Reply failed: RemoteInput is null/empty")
-                return false
-            }
-
-            for (remoteInput in remoteInputs) {
-                if (remoteInput.resultKey != null) {
-                    val intent = Intent()
-                    val bundle = Bundle()
-                    bundle.putCharSequence(remoteInput.resultKey, message)
-                    RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
-                    
-                    action.actionIntent.send(context, 0, intent)
-                    Log.d(TAG, "Reply sent to $room: $message")
-                    return true
-                }
-            }
-            return false
-        } catch (e: Exception) {
-            Log.e(TAG, "Reply failed", e)
-            return false
-        }
+        Log.e(TAG, "Reply failed: No session found for room $targetRoom")
+        return false
     }
 
     fun executeWorkflow(actionType: String, data: Map<String, Any>): Boolean {
@@ -105,5 +122,28 @@ class SessionReplier(
             }
         }
         return true
+    }
+
+    fun log(message: String) {
+        val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+            .format(java.util.Date())
+        val line = "[$time] $message"
+        LogStore.append(context, line)
+        val intent = Intent("com.example.chatbotchichi.LOG_UPDATE")
+        intent.putExtra("log", line)
+        intent.setPackage(context.packageName)
+        context.sendBroadcast(intent)
+    }
+
+    fun startPolling(botId: String, url: String, intervalMs: Long) {
+        PollingManager.start(botId, url, intervalMs, this)
+    }
+
+    fun startPolling(botId: String, url: String, intervalMs: Double) {
+        PollingManager.start(botId, url, intervalMs.toLong(), this)
+    }
+
+    fun stopPolling(botId: String) {
+        PollingManager.stop(botId, this)
     }
 }

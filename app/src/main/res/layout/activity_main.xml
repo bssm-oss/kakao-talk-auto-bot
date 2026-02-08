@@ -1,155 +1,278 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fillViewport="true"
     android:fitsSystemWindows="true"
-    android:background="#FAFAFA"
+    android:background="#F5F5F5"
     android:padding="16dp">
 
-    <!-- 1. 상단 상태 카드 -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/card_status"
-        android:layout_width="0dp"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="12dp"
-        app:cardBackgroundColor="#FFFFFF"
-        app:cardElevation="4dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:orientation="vertical">
 
-        <LinearLayout
+        <!-- 1. 상단 대시보드 카드 -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="16dp">
+            app:cardCornerRadius="16dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardElevation="2dp"
+            android:layout_marginBottom="24dp">
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:padding="20dp">
 
-                <TextView
-                    android:text="Chatbot Engine"
-                    android:textSize="12sp"
-                    android:textColor="#888888"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-                <TextView
-                    android:id="@+id/status_text"
-                    android:layout_width="wrap_content"
+                <!-- 상태 표시 줄 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="엔진 상태: 확인 중..."
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#FF0000"
-                    android:layout_marginTop="4dp"/>
-            </LinearLayout>
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
 
-            <Button
-                android:id="@+id/permission_button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="권한 설정"
-                android:backgroundTint="#6200EE"
-                android:textColor="#FFFFFF"/>
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
+                    <!-- 상태 표시등 (원형) -->
+                    <View
+                        android:id="@+id/status_indicator"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:background="@drawable/bg_indicator_off"
+                        android:backgroundTint="#FF5252"/>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginStart="12dp">
+                        
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Chatbot Engine"
+                            android:textSize="12sp"
+                            android:textColor="#999999"/>
+                        
+                        <TextView
+                            android:id="@+id/status_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="연결 끊김"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="#333333"/>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- 기능 버튼 줄 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/permission_button"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:text="권한 설정"
+                        android:backgroundTint="#E0E0E0"
+                        android:textColor="#333333"
+                        android:layout_marginEnd="8dp"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"/>
+
+                    <Button
+                        android:id="@+id/btn_show_sessions"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:text="세션 목록"
+                        android:backgroundTint="#E0E0E0"
+                        android:textColor="#333333"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"/>
+                </LinearLayout>
+
+                <!-- 전체 토글 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="전체 봇 수집"
+                        android:textColor="#333333"
+                        android:textSize="14sp"/>
+
+                    <Switch
+                        android:id="@+id/switch_global"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=""
+                        android:showText="false"
+                        android:textOn=""
+                        android:textOff=""/>
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     <!-- 2. 봇 목록 헤더 -->
     <TextView
         android:id="@+id/text_bot_list_title"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="내 봇 목록"
+        android:text="내 봇 스크립트"
         android:textStyle="bold"
         android:textSize="18sp"
         android:textColor="#333333"
-        app:layout_constraintTop_toBottomOf="@id/card_status"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="20dp"/>
+        android:layout_marginBottom="8dp"/>
 
-    <Button
-        android:id="@+id/btn_add_bot"
-        android:layout_width="wrap_content"
-        android:layout_height="40dp"
-        android:text="+ 추가"
-        android:backgroundTint="#03DAC5"
-        android:textColor="#000000"
-        app:layout_constraintTop_toTopOf="@id/text_bot_list_title"
-        app:layout_constraintBottom_toBottomOf="@id/text_bot_list_title"
-        app:layout_constraintEnd_toEndOf="parent"/>
+    <!-- 버튼 그룹 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
 
-    <!-- 3. 봇 목록 (남는 공간 모두 차지) -->
-    <androidx.recyclerview.widget.RecyclerView
+        <Button
+            android:id="@+id/btn_add_polling"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="폴링 봇"
+            android:backgroundTint="#FF9800"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"/>
+
+        <Button
+            android:id="@+id/btn_add_bot"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="+ 생성"
+            android:backgroundTint="#2196F3"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"/>
+    </LinearLayout>
+
+    <!-- 3. 봇 목록 (가변 영역) -->
+        <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
-        android:background="#FFFFFF"
-        android:elevation="2dp"
-        app:layout_constraintTop_toBottomOf="@id/btn_add_bot"
-        app:layout_constraintBottom_toTopOf="@id/btn_open_debug"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_panel"
+        android:clipToPadding="false"
+        android:nestedScrollingEnabled="false"
+        android:padding="4dp"
         tools:listitem="@layout/bot_item"/>
 
     <!-- 4. 하단 버튼 및 로그 -->
     <Button
         android:id="@+id/btn_open_debug"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="디버깅 룸 입장 (메시지 테스트)"
+        android:text="💬 디버깅 룸 입장"
         android:backgroundTint="#4CAF50"
         android:textColor="#FFFFFF"
         android:textSize="16sp"
         android:textStyle="bold"
-        android:layout_marginBottom="16dp"
-        app:layout_constraintBottom_toTopOf="@id/text_log_title"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        app:cornerRadius="12dp"
+        android:layout_marginBottom="20dp"/>
 
     <TextView
         android:id="@+id/text_log_title"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="시스템 로그"
+        android:text="실시간 로그"
         android:textStyle="bold"
         android:textSize="14sp"
         android:textColor="#555555"
-        android:layout_marginBottom="4dp"
-        app:layout_constraintBottom_toTopOf="@id/card_log"
-        app:layout_constraintStart_toStartOf="parent"/>
+        android:layout_marginBottom="8dp"/>
 
-    <androidx.cardview.widget.CardView
-        android:id="@+id/card_log"
-        android:layout_width="0dp"
-        android:layout_height="100dp"
-        app:cardCornerRadius="8dp"
-        app:cardBackgroundColor="#222222"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-        
-        <ScrollView
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/log_filter_layout"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="로그 검색"
+        android:layout_marginBottom="8dp"
+        app:endIconMode="clear_text">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/input_log_filter"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="8dp">
+            android:layout_height="wrap_content"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:singleLine="true"
+            android:maxLines="1"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="오류만 보기"
+            android:textColor="#555555"
+            android:textSize="12sp"/>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switch_log_error"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:showText="false"
+            android:textOn=""
+            android:textOff=""/>
+    </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_log"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            app:cardCornerRadius="12dp"
+            app:cardBackgroundColor="#263238"
+            app:cardElevation="0dp"
+            app:contentPadding="12dp">
+            
             <TextView
                 android:id="@+id/log_text"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="로그 대기 중..."
+                android:layout_height="match_parent"
+                android:text="시스템 대기 중..."
                 android:textSize="11sp"
-                android:textColor="#00FF00"
-                android:fontFamily="monospace"/>
-        </ScrollView>
-    </androidx.cardview.widget.CardView>
+                android:textColor="#80CBC4"
+                android:lineSpacingExtra="4dp"
+                android:fontFamily="monospace"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:scrollbars="vertical"
+                android:overScrollMode="always"
+                android:scrollbarStyle="insideInset"/>
+        </com.google.android.material.card.MaterialCardView>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>
