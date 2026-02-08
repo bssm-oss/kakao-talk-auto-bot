@@ -41,6 +41,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.wear:wear:1.2.0")
     implementation("com.faendir.rhino:rhino-android:1.6.0")
     implementation("com.squareup.okhttp3:okhttp:4.11.0")

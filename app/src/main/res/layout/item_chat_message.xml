@@ -1,32 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp">
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
 
-    <!-- 왼쪽: 봇/상대방 메시지 -->
+    <!-- 왼쪽 (봇/상대방) -->
     <LinearLayout
         android:id="@+id/layout_left"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="bottom"
         android:visibility="visible">
 
-        <!-- 프로필 아이콘 (간단한 원) -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="0dp"
-            android:layout_marginEnd="8dp">
-            <ImageView
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:src="@mipmap/ic_launcher"
-                android:scaleType="centerCrop"/>
-        </androidx.cardview.widget.CardView>
+        <!-- 프로필 -->
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@mipmap/ic_launcher_round"
+            android:layout_marginEnd="8dp"/>
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -37,74 +31,69 @@
                 android:id="@+id/text_name_left"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="봇 이름"
+                android:text="봇"
                 android:textSize="12sp"
                 android:textColor="#555555"
-                android:layout_marginBottom="4dp"/>
+                android:layout_marginBottom="2dp"/>
 
-            <androidx.cardview.widget.CardView
+            <TextView
+                android:id="@+id/text_msg_left"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="1dp"
-                app:cardBackgroundColor="#FFFFFF">
-                <TextView
-                    android:id="@+id/text_msg_left"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="메시지 내용"
-                    android:padding="10dp"
-                    android:textColor="#000000"
-                    android:textSize="14sp"
-                    android:maxWidth="240dp"/>
-            </androidx.cardview.widget.CardView>
+                android:background="@drawable/bg_chat_other"
+                android:text="메시지 내용"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:textColor="#000000"
+                android:textSize="15sp"
+                android:maxWidth="240dp"/>
         </LinearLayout>
-        
+
         <TextView
             android:id="@+id/text_time_left"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="오후 1:00"
+            android:text="12:00"
             android:textSize="10sp"
-            android:layout_marginStart="4dp"
-            android:textColor="#888888"/>
+            android:textColor="#888888"
+            android:layout_gravity="bottom"
+            android:layout_marginStart="4dp"/>
     </LinearLayout>
 
-    <!-- 오른쪽: 나/테스터 메시지 -->
+    <!-- 오른쪽 (나) -->
     <LinearLayout
         android:id="@+id/layout_right"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
         android:orientation="horizontal"
-        android:gravity="bottom"
         android:visibility="gone">
 
         <TextView
             android:id="@+id/text_time_right"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="오후 1:00"
+            android:text="12:00"
             android:textSize="10sp"
-            android:layout_marginEnd="4dp"
-            android:textColor="#888888"/>
+            android:textColor="#888888"
+            android:layout_gravity="bottom"
+            android:layout_marginEnd="4dp"/>
 
-        <androidx.cardview.widget.CardView
+        <TextView
+            android:id="@+id/text_msg_right"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="1dp"
-            app:cardBackgroundColor="#FEF01B">
-            <TextView
-                android:id="@+id/text_msg_right"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="메시지 내용"
-                android:padding="10dp"
-                android:textColor="#000000"
-                android:textSize="14sp"
-                android:maxWidth="240dp"/>
-        </androidx.cardview.widget.CardView>
+            android:background="@drawable/bg_chat_me"
+            android:text="메시지 내용"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:textColor="#000000"
+            android:textSize="15sp"
+            android:maxWidth="240dp"/>
     </LinearLayout>
 
 </FrameLayout>
