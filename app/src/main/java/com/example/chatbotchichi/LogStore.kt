@@ -1,19 +1,16 @@
 package com.example.chatbotchichi
 
 import android.content.Context
+import java.io.File
 
 object LogStore {
-    private const val PREFS_NAME = "LogStorePrefs"
-    private const val KEY_LOGS = "logs"
-    private const val MAX_CHARS = 5000
+    private const val LOG_DIR = "logs"
+    private const val LOG_FILE = "app.log"
 
     @Synchronized
     fun append(context: Context, line: String) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val existing = prefs.getString(KEY_LOGS, "") ?: ""
-        val next = if (existing.isBlank()) line else "$existing\n$line"
-        val trimmed = if (next.length > MAX_CHARS) next.takeLast(MAX_CHARS) else next
-        prefs.edit().putString(KEY_LOGS, trimmed).apply()
+        val file = logFile(context)
+        file.appendText("$line\n")
     }
 
     fun appendWithTimestamp(context: Context, message: String) {
@@ -23,12 +20,18 @@ object LogStore {
     }
 
     fun getAll(context: Context): String {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_LOGS, "") ?: ""
+        val file = logFile(context)
+        return if (file.exists()) file.readText() else ""
     }
 
     fun clear(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().remove(KEY_LOGS).apply()
+        val file = logFile(context)
+        if (file.exists()) file.delete()
+    }
+
+    private fun logFile(context: Context): File {
+        val dir = File(context.filesDir, LOG_DIR)
+        if (!dir.exists()) dir.mkdirs()
+        return File(dir, LOG_FILE)
     }
 }

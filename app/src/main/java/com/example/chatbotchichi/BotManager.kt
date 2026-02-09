@@ -126,7 +126,7 @@ object BotManager {
 
             val newCode = PollingBotTemplate.generate(botId, url, room, intervalMs)
             file.writeText(newCode)
-            LogStore.appendWithTimestamp(context, "폴링봇 템플릿 업데이트: ${file.name}")
+            Log.d(TAG, "폴링봇 템플릿 업데이트: ${file.name}")
         } catch (e: Exception) {
             Log.e(TAG, "폴링봇 템플릿 업데이트 실패: ${file.name}", e)
         }
