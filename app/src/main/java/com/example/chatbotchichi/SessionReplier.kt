@@ -1,6 +1,5 @@
 package com.example.chatbotchichi
 
-import android.app.Notification
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -28,6 +27,18 @@ class SessionReplier(
         .writeTimeout(10, TimeUnit.SECONDS)
         .build()
 
+    private fun logOutgoing(targetRoom: String, message: String, success: Boolean, reason: String? = null) {
+        val label = if (success) "OUT" else "OUT_FAIL"
+        val base = "[$targetRoom] $message"
+        val line = if (success) {
+            base
+        } else {
+            val detail = if (reason.isNullOrBlank()) "" else " (reason=$reason)"
+            "❌ $base$detail"
+        }
+        UiLogger.log(context, label, line)
+    }
+
     fun reply(message: String): Boolean {
         return replyToRoom(this.room, message)
     }
@@ -43,6 +54,13 @@ class SessionReplier(
             try {
                 val action = session.action
                 val remoteInputs = action.remoteInputs
+                val pi = action.actionIntent
+                if (pi != null) {
+                    val line = "pendingIntent=$pi creatorPackage=${pi.creatorPackage} uid=${pi.creatorUid} isActivity=${pi.isActivity} isService=${pi.isService} isBroadcast=${pi.isBroadcast}"
+                    Log.d(TAG, line)
+                } else {
+                    Log.d(TAG, "pendingIntent=null")
+                }
                 
                 if (!remoteInputs.isNullOrEmpty()) {
                     for (remoteInput in remoteInputs) {
@@ -51,14 +69,23 @@ class SessionReplier(
                             val bundle = Bundle()
                             bundle.putCharSequence(remoteInput.resultKey, message)
                             RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
+                            val clip = intent.clipData
+                            if (clip != null) {
+                                val clipLine = "clipData items=${clip.itemCount} label=${clip.description?.label}"
+                                Log.d(TAG, clipLine)
+                            } else {
+                                Log.d(TAG, "clipData=null")
+                            }
                             
                             val pendingIntent = action.actionIntent
                             if (pendingIntent == null) {
                                 Log.e(TAG, "Reply failed: PendingIntent is null for $targetRoom")
+                                logOutgoing(targetRoom, message, false, "pendingIntent null")
                                 return false
                             }
                             pendingIntent.send(context, 0, intent)
                             Log.d(TAG, "Reply sent to $targetRoom: $message")
+                            logOutgoing(targetRoom, message, true, null)
                             
                             // 디버그 모드에서 실전송 성공 시, 디버깅 룸에도 로그 남김
                             if (isDebug) {
@@ -71,9 +98,14 @@ class SessionReplier(
                             return true
                         }
                     }
+                    logOutgoing(targetRoom, message, false, "no remoteInput")
+                    return false
                 }
+                logOutgoing(targetRoom, message, false, "no remoteInput")
+                return false
             } catch (e: Exception) {
                 Log.e(TAG, "Reply failed", e)
+                logOutgoing(targetRoom, message, false, e.message ?: "exception")
             }
         }
 
@@ -89,6 +121,7 @@ class SessionReplier(
         }
 
         Log.e(TAG, "Reply failed: No session found for room $targetRoom")
+        logOutgoing(targetRoom, message, false, "no session")
         return false
     }
 
