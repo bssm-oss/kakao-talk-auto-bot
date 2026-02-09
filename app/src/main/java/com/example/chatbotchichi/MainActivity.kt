@@ -15,6 +15,9 @@ import android.widget.TextView
 import android.text.method.ScrollingMovementMethod
 import android.text.Editable
 import android.text.TextWatcher
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import android.service.notification.NotificationListenerService
@@ -22,6 +25,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.button.MaterialButton
 
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
@@ -29,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var logText: TextView
     private lateinit var logFilterInput: TextInputEditText
     private lateinit var logErrorSwitch: MaterialSwitch
+    private lateinit var copyLogsButton: MaterialButton
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: BotAdapter
     private lateinit var globalSwitch: Switch
@@ -72,6 +77,7 @@ class MainActivity : AppCompatActivity() {
         logText = findViewById(R.id.log_text)
         logFilterInput = findViewById(R.id.input_log_filter)
         logErrorSwitch = findViewById(R.id.switch_log_error)
+        copyLogsButton = findViewById(R.id.btn_copy_logs)
         recyclerView = findViewById(R.id.recycler_view)
         globalSwitch = findViewById(R.id.switch_global)
 
@@ -91,6 +97,9 @@ class MainActivity : AppCompatActivity() {
         logErrorSwitch.setOnCheckedChangeListener { _, isChecked ->
             logErrorOnly = isChecked
             applyLogFilter()
+        }
+        copyLogsButton.setOnClickListener {
+            copyAllLogsToClipboard()
         }
         
         val btnPermission = findViewById<Button>(R.id.permission_button)
@@ -305,6 +314,18 @@ class MainActivity : AppCompatActivity() {
         }
         logText.text = logBuilder.toString()
         scrollLogToBottom()
+    }
+
+    private fun copyAllLogsToClipboard() {
+        val allLogs = LogStore.getAll(this)
+        if (allLogs.isBlank()) {
+            Toast.makeText(this, "복사할 로그가 없습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        val clip = ClipData.newPlainText("Chatbotchichi Logs", allLogs)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(this, "로그가 복사되었습니다.", Toast.LENGTH_SHORT).show()
     }
 
     private fun formatRoomEntry(entry: SessionManager.RoomEntry): String {

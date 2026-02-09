@@ -10,16 +10,17 @@ import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.app.RemoteInput as CoreRemoteInput
 import org.mozilla.javascript.Context as RhinoContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStreamReader
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class NotificationListener : NotificationListenerService() {
     private val TAG = "BotEngine-Listener"
+    private val VERBOSE_LOG = false
+    private val VERBOSE_UI_LOG = false
     // 알림 키 -> 마지막 처리 시간 (중복 방지용)
     private val processedNotifications = mutableMapOf<String, Long>()
 
@@ -77,13 +78,7 @@ class NotificationListener : NotificationListenerService() {
     }
 
     private fun sendLog(message: String) {
-        val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-        val line = "[$time] $message"
-        LogStore.append(this, line)
-        val intent = Intent("com.example.chatbotchichi.LOG_UPDATE")
-        intent.putExtra("log", line)
-        intent.setPackage(packageName)
-        sendBroadcast(intent)
+        UiLogger.log(this, "IN", message)
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -94,6 +89,10 @@ class NotificationListener : NotificationListenerService() {
         if (sbn.packageName != "com.kakao.talk" && 
             sbn.packageName != packageName && 
             sbn.packageName != "com.android.shell") return
+
+        if (VERBOSE_LOG || VERBOSE_UI_LOG) {
+            logNotificationDetails(sbn)
+        }
 
         // 중복 방지 로직 개선: 시간 비교
         val lastTime = processedNotifications[sbn.key] ?: 0L
@@ -186,13 +185,183 @@ class NotificationListener : NotificationListenerService() {
     ) {
         val logMsg = "[$room] $sender: $msg"
         Log.i(TAG, "처리 중: $logMsg")
-        sendLog(logMsg)
+        val isSystem = room == "__SYSTEM__" || sender == "SYSTEM" && msg.startsWith("__GLOBAL_")
+        if (!isSystem) {
+            sendLog(logMsg)
+        }
 
         val allBots = BotManager.getBots(this)
         val enabledBots = allBots.filter { it.isEnabled }
 
         for (bot in enabledBots) {
             runJsScript(bot, room, msg, sender, isGroupChat, replier, imageDB, packageName)
+        }
+    }
+
+    private fun logNotificationDetails(sbn: StatusBarNotification) {
+        try {
+            val n = sbn.notification
+            val header = "SBN pkg=${sbn.packageName} id=${sbn.id} tag=${sbn.tag} key=${sbn.key} groupKey=${sbn.groupKey}"
+            Log.d(TAG, header)
+            if (VERBOSE_UI_LOG) UiLogger.log(this, "NLS", header)
+
+            val extras = n.extras
+            if (extras == null) {
+                Log.d(TAG, "extras: null")
+                if (VERBOSE_UI_LOG) UiLogger.log(this, "EXTRAS", "null")
+            } else {
+                val keys = extras.keySet().toList().sorted()
+                Log.d(TAG, "extras keys (${keys.size}): $keys")
+                if (VERBOSE_UI_LOG) UiLogger.log(this, "EXTRAS", "keys(${keys.size})=$keys")
+                for (key in keys) {
+                    val line = "extras[$key]=${summarizeValue(extras.get(key))}"
+                    Log.d(TAG, line)
+                    if (VERBOSE_UI_LOG) UiLogger.log(this, "EXTRAS", line)
+                }
+
+                // android.messages (MessagingStyle) 상세
+                val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
+                if (!messages.isNullOrEmpty()) {
+                    Log.d(TAG, "extras[android.messages] size=${messages.size}")
+                    if (VERBOSE_UI_LOG) UiLogger.log(this, "EXTRAS", "android.messages size=${messages.size}")
+                    messages.forEachIndexed { idx, item ->
+                        if (item is Bundle) {
+                            Log.d(TAG, "messages[$idx] keys=${item.keySet()}")
+                            if (VERBOSE_UI_LOG) UiLogger.log(this, "EXTRAS", "messages[$idx] keys=${item.keySet()}")
+                            for (k in item.keySet()) {
+                                val line = "messages[$idx].$k=${summarizeValue(item.get(k))}"
+                                Log.d(TAG, line)
+                                if (VERBOSE_UI_LOG) UiLogger.log(this, "EXTRAS", line)
+                            }
+                        } else {
+                            val line = "messages[$idx] type=${item?.javaClass?.name}"
+                            Log.d(TAG, line)
+                            if (VERBOSE_UI_LOG) UiLogger.log(this, "EXTRAS", line)
+                        }
+                    }
+                }
+            }
+
+            // Native actions (Notification.Action)
+            val nativeActions = n.actions
+            if (nativeActions != null) {
+                Log.d(TAG, "native actions count=${nativeActions.size}")
+                if (VERBOSE_UI_LOG) UiLogger.log(this, "ACTION", "native count=${nativeActions.size}")
+                nativeActions.forEachIndexed { idx, action ->
+                    val headerAction = "nativeAction[$idx] title=${action.title} icon=${action.icon}"
+                    Log.d(TAG, headerAction)
+                    if (VERBOSE_UI_LOG) UiLogger.log(this, "ACTION", headerAction)
+                    val pi = action.actionIntent
+                    if (pi != null) {
+                        val line1 = "nativeAction[$idx] pendingIntent=$pi"
+                        val line2 = "nativeAction[$idx] creatorPackage=${pi.creatorPackage} uid=${pi.creatorUid} isActivity=${pi.isActivity} isService=${pi.isService} isBroadcast=${pi.isBroadcast}"
+                        Log.d(TAG, line1)
+                        Log.d(TAG, line2)
+                        if (VERBOSE_UI_LOG) UiLogger.log(this, "PENDING", line1)
+                        if (VERBOSE_UI_LOG) UiLogger.log(this, "PENDING", line2)
+                    } else {
+                        Log.d(TAG, "nativeAction[$idx] pendingIntent=null")
+                        if (VERBOSE_UI_LOG) UiLogger.log(this, "PENDING", "nativeAction[$idx] pendingIntent=null")
+                    }
+                    val ris = action.remoteInputs
+                    if (!ris.isNullOrEmpty()) {
+                        Log.d(TAG, "nativeAction[$idx] remoteInputs count=${ris.size}")
+                        if (VERBOSE_UI_LOG) UiLogger.log(this, "REMOTEINPUT", "nativeAction[$idx] count=${ris.size}")
+                        ris.forEachIndexed { rIdx, ri ->
+                            logRemoteInput("nativeAction[$idx].remoteInputs[$rIdx]", ri)
+                        }
+                    }
+                }
+            } else {
+                Log.d(TAG, "native actions: null")
+                if (VERBOSE_UI_LOG) UiLogger.log(this, "ACTION", "native actions: null")
+            }
+
+            // Compat actions
+            val count = NotificationCompat.getActionCount(n)
+            Log.d(TAG, "compat actions count=$count")
+            if (VERBOSE_UI_LOG) UiLogger.log(this, "ACTION", "compat count=$count")
+            for (i in 0 until count) {
+                val action = NotificationCompat.getAction(n, i)
+                if (action != null) {
+                    val headerAction = "compatAction[$i] title=${action.title} icon=${action.icon}"
+                    Log.d(TAG, headerAction)
+                    if (VERBOSE_UI_LOG) UiLogger.log(this, "ACTION", headerAction)
+                    val pi = action.actionIntent
+                    if (pi != null) {
+                        val line1 = "compatAction[$i] pendingIntent=$pi"
+                        val line2 = "compatAction[$i] creatorPackage=${pi.creatorPackage} uid=${pi.creatorUid} isActivity=${pi.isActivity} isService=${pi.isService} isBroadcast=${pi.isBroadcast}"
+                        Log.d(TAG, line1)
+                        Log.d(TAG, line2)
+                        if (VERBOSE_UI_LOG) UiLogger.log(this, "PENDING", line1)
+                        if (VERBOSE_UI_LOG) UiLogger.log(this, "PENDING", line2)
+                    } else {
+                        Log.d(TAG, "compatAction[$i] pendingIntent=null")
+                        if (VERBOSE_UI_LOG) UiLogger.log(this, "PENDING", "compatAction[$i] pendingIntent=null")
+                    }
+                    val ris = action.remoteInputs
+                    if (!ris.isNullOrEmpty()) {
+                        Log.d(TAG, "compatAction[$i] remoteInputs count=${ris.size}")
+                        if (VERBOSE_UI_LOG) UiLogger.log(this, "REMOTEINPUT", "compatAction[$i] count=${ris.size}")
+                        ris.forEachIndexed { rIdx, ri ->
+                            logRemoteInput("compatAction[$i].remoteInputs[$rIdx]", ri)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "logNotificationDetails error", e)
+            if (VERBOSE_UI_LOG) UiLogger.log(this, "ERROR", "logNotificationDetails error: ${e.message}")
+        }
+    }
+
+    private fun logRemoteInput(prefix: String, ri: android.app.RemoteInput) {
+        val lines = listOf(
+            "$prefix.resultKey=${ri.resultKey}",
+            "$prefix.label=${ri.label}",
+            "$prefix.allowFreeFormInput=${ri.allowFreeFormInput}",
+            "$prefix.choices=${ri.choices?.size ?: 0}",
+            "$prefix.allowedDataTypes=${ri.allowedDataTypes}",
+            "$prefix.extrasKeys=${ri.extras.keySet()}"
+        )
+        for (line in lines) {
+            Log.d(TAG, line)
+            if (VERBOSE_UI_LOG) UiLogger.log(this, "REMOTEINPUT", line)
+        }
+    }
+
+    private fun logRemoteInput(prefix: String, ri: CoreRemoteInput) {
+        val lines = listOf(
+            "$prefix.resultKey=${ri.resultKey}",
+            "$prefix.label=${ri.label}",
+            "$prefix.allowFreeFormInput=${ri.allowFreeFormInput}",
+            "$prefix.choices=${ri.choices?.size ?: 0}",
+            "$prefix.allowedDataTypes=${ri.allowedDataTypes}",
+            "$prefix.extrasKeys=${ri.extras.keySet()}"
+        )
+        for (line in lines) {
+            Log.d(TAG, line)
+            if (VERBOSE_UI_LOG) UiLogger.log(this, "REMOTEINPUT", line)
+        }
+    }
+
+    private fun summarizeValue(value: Any?): String {
+        return when (value) {
+            null -> "null"
+            is CharSequence -> "\"${value}\""
+            is String -> "\"${value}\""
+            is Int, is Long, is Boolean, is Float, is Double -> value.toString()
+            is Bundle -> "Bundle{keys=${value.keySet()}}"
+            is android.graphics.Bitmap -> "Bitmap(${value.width}x${value.height})"
+            is android.graphics.drawable.Icon -> "Icon(type=${value.type})"
+            is Array<*> -> "Array(size=${value.size}, type=${value.javaClass.componentType})"
+            is IntArray -> "IntArray(size=${value.size})"
+            is LongArray -> "LongArray(size=${value.size})"
+            is BooleanArray -> "BooleanArray(size=${value.size})"
+            is CharArray -> "CharArray(size=${value.size})"
+            is FloatArray -> "FloatArray(size=${value.size})"
+            is DoubleArray -> "DoubleArray(size=${value.size})"
+            else -> value.javaClass.name
         }
     }
 
