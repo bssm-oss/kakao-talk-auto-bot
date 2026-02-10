@@ -7,7 +7,10 @@ import java.util.Date
 import java.util.Locale
 
 object UiLogger {
+    private val allowedLabels = setOf("IN", "OUT", "OUT_FAIL")
+
     fun log(context: Context, label: String, message: String) {
+        if (!allowedLabels.contains(label)) return
         val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val line = "[$time][$label] $message"
         LogStore.append(context, line)
