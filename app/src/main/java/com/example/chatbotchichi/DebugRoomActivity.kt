@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,9 +22,13 @@ class DebugRoomActivity : AppCompatActivity() {
     private lateinit var editSender: EditText
     private lateinit var editMsg: EditText
     private lateinit var btnSend: Button
+    private lateinit var btnBack: ImageButton
     
     private val messages = mutableListOf<ChatMessage>()
     private lateinit var adapter: ChatAdapter
+    private val timeFormat = SimpleDateFormat("a h:mm", Locale.getDefault())
+    private val maxMessages = 300
+    private var receiverRegistered = false
 
     private val replyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -44,18 +49,25 @@ class DebugRoomActivity : AppCompatActivity() {
         editSender = findViewById(R.id.edit_sender_name)
         editMsg = findViewById(R.id.edit_message)
         btnSend = findViewById(R.id.btn_send)
+        btnBack = findViewById(R.id.btn_back)
 
         adapter = ChatAdapter(messages)
         recyclerChat.layoutManager = LinearLayoutManager(this).apply {
             stackFromEnd = true // 키보드 올라올 때 편리함
         }
+        recyclerChat.setHasFixedSize(true)
+        recyclerChat.itemAnimator = null
         recyclerChat.adapter = adapter
+
+        btnBack.setOnClickListener {
+            finish()
+        }
 
         btnSend.setOnClickListener {
             val msg = editMsg.text.toString()
             if (msg.isNotEmpty()) {
-                val room = editRoom.text.toString()
-                val sender = editSender.text.toString()
+                val room = editRoom.text.toString().ifBlank { "테스트" }
+                val sender = editSender.text.toString().ifBlank { "테스터" }
                 
                 // 내 메시지 추가 (오른쪽)
                 addMessage(sender, msg, true)
@@ -75,9 +87,15 @@ class DebugRoomActivity : AppCompatActivity() {
     }
 
     private fun addMessage(name: String, msg: String, isMe: Boolean) {
-        val time = SimpleDateFormat("a h:mm", Locale.getDefault()).format(Date())
+        val time = timeFormat.format(Date())
         messages.add(ChatMessage(name, msg, time, isMe))
-        adapter.notifyItemInserted(messages.size - 1)
+        if (messages.size > maxMessages) {
+            val overflow = messages.size - maxMessages
+            messages.subList(0, overflow).clear()
+            adapter.notifyDataSetChanged()
+        } else {
+            adapter.notifyItemInserted(messages.size - 1)
+        }
         recyclerChat.scrollToPosition(messages.size - 1)
     }
 
@@ -89,10 +107,19 @@ class DebugRoomActivity : AppCompatActivity() {
         } else {
             registerReceiver(replyReceiver, filter)
         }
+        receiverRegistered = true
     }
 
     override fun onPause() {
         super.onPause()
-        unregisterReceiver(replyReceiver)
+        if (receiverRegistered) {
+            try {
+                unregisterReceiver(replyReceiver)
+            } catch (e: Exception) {
+                // ignore
+            } finally {
+                receiverRegistered = false
+            }
+        }
     }
 }

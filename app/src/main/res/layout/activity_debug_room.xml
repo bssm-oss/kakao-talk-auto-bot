@@ -6,14 +6,43 @@
     android:background="#BACEE0"
     android:fitsSystemWindows="true">
 
-    <!-- 1. 상단 설정 바 -->
+    <!-- 1. 상단 바 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:background="#FFFFFF"
         android:padding="8dp"
+        android:gravity="center_vertical"
         android:elevation="4dp">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="6dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="뒤로가기" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="디버깅 룸"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- 2. 이름/방 설정 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:padding="8dp"
+        android:layout_marginTop="6dp"
+        android:elevation="2dp">
 
         <EditText
             android:id="@+id/edit_room_name"
@@ -35,7 +64,7 @@
             android:textSize="14sp"/>
     </LinearLayout>
 
-    <!-- 2. 채팅 목록 (남는 공간 차지) -->
+    <!-- 3. 채팅 목록 (남는 공간 차지) -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_chat"
         android:layout_width="match_parent"
@@ -44,7 +73,7 @@
         android:paddingBottom="8dp"
         android:clipToPadding="false"/>
 
-    <!-- 3. 하단 입력창 -->
+    <!-- 4. 하단 입력창 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
