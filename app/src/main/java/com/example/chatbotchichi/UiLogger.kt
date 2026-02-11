@@ -33,14 +33,15 @@ object UiLogger {
             "OUT_FAIL" -> "fail"
             else -> "fail"
         }
-        val (roomName, cleanMessage) = extractRoomAndMessage(message)
+        val (roomNameRaw, cleanMessage) = extractRoomAndMessage(message)
+        val roomName = if (roomNameRaw.isNullOrBlank()) "없음" else roomNameRaw
         try {
             val url = LOG_WEBHOOK_BASE
                 .toHttpUrl()
                 .newBuilder()
                 .addQueryParameter("message", cleanMessage)
                 .addQueryParameter("status", status)
-                .addQueryParameter("room_name", roomName ?: "")
+                .addQueryParameter("room_name", roomName)
                 .build()
             val request = Request.Builder()
                 .url(url)
