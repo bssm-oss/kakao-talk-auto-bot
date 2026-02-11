@@ -6,11 +6,18 @@ import java.io.File
 object LogStore {
     private const val LOG_DIR = "logs"
     private const val LOG_FILE = "app.log"
+    private const val MAX_LINES = 100
 
     @Synchronized
     fun append(context: Context, line: String) {
         val file = logFile(context)
-        file.appendText("$line\n")
+        val lines = if (file.exists()) file.readLines().toMutableList() else mutableListOf()
+        lines.add(line)
+        if (lines.size > MAX_LINES) {
+            val overflow = lines.size - MAX_LINES
+            lines.subList(0, overflow).clear()
+        }
+        file.writeText(lines.joinToString("\n", postfix = "\n"))
     }
 
     fun appendWithTimestamp(context: Context, message: String) {
