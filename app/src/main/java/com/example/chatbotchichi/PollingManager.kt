@@ -13,6 +13,7 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 
 object PollingManager {
     private const val TAG = "BotEngine-Polling"
@@ -35,7 +36,7 @@ object PollingManager {
             Log.d(TAG, "이미 폴링 중: $key")
             return
         }
-        val safeInterval = if (intervalMs < 1000L) 1000L else intervalMs
+        val baseInterval = if (intervalMs < 100L) 100L else intervalMs
 
         val job = scope.launch {
             while (isActive) {
@@ -44,11 +45,16 @@ object PollingManager {
                 } catch (e: Exception) {
                     Log.e(TAG, "Polling Error: ${e.message}")
                 }
-                delay(safeInterval)
+                val delayMs = if (baseInterval <= 1000L) {
+                    Random.nextLong(100L, baseInterval + 1)
+                } else {
+                    baseInterval
+                }
+                delay(delayMs)
             }
         }
         jobs[key] = job
-        Log.d(TAG, "폴링 시작 (id=$key, ${safeInterval / 1000}s)")
+        Log.d(TAG, "폴링 시작 (id=$key, ${baseInterval}ms)")
     }
 
     fun stop(botId: String, replier: SessionReplier) {
