@@ -128,7 +128,6 @@ object PollingManager {
         val ok = replier.replyToRoom(room, message)
         if (!ok) {
             Log.d(TAG, "Reply 실패: 세션 없음 ($room)")
-            UiLogger.log(replier.context, "OUT_FAIL", "[$room] $message (reason=세션 없음)")
         }
     }
 }
