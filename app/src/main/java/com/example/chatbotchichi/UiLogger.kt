@@ -33,12 +33,15 @@ object UiLogger {
             "OUT_FAIL" -> "fail"
             else -> "fail"
         }
+        val (roomNameRaw, cleanMessage) = extractRoomAndMessage(message)
+        val roomName = if (roomNameRaw.isNullOrBlank()) "없음" else roomNameRaw
         try {
             val url = LOG_WEBHOOK_BASE
                 .toHttpUrl()
                 .newBuilder()
-                .addQueryParameter("message", message)
+                .addQueryParameter("message", cleanMessage)
                 .addQueryParameter("status", status)
+                .addQueryParameter("room_name", roomName)
                 .build()
             val request = Request.Builder()
                 .url(url)
@@ -56,5 +59,24 @@ object UiLogger {
         } catch (e: Exception) {
             // ignore
         }
+    }
+
+    private fun extractRoomAndMessage(raw: String): Pair<String?, String> {
+        var text = raw.trim()
+        if (text.startsWith("❌")) {
+            text = text.removePrefix("❌").trim()
+        }
+        if (text.startsWith("[")) {
+            val end = text.indexOf(']')
+            if (end > 1) {
+                val room = text.substring(1, end).trim()
+                var rest = text.substring(end + 1).trim()
+                if (rest.startsWith(":")) {
+                    rest = rest.removePrefix(":").trim()
+                }
+                return room to rest
+            }
+        }
+        return null to text
     }
 }
