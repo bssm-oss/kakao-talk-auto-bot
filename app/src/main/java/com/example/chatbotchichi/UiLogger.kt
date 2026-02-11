@@ -35,7 +35,7 @@ object UiLogger {
         }
         val (roomNameRaw, speakerRaw, cleanMessage) = extractRoomSpeakerMessage(message)
         val roomName = if (roomNameRaw.isNullOrBlank()) "없음" else roomNameRaw
-        val speaker = if (speakerRaw.isNullOrBlank()) "없음" else speakerRaw
+        val speaker = if (speakerRaw.isNullOrBlank()) "시스템" else speakerRaw
         try {
             val url = LOG_WEBHOOK_BASE
                 .toHttpUrl()
