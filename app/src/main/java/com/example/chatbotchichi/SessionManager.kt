@@ -128,16 +128,11 @@ object SessionManager {
 
     fun getRegisteredRooms(context: Context): List<RoomEntry> {
         loadRooms(context)
-        val active = sessionMap.keys
-        val activeSet = active.toSet()
-        val activeSorted = active.sorted()
-        val inactiveSorted = (roomLastSeen.keys - activeSet).sorted()
-
-        val ordered = activeSorted + inactiveSorted
-        return ordered.map { room ->
+        val activeSorted = sessionMap.keys.sorted()
+        return activeSorted.map { room ->
             RoomEntry(
                 name = room,
-                isActive = activeSet.contains(room),
+                isActive = true,
                 lastSeen = roomLastSeen[room] ?: 0L
             )
         }
