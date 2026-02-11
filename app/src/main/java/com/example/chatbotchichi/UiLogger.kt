@@ -23,7 +23,7 @@ object UiLogger {
         intent.putExtra("log", line)
         intent.setPackage(context.packageName)
         context.sendBroadcast(intent)
-        sendWebhook(line, label)
+        sendWebhook(message, label)
     }
 
     private fun sendWebhook(message: String, label: String) {
@@ -66,6 +66,8 @@ object UiLogger {
         if (text.startsWith("❌")) {
             text = text.removePrefix("❌").trim()
         }
+        val prefixRegex = Regex("""^\[\d{2}:\d{2}:\d{2}]\[(IN|OUT|OUT_FAIL)]\s*""")
+        text = text.replace(prefixRegex, "")
         if (text.startsWith("[")) {
             val end = text.indexOf(']')
             if (end > 1) {
