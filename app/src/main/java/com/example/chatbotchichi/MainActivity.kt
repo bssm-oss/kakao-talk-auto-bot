@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private val logLines = mutableListOf<String>()
     private var logFilterText: String = ""
     private var logErrorOnly: Boolean = false
+    private val maxLogLines = 100
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -263,6 +264,7 @@ class MainActivity : AppCompatActivity() {
         history.split("\n")
             .filter { it.isNotBlank() }
             .forEach { logLines.add(it) }
+        trimLogLines()
         applyLogFilter()
     }
 
@@ -285,10 +287,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun trimLogLines() {
-        var total = logLines.sumOf { it.length + 1 }
-        while (total > 5000 && logLines.isNotEmpty()) {
-            val removed = logLines.removeAt(0)
-            total -= (removed.length + 1)
+        if (logLines.size <= maxLogLines) return
+        val overflow = logLines.size - maxLogLines
+        if (overflow > 0) {
+            logLines.subList(0, overflow).clear()
         }
     }
 

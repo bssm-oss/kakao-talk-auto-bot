@@ -16,14 +16,19 @@ object UiLogger {
 
     fun log(context: Context, label: String, message: String) {
         if (!allowedLabels.contains(label)) return
+        val normalizedMessage = if (label == "OUT_FAIL" && !message.trimStart().startsWith("❌")) {
+            "❌ $message"
+        } else {
+            message
+        }
         val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-        val line = "[$time][$label] $message"
+        val line = "[$time][$label] $normalizedMessage"
         LogStore.append(context, line)
         val intent = Intent("com.example.chatbotchichi.LOG_UPDATE")
         intent.putExtra("log", line)
         intent.setPackage(context.packageName)
         context.sendBroadcast(intent)
-        sendWebhook(message, label)
+        sendWebhook(normalizedMessage, label)
     }
 
     private fun sendWebhook(message: String, label: String) {
