@@ -69,10 +69,11 @@ object UiLogger {
         val prefixRegex = Regex("""^\[\d{2}:\d{2}:\d{2}]\[(IN|OUT|OUT_FAIL)]\s*""")
         text = text.replace(prefixRegex, "")
         if (text.startsWith("[")) {
-            val end = text.indexOf(']')
-            if (end > 1) {
-                val room = text.substring(1, end).trim()
-                var rest = text.substring(end + 1).trim()
+            val end = text.lastIndexOf("] ")
+            val endBracket = if (end > 1) end else text.lastIndexOf(']')
+            if (endBracket > 1) {
+                val room = text.substring(1, endBracket).trim()
+                var rest = text.substring(endBracket + 1).trim()
                 if (rest.startsWith(":")) {
                     rest = rest.removePrefix(":").trim()
                 }
