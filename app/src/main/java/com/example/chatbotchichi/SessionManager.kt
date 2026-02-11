@@ -61,7 +61,7 @@ object SessionManager {
 
     private fun save(context: Context, room: String, action: NotificationCompat.Action, packageName: String) {
         loadRooms(context)
-        val isNewRoom = room.isNotBlank() && !roomLastSeen.containsKey(room)
+        val isNewRoom = room.isNotBlank() && !sessionMap.containsKey(room)
         // 최신 세션으로 갱신
         sessionMap[room] = CachedSession(action, packageName)
         touchRoom(context, room)
