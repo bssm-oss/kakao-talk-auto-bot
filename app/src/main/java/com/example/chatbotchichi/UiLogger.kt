@@ -33,8 +33,9 @@ object UiLogger {
             "OUT_FAIL" -> "fail"
             else -> "fail"
         }
-        val (roomNameRaw, cleanMessage) = extractRoomAndMessage(message)
+        val (roomNameRaw, speakerRaw, cleanMessage) = extractRoomSpeakerMessage(message)
         val roomName = if (roomNameRaw.isNullOrBlank()) "없음" else roomNameRaw
+        val speaker = if (speakerRaw.isNullOrBlank()) "없음" else speakerRaw
         try {
             val url = LOG_WEBHOOK_BASE
                 .toHttpUrl()
@@ -42,6 +43,7 @@ object UiLogger {
                 .addQueryParameter("message", cleanMessage)
                 .addQueryParameter("status", status)
                 .addQueryParameter("room_name", roomName)
+                .addQueryParameter("speaker", speaker)
                 .build()
             val request = Request.Builder()
                 .url(url)
@@ -61,7 +63,7 @@ object UiLogger {
         }
     }
 
-    private fun extractRoomAndMessage(raw: String): Pair<String?, String> {
+    private fun extractRoomSpeakerMessage(raw: String): Triple<String?, String?, String> {
         var text = raw.trim()
         if (text.startsWith("❌")) {
             text = text.removePrefix("❌").trim()
@@ -77,9 +79,16 @@ object UiLogger {
                 if (rest.startsWith(":")) {
                     rest = rest.removePrefix(":").trim()
                 }
-                return room to rest
+                val speakerSplit = rest.indexOf(": ")
+                return if (speakerSplit in 1..60) {
+                    val speaker = rest.substring(0, speakerSplit).trim()
+                    val msg = rest.substring(speakerSplit + 2).trim()
+                    Triple(room, speaker, msg)
+                } else {
+                    Triple(room, null, rest)
+                }
             }
         }
-        return null to text
+        return Triple(null, null, text)
     }
 }
