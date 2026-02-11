@@ -123,6 +123,8 @@ object PollingManager {
             Log.d(TAG, "Invalid payload: room/message 없음")
             return
         }
+        val incomingLine = "[$room] 시스템: $message"
+        UiLogger.log(replier.context, "IN", incomingLine)
         val ok = replier.replyToRoom(room, message)
         if (!ok) {
             Log.d(TAG, "Reply 실패: 세션 없음 ($room)")
