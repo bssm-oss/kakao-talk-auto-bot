@@ -4,9 +4,6 @@ import android.app.Notification
 import android.content.Context
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.json.JSONObject
 
 /**
@@ -17,14 +14,11 @@ object SessionManager {
     private val TAG = "BotEngine-Session"
     private const val PREFS_NAME = "SessionPrefs"
     private const val KEY_ROOM_TIMES = "room_times"
-    private const val SESSION_WEBHOOK_BASE = "https://n8n.onthelook.ai/webhook/654c88df-c110-4c82-a19d-35c60c18d35b"
     
     // 방 이름 -> (Action, 패키지명) 맵
     private val sessionMap = mutableMapOf<String, CachedSession>()
     private val roomLastSeen = mutableMapOf<String, Long>()
     private var roomsLoaded = false
-    private val httpClient = OkHttpClient()
-
     data class CachedSession(
         val action: NotificationCompat.Action,
         val packageName: String
@@ -84,33 +78,8 @@ object SessionManager {
     }
 
     private fun notifySessionWebhook(context: Context, room: String) {
-        try {
-            val url = SESSION_WEBHOOK_BASE
-                .toHttpUrl()
-                .newBuilder()
-                .addQueryParameter("room_name", room)
-                .build()
-            val request = Request.Builder()
-                .url(url)
-                .get()
-                .build()
-            httpClient.newCall(request).enqueue(object : okhttp3.Callback {
-                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                    val msg = "세션 웹훅 전송 실패: room=$room error=${e.message}"
-                    Log.e(TAG, msg)
-                }
-
-                override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                    response.use {
-                        val msg = "세션 웹훅 전송 완료: room=$room code=${response.code}"
-                        Log.d(TAG, msg)
-                    }
-                }
-            })
-        } catch (e: Exception) {
-            val msg = "세션 웹훅 전송 오류: room=$room error=${e.message}"
-            Log.e(TAG, msg)
-        }
+        val deviceName = DeviceSettings.getDeviceName(context) ?: return
+        ApiClient.postSession(room, deviceName)
     }
 
     fun getSession(room: String): CachedSession? {
