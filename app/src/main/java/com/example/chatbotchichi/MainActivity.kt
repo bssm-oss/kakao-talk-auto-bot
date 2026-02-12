@@ -44,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private var logFilterText: String = ""
     private var logErrorOnly: Boolean = false
     private val maxLogLines = 100
+    private var deviceDialogShown = false
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -180,6 +181,7 @@ class MainActivity : AppCompatActivity() {
         loadLogHistory()
         refreshStatusUi()
         requestRebindIfNeeded()
+        ensureDeviceConfigured()
 
         val filter = IntentFilter().apply {
             addAction("com.example.chatbotchichi.STATUS_UPDATE")
@@ -190,6 +192,85 @@ class MainActivity : AppCompatActivity() {
         } else {
             registerReceiver(receiver, filter)
         }
+    }
+
+    private fun ensureDeviceConfigured() {
+        if (deviceDialogShown) return
+        val current = DeviceSettings.getDeviceName(this)
+        if (!current.isNullOrBlank()) return
+        deviceDialogShown = true
+        ApiClient.fetchDevices { devices, error ->
+            runOnUiThread {
+                val names = devices?.map { it.name } ?: emptyList()
+                showDeviceDialog(names, error)
+            }
+        }
+    }
+
+    private fun showDeviceDialog(existingNames: List<String>, error: String?) {
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+        }
+        val listLabel = android.widget.TextView(this).apply {
+            text = if (error != null) {
+                "디바이스 목록을 불러오지 못했습니다. 새 이름을 입력해주세요."
+            } else if (existingNames.isEmpty()) {
+                "등록된 디바이스가 없습니다. 새 이름을 입력해주세요."
+            } else {
+                "기존 디바이스 목록:\n" + existingNames.joinToString(", ")
+            }
+        }
+        val hintLabel = android.widget.TextView(this).apply {
+            text = "이 중에 없는 디바이스 이름을 입력해주세요."
+            setPadding(0, 16, 0, 8)
+        }
+        val input = android.widget.EditText(this).apply {
+            hint = "디바이스 이름"
+        }
+        container.addView(listLabel)
+        container.addView(hintLabel)
+        container.addView(input)
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("디바이스 등록")
+            .setView(container)
+            .setCancelable(false)
+            .setPositiveButton("등록", null)
+            .create()
+
+        dialog.setOnShowListener {
+            val btn = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
+            btn.setOnClickListener {
+                val name = input.text.toString().trim()
+                if (name.isBlank()) {
+                    input.error = "이름을 입력해주세요."
+                    return@setOnClickListener
+                }
+                if (existingNames.contains(name)) {
+                    input.error = "이미 존재하는 이름입니다."
+                    return@setOnClickListener
+                }
+                btn.isEnabled = false
+                ApiClient.registerDevice(name) { device, err ->
+                    runOnUiThread {
+                        btn.isEnabled = true
+                        if (device != null) {
+                            DeviceSettings.saveDevice(this, device.name, device.id.takeIf { it > 0L })
+                            Toast.makeText(this, "디바이스 등록 완료: ${device.name}", Toast.LENGTH_SHORT).show()
+                            requestRebindIfNeeded()
+                            if (AppSettings.isGlobalEnabled(this)) {
+                                InboundPollingController.startIfPossible(applicationContext)
+                            }
+                            dialog.dismiss()
+                        } else {
+                            input.error = "등록 실패: ${err ?: "unknown"}"
+                        }
+                    }
+                }
+            }
+        }
+        dialog.show()
     }
 
     override fun onPause() {

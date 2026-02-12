@@ -8,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -73,9 +74,10 @@ object PollingManager {
             Log.e(TAG, "Polling Error: URL 비어있음")
             return
         }
-        Log.d(TAG, "요청 시작: $url")
+        val resolvedUrl = resolveInboundUrl(url, replier)
+        Log.d(TAG, "요청 시작: $resolvedUrl")
         val request = Request.Builder()
-            .url(url)
+            .url(resolvedUrl)
             .get()
             .header("Accept", "application/json")
             .build()
@@ -129,5 +131,17 @@ object PollingManager {
         if (!ok) {
             Log.d(TAG, "Reply 실패: 세션 없음 ($room)")
         }
+    }
+
+    private fun resolveInboundUrl(url: String, replier: SessionReplier): String {
+        if (!url.contains("/messages/inbound")) return url
+        val parsed = url.toHttpUrlOrNull() ?: return url
+        if (parsed.queryParameter("device_name") != null) return url
+        val deviceName = DeviceSettings.getDeviceName(replier.context)?.trim().orEmpty()
+        if (deviceName.isBlank()) return url
+        return parsed.newBuilder()
+            .addQueryParameter("device_name", deviceName)
+            .build()
+            .toString()
     }
 }
