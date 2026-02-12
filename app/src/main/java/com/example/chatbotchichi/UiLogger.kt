@@ -2,17 +2,12 @@ package com.example.chatbotchichi
 
 import android.content.Context
 import android.content.Intent
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 object UiLogger {
     private val allowedLabels = setOf("IN", "OUT", "OUT_FAIL")
-    private const val LOG_WEBHOOK_BASE = "https://YOUR_N8N_URL/webhook/YOUR_LOG_WEBHOOK_ID"
-    private val client = OkHttpClient()
 
     fun log(context: Context, label: String, message: String) {
         if (!allowedLabels.contains(label)) return
@@ -28,10 +23,10 @@ object UiLogger {
         intent.putExtra("log", line)
         intent.setPackage(context.packageName)
         context.sendBroadcast(intent)
-        sendWebhook(normalizedMessage, label)
+        sendLogToServer(context, normalizedMessage, label)
     }
 
-    private fun sendWebhook(message: String, label: String) {
+    private fun sendLogToServer(context: Context, message: String, label: String) {
         val status = when (label) {
             "IN" -> "in"
             "OUT" -> "out"
@@ -41,31 +36,8 @@ object UiLogger {
         val (roomNameRaw, speakerRaw, cleanMessage) = extractRoomSpeakerMessage(message)
         val roomName = if (roomNameRaw.isNullOrBlank()) "없음" else roomNameRaw
         val speaker = if (speakerRaw.isNullOrBlank()) "시스템" else speakerRaw
-        try {
-            val url = LOG_WEBHOOK_BASE
-                .toHttpUrl()
-                .newBuilder()
-                .addQueryParameter("message", cleanMessage)
-                .addQueryParameter("status", status)
-                .addQueryParameter("room_name", roomName)
-                .addQueryParameter("speaker", speaker)
-                .build()
-            val request = Request.Builder()
-                .url(url)
-                .get()
-                .build()
-            client.newCall(request).enqueue(object : okhttp3.Callback {
-                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
-                    // ignore
-                }
-
-                override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                    response.close()
-                }
-            })
-        } catch (e: Exception) {
-            // ignore
-        }
+        val deviceName = DeviceSettings.getDeviceName(context)?.ifBlank { "unknown" } ?: "unknown"
+        ApiClient.postLog(status, cleanMessage, roomName, speaker, deviceName)
     }
 
     private fun extractRoomSpeakerMessage(raw: String): Triple<String?, String?, String> {

@@ -56,6 +56,7 @@ class NotificationListener : NotificationListenerService() {
         if (AppSettings.isGlobalEnabled(this)) {
             val replier = SessionReplier(this, "__SYSTEM__", false)
             processMessage("__SYSTEM__", "__GLOBAL_START__", "SYSTEM", false, replier, null, packageName)
+            InboundPollingController.startIfPossible(this)
         }
     }
 
@@ -63,6 +64,7 @@ class NotificationListener : NotificationListenerService() {
         super.onListenerDisconnected()
         Log.d(TAG, "NotificationListener disconnected")
         updateStatus("연결 끊김", false)
+        InboundPollingController.stop(this)
         try {
             unregisterReceiver(debugReceiver)
         } catch (e: Exception) {}
@@ -183,6 +185,12 @@ class NotificationListener : NotificationListenerService() {
         imageDB: ImageDB?, 
         packageName: String
     ) {
+        if (room == "__SYSTEM__" && sender == "SYSTEM") {
+            when (msg) {
+                "__GLOBAL_START__" -> InboundPollingController.startIfPossible(this)
+                "__GLOBAL_STOP__" -> InboundPollingController.stop(this)
+            }
+        }
         val logMsg = "[$room] $sender: $msg"
         Log.i(TAG, "처리 중: $logMsg")
         val isSystem = room == "__SYSTEM__" || sender == "SYSTEM" && msg.startsWith("__GLOBAL_")
