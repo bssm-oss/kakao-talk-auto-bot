@@ -24,15 +24,15 @@ import android.service.notification.NotificationListenerService
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.switchmaterial.SwitchMaterial
 
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var statusIndicator: android.view.View
     private lateinit var logText: TextView
     private lateinit var logFilterInput: TextInputEditText
-    private lateinit var logErrorSwitch: MaterialSwitch
+    private lateinit var logErrorSwitch: SwitchMaterial
     private lateinit var copyLogsButton: MaterialButton
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: BotAdapter
