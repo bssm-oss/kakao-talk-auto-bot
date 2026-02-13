@@ -30,13 +30,26 @@ class SessionReplier(
     private fun logOutgoing(targetRoom: String, message: String, success: Boolean, reason: String? = null) {
         val label = if (success) "OUT" else "OUT_FAIL"
         val base = "[$targetRoom] $message"
+        val serverMessage = if (success) {
+            message
+        } else {
+            val detail = if (reason.isNullOrBlank()) "" else " (reason=$reason)"
+            "$message$detail"
+        }
         val line = if (success) {
             base
         } else {
             val detail = if (reason.isNullOrBlank()) "" else " (reason=$reason)"
             "❌ $base$detail"
         }
-        UiLogger.log(context, label, line)
+        UiLogger.log(
+            context,
+            label,
+            line,
+            roomName = targetRoom,
+            speaker = "시스템",
+            serverMessage = serverMessage
+        )
     }
 
     fun reply(message: String): Boolean {
@@ -56,7 +69,7 @@ class SessionReplier(
                 val remoteInputs = action.remoteInputs
                 val pi = action.actionIntent
                 if (pi != null) {
-                    val line = "pendingIntent=$pi creatorPackage=${pi.creatorPackage} uid=${pi.creatorUid} isActivity=${pi.isActivity} isService=${pi.isService} isBroadcast=${pi.isBroadcast}"
+                    val line = "pendingIntent=$pi creatorPackage=${pi.creatorPackage} uid=${pi.creatorUid}"
                     Log.d(TAG, line)
                 } else {
                     Log.d(TAG, "pendingIntent=null")
@@ -103,7 +116,7 @@ class SessionReplier(
                 }
                 logOutgoing(targetRoom, message, false, "no remoteInput")
                 return false
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e(TAG, "Reply failed", e)
                 logOutgoing(targetRoom, message, false, e.message ?: "exception")
             }

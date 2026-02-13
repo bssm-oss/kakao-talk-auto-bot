@@ -79,8 +79,16 @@ class NotificationListener : NotificationListenerService() {
         sendBroadcast(intent)
     }
 
-    private fun sendLog(message: String) {
-        UiLogger.log(this, "IN", message)
+    private fun sendLog(room: String, sender: String, msg: String) {
+        val message = "[$room] $sender: $msg"
+        UiLogger.log(
+            this,
+            "IN",
+            message,
+            roomName = room,
+            speaker = sender,
+            serverMessage = msg
+        )
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -195,7 +203,7 @@ class NotificationListener : NotificationListenerService() {
         Log.i(TAG, "처리 중: $logMsg")
         val isSystem = room == "__SYSTEM__" || sender == "SYSTEM" && msg.startsWith("__GLOBAL_")
         if (!isSystem) {
-            sendLog(logMsg)
+            sendLog(room, sender, msg)
         }
 
         val allBots = BotManager.getBots(this)
@@ -262,7 +270,7 @@ class NotificationListener : NotificationListenerService() {
                     val pi = action.actionIntent
                     if (pi != null) {
                         val line1 = "nativeAction[$idx] pendingIntent=$pi"
-                        val line2 = "nativeAction[$idx] creatorPackage=${pi.creatorPackage} uid=${pi.creatorUid} isActivity=${pi.isActivity} isService=${pi.isService} isBroadcast=${pi.isBroadcast}"
+                        val line2 = "nativeAction[$idx] creatorPackage=${pi.creatorPackage} uid=${pi.creatorUid}"
                         Log.d(TAG, line1)
                         Log.d(TAG, line2)
                         if (VERBOSE_UI_LOG) UiLogger.log(this, "PENDING", line1)
@@ -298,7 +306,7 @@ class NotificationListener : NotificationListenerService() {
                     val pi = action.actionIntent
                     if (pi != null) {
                         val line1 = "compatAction[$i] pendingIntent=$pi"
-                        val line2 = "compatAction[$i] creatorPackage=${pi.creatorPackage} uid=${pi.creatorUid} isActivity=${pi.isActivity} isService=${pi.isService} isBroadcast=${pi.isBroadcast}"
+                        val line2 = "compatAction[$i] creatorPackage=${pi.creatorPackage} uid=${pi.creatorUid}"
                         Log.d(TAG, line1)
                         Log.d(TAG, line2)
                         if (VERBOSE_UI_LOG) UiLogger.log(this, "PENDING", line1)
@@ -407,7 +415,7 @@ class NotificationListener : NotificationListenerService() {
         } catch (e: Throwable) {
             Log.e(TAG, "${bot.name} 실행 중 치명적 에러", e)
             e.printStackTrace()
-            sendLog("❌ ${bot.name} 에러: ${e.message}")
+            UiLogger.log(this, "IN", "❌ ${bot.name} 에러: ${e.message}")
         } finally {
             RhinoContext.exit()
         }
