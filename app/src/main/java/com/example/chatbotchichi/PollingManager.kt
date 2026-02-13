@@ -126,7 +126,14 @@ object PollingManager {
             return
         }
         val incomingLine = "[$room] 시스템: N8N응답 : $message"
-        UiLogger.log(replier.context, "IN", incomingLine)
+        UiLogger.log(
+            replier.context,
+            "IN",
+            incomingLine,
+            roomName = room,
+            speaker = "시스템",
+            serverMessage = "N8N응답 : $message"
+        )
         val ok = replier.replyToRoom(room, message)
         if (!ok) {
             Log.d(TAG, "Reply 실패: 세션 없음 ($room)")
