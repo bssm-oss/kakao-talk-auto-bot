@@ -9,7 +9,14 @@ import java.util.Locale
 object UiLogger {
     private val allowedLabels = setOf("IN", "OUT", "OUT_FAIL")
 
-    fun log(context: Context, label: String, message: String) {
+    fun log(
+        context: Context,
+        label: String,
+        message: String,
+        roomName: String? = null,
+        speaker: String? = null,
+        serverMessage: String? = null
+    ) {
         if (!allowedLabels.contains(label)) return
         val normalizedMessage = if (label == "OUT_FAIL" && !message.trimStart().startsWith("❌")) {
             "❌ $message"
@@ -23,21 +30,41 @@ object UiLogger {
         intent.putExtra("log", line)
         intent.setPackage(context.packageName)
         context.sendBroadcast(intent)
-        sendLogToServer(context, normalizedMessage, label)
+        sendLogToServer(
+            context = context,
+            label = label,
+            normalizedMessage = normalizedMessage,
+            roomName = roomName,
+            speaker = speaker,
+            serverMessage = serverMessage
+        )
     }
 
-    private fun sendLogToServer(context: Context, message: String, label: String) {
+    private fun sendLogToServer(
+        context: Context,
+        label: String,
+        normalizedMessage: String,
+        roomName: String?,
+        speaker: String?,
+        serverMessage: String?
+    ) {
         val status = when (label) {
             "IN" -> "in"
             "OUT" -> "out"
             "OUT_FAIL" -> "fail"
             else -> "fail"
         }
-        val (roomNameRaw, speakerRaw, cleanMessage) = extractRoomSpeakerMessage(message)
-        val roomName = if (roomNameRaw.isNullOrBlank()) "없음" else roomNameRaw
-        val speaker = if (speakerRaw.isNullOrBlank()) "시스템" else speakerRaw
+        val (roomNameRaw, speakerRaw, cleanMessage) = if (
+            roomName != null || speaker != null || serverMessage != null
+        ) {
+            Triple(roomName, speaker, serverMessage ?: normalizedMessage)
+        } else {
+            extractRoomSpeakerMessage(normalizedMessage)
+        }
+        val resolvedRoomName = if (roomNameRaw.isNullOrBlank()) "없음" else roomNameRaw
+        val resolvedSpeaker = if (speakerRaw.isNullOrBlank()) "시스템" else speakerRaw
         val deviceName = DeviceSettings.getDeviceName(context)?.ifBlank { "unknown" } ?: "unknown"
-        ApiClient.postLog(status, cleanMessage, roomName, speaker, deviceName)
+        ApiClient.postLog(status, cleanMessage, resolvedRoomName, resolvedSpeaker, deviceName)
     }
 
     private fun extractRoomSpeakerMessage(raw: String): Triple<String?, String?, String> {
