@@ -29,6 +29,7 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
+    private lateinit var deviceNameText: TextView
     private lateinit var statusIndicator: android.view.View
     private lateinit var logText: TextView
     private lateinit var logFilterInput: TextInputEditText
@@ -75,6 +76,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         statusText = findViewById(R.id.status_text)
+        deviceNameText = findViewById(R.id.device_name_text)
         statusIndicator = findViewById(R.id.status_indicator)
         logText = findViewById(R.id.log_text)
         logFilterInput = findViewById(R.id.input_log_filter)
@@ -127,6 +129,10 @@ class MainActivity : AppCompatActivity() {
                     }
                     .setNegativeButton("취소", null)
                     .show()
+            },
+            { bot, isChecked ->
+                val shouldRun = isChecked && shouldRunPollingBots()
+                PollingBotController.applyToggle(applicationContext, bot.name, shouldRun)
             }
         )
         recyclerView.adapter = adapter
@@ -165,6 +171,7 @@ class MainActivity : AppCompatActivity() {
         globalSwitch.isChecked = AppSettings.isGlobalEnabled(this)
         globalSwitch.setOnCheckedChangeListener { _, isChecked ->
             AppSettings.setGlobalEnabled(this, isChecked)
+            PollingBotController.syncAll(applicationContext, isChecked && shouldRunPollingBots())
             sendGlobalCommand(isChecked)
             refreshStatusUi()
         }
@@ -177,6 +184,8 @@ class MainActivity : AppCompatActivity() {
         bots.clear()
         bots.addAll(BotManager.getBots(this))
         adapter.notifyDataSetChanged()
+        PollingBotController.syncAll(applicationContext, shouldRunPollingBots())
+        updateDeviceNameUi()
 
         loadLogHistory()
         refreshStatusUi()
@@ -257,11 +266,9 @@ class MainActivity : AppCompatActivity() {
                         btn.isEnabled = true
                         if (device != null) {
                             DeviceSettings.saveDevice(this, device.name, device.id.takeIf { it > 0L })
+                            updateDeviceNameUi()
                             Toast.makeText(this, "디바이스 등록 완료: ${device.name}", Toast.LENGTH_SHORT).show()
                             requestRebindIfNeeded()
-                            if (AppSettings.isGlobalEnabled(this)) {
-                                InboundPollingController.startIfPossible(applicationContext)
-                            }
                             dialog.dismiss()
                         } else {
                             input.error = "등록 실패: ${err ?: "unknown"}"
@@ -321,6 +328,21 @@ class MainActivity : AppCompatActivity() {
         if (!AppSettings.isGlobalEnabled(this)) return
         if (!enabled) return
         NotificationListenerService.requestRebind(ComponentName(this, NotificationListener::class.java))
+    }
+
+    private fun shouldRunPollingBots(): Boolean {
+        if (!AppSettings.isGlobalEnabled(this)) return false
+        return NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)
+    }
+
+    private fun updateDeviceNameUi() {
+        val deviceName = DeviceSettings.getDeviceName(this)?.trim().orEmpty()
+        val deviceId = DeviceSettings.getDeviceId(this)
+        deviceNameText.text = when {
+            deviceName.isBlank() -> "디바이스: 미설정"
+            deviceId != null && deviceId > 0L -> "디바이스: $deviceName (id=$deviceId)"
+            else -> "디바이스: $deviceName"
+        }
     }
 
     private fun applyStatusUi(status: String, state: StatusState) {
@@ -429,6 +451,7 @@ class MainActivity : AppCompatActivity() {
     private fun deleteBot(bot: BotInfo) {
         val index = bots.indexOfFirst { it.name == bot.name }
         if (index == -1) return
+        PollingBotController.applyToggle(applicationContext, bot.name, false)
         BotManager.deleteBot(this, bot.name)
         bots.removeAt(index)
         adapter.notifyItemRemoved(index)
