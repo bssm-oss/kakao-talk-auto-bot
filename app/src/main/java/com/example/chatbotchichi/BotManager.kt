@@ -9,6 +9,13 @@ object BotManager {
     private const val DIR_NAME = "bots"
     private const val TAG = "BotManager"
 
+    data class PollingBotConfig(
+        val botId: String,
+        val url: String,
+        val room: String,
+        val intervalMs: Long
+    )
+
     fun getBots(context: Context): List<BotInfo> {
         try {
             val botDir = File(context.filesDir, DIR_NAME)
@@ -111,6 +118,22 @@ object BotManager {
         val botDir = File(context.filesDir, DIR_NAME)
         val file = File(botDir, "$name.js")
         return if (file.exists()) file.readText() else ""
+    }
+
+    fun getPollingBotConfig(context: Context, name: String): PollingBotConfig? {
+        val code = getBotCode(context, name)
+        if (code.isBlank()) return null
+        if (!looksLikePollingBot(code)) return null
+        val url = extractConstString(code, "WEBHOOK_URL")?.trim().orEmpty()
+        if (url.isBlank()) return null
+        val room = extractConstString(code, "TRIGGER_ROOM") ?: ""
+        val intervalMs = (extractConstLong(code, "INTERVAL_MS") ?: 1000L).coerceAtLeast(1000L)
+        return PollingBotConfig(
+            botId = name,
+            url = url,
+            room = room,
+            intervalMs = intervalMs
+        )
     }
 
     private fun migratePollingBotIfNeeded(context: Context, file: File) {

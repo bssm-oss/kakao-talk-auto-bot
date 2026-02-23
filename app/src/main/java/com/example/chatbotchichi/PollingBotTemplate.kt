@@ -5,7 +5,7 @@ object PollingBotTemplate {
         val safeUrl = url.replace("\\", "\\\\").replace("\"", "\\\"")
         val safeRoom = room.replace("\\", "\\\\").replace("\"", "\\\"")
         val safeBotId = botId.replace("\\", "\\\\").replace("\"", "\\\"")
-        val safeInterval = if (intervalMs > 0) intervalMs else 1000L
+        val safeInterval = if (intervalMs >= 1000L) intervalMs else 1000L
 
         return """
 // === Chatbotchichi Polling Bot Template ===

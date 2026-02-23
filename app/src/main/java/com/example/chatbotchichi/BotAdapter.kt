@@ -11,7 +11,8 @@ import androidx.recyclerview.widget.RecyclerView
 class BotAdapter(
     private val botList: List<BotInfo>,
     private val onItemClick: (BotInfo) -> Unit,
-    private val onDeleteClick: (BotInfo) -> Unit
+    private val onDeleteClick: (BotInfo) -> Unit,
+    private val onToggleChanged: (BotInfo, Boolean) -> Unit
 ) : RecyclerView.Adapter<BotAdapter.BotViewHolder>() {
 
     class BotViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -35,6 +36,7 @@ class BotAdapter(
             bot.isEnabled = isChecked
             // 상태 저장 필요 (BotManager 통해)
             BotManager.setBotEnabled(holder.itemView.context, bot.name, isChecked)
+            onToggleChanged(bot, isChecked)
         }
         
         holder.root.setOnClickListener {

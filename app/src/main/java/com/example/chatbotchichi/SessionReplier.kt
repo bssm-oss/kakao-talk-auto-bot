@@ -9,11 +9,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 class SessionReplier(
     val context: Context,
@@ -21,11 +19,7 @@ class SessionReplier(
     val isDebug: Boolean = false // 디버그 모드 여부
 ) {
     private val TAG = "BotEngine-Replier"
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
-        .build()
+    private val client = SharedHttpClient.instance
 
     private fun logOutgoing(targetRoom: String, message: String, success: Boolean, reason: String? = null) {
         val label = if (success) "OUT" else "OUT_FAIL"

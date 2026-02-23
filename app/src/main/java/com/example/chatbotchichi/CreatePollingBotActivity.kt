@@ -22,10 +22,14 @@ class CreatePollingBotActivity : AppCompatActivity() {
             val name = inputName.text.toString().trim()
             val url = inputUrl.text.toString().trim()
             val room = inputRoom.text.toString().trim()
-            val intervalSec = inputInterval.text.toString().trim().toLongOrNull() ?: 1
+            val intervalMs = inputInterval.text.toString().trim().toLongOrNull() ?: 1000L
 
             if (name.isEmpty() || url.isEmpty()) {
                 Toast.makeText(this, "이름과 URL을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (intervalMs < 1000L) {
+                Toast.makeText(this, "폴링 간격 최소값은 1000ms 입니다.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -33,7 +37,7 @@ class CreatePollingBotActivity : AppCompatActivity() {
                 botId = name,
                 url = url,
                 room = room,
-                intervalMs = intervalSec * 1000
+                intervalMs = intervalMs
             )
 
             BotManager.saveBot(this, name, jsCode)

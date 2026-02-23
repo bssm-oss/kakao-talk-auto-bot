@@ -57,14 +57,14 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="폴링 간격 (초 단위)"
+            android:hint="폴링 간격 (ms 단위, 최소 1000)"
             android:layout_marginBottom="24dp">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/input_interval"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="number"
-                android:text="1"/>
+                android:text="1000"/>
         </com.google.android.material.textfield.TextInputLayout>
 
         <Button
