@@ -7,9 +7,11 @@ import android.widget.Button
 import android.widget.Spinner
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.NestedScrollView
 import com.google.android.material.textfield.TextInputEditText
 
 class EditBotActivity : AppCompatActivity() {
+    private lateinit var rootScroll: NestedScrollView
     private lateinit var editDisplayName: TextInputEditText
     private lateinit var editPersona: TextInputEditText
     private lateinit var spinnerProvider: Spinner
@@ -28,6 +30,7 @@ class EditBotActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_edit_bot)
 
+        rootScroll = findViewById(R.id.edit_bot_scroll)
         editDisplayName = findViewById(R.id.edit_display_name)
         editPersona = findViewById(R.id.edit_persona)
         spinnerProvider = findViewById(R.id.spinner_provider)
@@ -41,6 +44,7 @@ class EditBotActivity : AppCompatActivity() {
         configureSpinner(spinnerApiKeyMode, apiKeyModes)
         configureSpinner(spinnerReplyMode, replyModes)
         configureSpinner(spinnerTriggerMode, triggerModes)
+        rootScroll.bindFocusScroll(editDisplayName, editPersona, editApiKey)
 
         spinnerApiKeyMode.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
