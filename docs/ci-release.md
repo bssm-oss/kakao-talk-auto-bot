@@ -9,14 +9,15 @@
   - `assembleRelease`
   - 테스트/린트/APK 아티팩트 업로드
 - `Maestro UI Test`
-  - 에뮬레이터에서 `.maestro/` 전체 흐름 실행
+  - 현재는 GitHub-hosted 에뮬레이터 인식 문제 때문에 `workflow_dispatch` 수동 실행 전용
+  - 로컬 또는 별도 안정화 후 다시 PR/릴리즈 게이트에 편입
   - JUnit 결과, debug output, 테스트 아티팩트, logcat 업로드
 
 ## 릴리즈 게이트
 
 - 태그 릴리즈 전에는 JVM 테스트, lint, debug/release APK 빌드가 모두 통과해야 한다.
-- 태그 릴리즈 전에는 Maestro UI 흐름이 통과해야 한다.
-- 릴리즈 워크플로는 검증 잡이 성공한 뒤에만 GitHub Release를 생성한다.
+- 릴리즈 워크플로는 `validate` 잡이 성공한 뒤에만 GitHub Release를 생성한다.
+- Maestro는 로컬 또는 수동 워크플로 검증 자산으로 유지한다.
 
 ## 릴리즈
 
