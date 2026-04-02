@@ -1,4 +1,4 @@
-package com.example.chatbotchichi
+package com.example.kakaotalkautobot
 
 import org.junit.Test
 

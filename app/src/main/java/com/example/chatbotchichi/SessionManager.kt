@@ -1,4 +1,4 @@
-package com.example.chatbotchichi
+package com.example.kakaotalkautobot
 
 import android.app.Notification
 import android.content.Context
@@ -55,7 +55,6 @@ object SessionManager {
 
     private fun save(context: Context, room: String, action: NotificationCompat.Action, packageName: String) {
         loadRooms(context)
-        val isNewRoom = room.isNotBlank() && !sessionMap.containsKey(room)
         // 최신 세션으로 갱신
         sessionMap[room] = CachedSession(action, packageName)
         touchRoom(context, room)
@@ -72,14 +71,6 @@ object SessionManager {
             Log.d(TAG, "세션 RemoteInputs 없음")
         }
 
-        if (isNewRoom) {
-            notifySessionWebhook(context, room)
-        }
-    }
-
-    private fun notifySessionWebhook(context: Context, room: String) {
-        val deviceName = DeviceSettings.getDeviceName(context) ?: return
-        ApiClient.postSession(room, deviceName)
     }
 
     fun getSession(room: String): CachedSession? {

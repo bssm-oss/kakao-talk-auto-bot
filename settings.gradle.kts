@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "chatbotchichi"
+rootProject.name = "kakao-talk-auto-bot"
 include(":app")
