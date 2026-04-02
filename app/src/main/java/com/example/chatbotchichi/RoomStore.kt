@@ -66,6 +66,7 @@ object RoomStore {
         val json = if (file.exists()) JSONObject(file.readText()) else JSONObject().put("room", room)
         block(json)
         file.writeText(json.toString())
+        AutoMemoryStore.refresh(context, room, json.toHistoryMessages())
     }
 
     private fun appendMessage(json: JSONObject, message: RoomHistoryMessage) {
@@ -114,5 +115,22 @@ object RoomStore {
         val key = room.lowercase().replace(Regex("[^a-z0-9._-]+"), "_").trim('_')
         val safeName = (if (key.isBlank()) "room" else key.take(40)) + "_" + room.hashCode().toUInt().toString(16)
         return File(dir, "$safeName.json")
+    }
+
+    private fun JSONObject.toHistoryMessages(): List<RoomHistoryMessage> {
+        val messages = optJSONArray("messages") ?: return emptyList()
+        return buildList {
+            for (index in 0 until messages.length()) {
+                val item = messages.optJSONObject(index) ?: continue
+                add(
+                    RoomHistoryMessage(
+                        sender = item.optString("sender", "알수없음"),
+                        message = item.optString("message", ""),
+                        incoming = item.optBoolean("incoming", true),
+                        timestamp = item.optLong("timestamp", 0L)
+                    )
+                )
+            }
+        }
     }
 }

@@ -10,23 +10,41 @@ object AiProviderClient {
     private val client = SharedHttpClient.instance
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
-    fun generate(config: AutoReplyConfig, room: String, sender: String, message: String, history: List<RoomHistoryMessage>): String? {
+    data class GenerationResult(
+        val reply: String? = null,
+        val failureReason: String? = null,
+        val skippedReason: String? = null
+    )
+
+    fun generate(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): GenerationResult {
         val provider = config.provider
         if (!provider.authMode.equals("api_key", true)) {
-            return null
+            return GenerationResult(failureReason = "API Key 보관 방식이 '외부에서 관리'로 되어 있어 자동 응답을 생성할 수 없습니다.")
         }
         if (provider.apiKey.isBlank()) {
-            return null
+            return GenerationResult(failureReason = "${provider.type.ifBlank { "AI" }} API Key가 비어 있습니다.")
         }
         return when (provider.type.lowercase()) {
             "openai" -> callOpenAi(config, room, sender, message, history)
             "claude", "anthropic" -> callClaude(config, room, sender, message, history)
             "gemini", "google" -> callGemini(config, room, sender, message, history)
-            else -> null
+            else -> GenerationResult(failureReason = "지원하지 않는 공급자 유형입니다: ${provider.type}")
         }
     }
 
-    private fun callOpenAi(config: AutoReplyConfig, room: String, sender: String, message: String, history: List<RoomHistoryMessage>): String? {
+    private fun callOpenAi(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): GenerationResult {
         val payload = JSONObject()
             .put("model", config.provider.model.ifBlank { "gpt-4o-mini" })
             .put("messages", buildOpenAiMessages(config, room, sender, message, history))
@@ -37,22 +55,30 @@ object AiProviderClient {
             .post(payload.toString().toRequestBody(jsonType))
             .build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
+            if (!response.isSuccessful) {
+                return GenerationResult(failureReason = "OpenAI 응답 실패 (${response.code})")
+            }
             val body = response.body?.string().orEmpty()
             return normalizeGeneratedReply(
                 config,
                 JSONObject(body)
-                .optJSONArray("choices")
-                ?.optJSONObject(0)
-                ?.optJSONObject("message")
-                ?.optString("content", "")
-                ?.trim()
-                ?.ifBlank { null }
+                    .optJSONArray("choices")
+                    ?.optJSONObject(0)
+                    ?.optJSONObject("message")
+                    ?.optString("content", "")
+                    ?.trim()
+                    ?.ifBlank { null }
             )
         }
     }
 
-    private fun callClaude(config: AutoReplyConfig, room: String, sender: String, message: String, history: List<RoomHistoryMessage>): String? {
+    private fun callClaude(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): GenerationResult {
         val payload = JSONObject()
             .put("model", config.provider.model.ifBlank { "claude-3-5-haiku-latest" })
             .put("max_tokens", 300)
@@ -66,14 +92,23 @@ object AiProviderClient {
             .post(payload.toString().toRequestBody(jsonType))
             .build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
+            if (!response.isSuccessful) {
+                return GenerationResult(failureReason = "Claude 응답 실패 (${response.code})")
+            }
             val body = response.body?.string().orEmpty()
-            val content = JSONObject(body).optJSONArray("content") ?: return null
+            val content = JSONObject(body).optJSONArray("content")
+                ?: return GenerationResult(failureReason = "Claude 응답 본문이 비어 있습니다.")
             return normalizeGeneratedReply(config, content.optJSONObject(0)?.optString("text", "")?.trim()?.ifBlank { null })
         }
     }
 
-    private fun callGemini(config: AutoReplyConfig, room: String, sender: String, message: String, history: List<RoomHistoryMessage>): String? {
+    private fun callGemini(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): GenerationResult {
         val model = config.provider.model.ifBlank { "gemini-1.5-flash" }
         val endpoint = config.provider.endpoint.ifBlank {
             "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=${config.provider.apiKey}"
@@ -87,19 +122,21 @@ object AiProviderClient {
             .post(payload.toString().toRequestBody(jsonType))
             .build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
+            if (!response.isSuccessful) {
+                return GenerationResult(failureReason = "Gemini 응답 실패 (${response.code})")
+            }
             val body = response.body?.string().orEmpty()
             return normalizeGeneratedReply(
                 config,
                 JSONObject(body)
-                .optJSONArray("candidates")
-                ?.optJSONObject(0)
-                ?.optJSONObject("content")
-                ?.optJSONArray("parts")
-                ?.optJSONObject(0)
-                ?.optString("text", "")
-                ?.trim()
-                ?.ifBlank { null }
+                    .optJSONArray("candidates")
+                    ?.optJSONObject(0)
+                    ?.optJSONObject("content")
+                    ?.optJSONArray("parts")
+                    ?.optJSONObject(0)
+                    ?.optString("text", "")
+                    ?.trim()
+                    ?.ifBlank { null }
             )
         }
     }
@@ -128,10 +165,11 @@ object AiProviderClient {
         }
     }
 
-    internal fun normalizeGeneratedReply(config: AutoReplyConfig, raw: String?): String? {
-        val text = raw?.trim()?.removeSurrounding("```")?.trim()?.ifBlank { null } ?: return null
+    internal fun normalizeGeneratedReply(config: AutoReplyConfig, raw: String?): GenerationResult {
+        val text = raw?.trim()?.removeSurrounding("```")?.trim()?.ifBlank { null }
+            ?: return GenerationResult(failureReason = "AI 응답 본문이 비어 있습니다.")
         if (!config.trigger.mode.equals("ai_judge", true) && !config.trigger.mode.equals("smart", true)) {
-            return text
+            return GenerationResult(reply = text)
         }
         val jsonText = text
             .removePrefix("json")
@@ -145,8 +183,14 @@ object AiProviderClient {
             val json = JSONObject(jsonText)
             val shouldReply = json.optBoolean("shouldReply", false)
             val reply = json.optString("reply", "").trim()
-            if (shouldReply) reply.ifBlank { null } else null
-        }.getOrNull()
+            when {
+                shouldReply && reply.isNotBlank() -> GenerationResult(reply = reply)
+                shouldReply -> GenerationResult(failureReason = "AI가 답장을 생성했지만 내용이 비어 있습니다.")
+                else -> GenerationResult(skippedReason = "AI 판단에 따라 이번 메시지는 답장하지 않았습니다.")
+            }
+        }.getOrElse {
+            GenerationResult(failureReason = "AI 판단 JSON을 해석하지 못했습니다.")
+        }
     }
 
     private fun buildOpenAiMessages(config: AutoReplyConfig, room: String, sender: String, message: String, history: List<RoomHistoryMessage>): JSONArray {

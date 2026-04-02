@@ -19,7 +19,8 @@ class AiProviderClientTest {
             history = emptyList()
         )
 
-        assertNull(reply)
+        assertNull(reply.reply)
+        assertEquals("API Key 보관 방식이 '외부에서 관리'로 되어 있어 자동 응답을 생성할 수 없습니다.", reply.failureReason)
     }
 
     @Test
@@ -36,7 +37,8 @@ class AiProviderClientTest {
             history = emptyList()
         )
 
-        assertNull(reply)
+        assertNull(reply.reply)
+        assertEquals("openai API Key가 비어 있습니다.", reply.failureReason)
     }
 
     @Test
@@ -54,7 +56,7 @@ class AiProviderClientTest {
             """.trimIndent()
         )
 
-        assertEquals("지금 바로 확인할게요.", reply)
+        assertEquals("지금 바로 확인할게요.", reply.reply)
     }
 
     @Test
@@ -68,6 +70,6 @@ class AiProviderClientTest {
             "네, 조금 뒤에 답장할게요."
         )
 
-        assertEquals("네, 조금 뒤에 답장할게요.", reply)
+        assertEquals("네, 조금 뒤에 답장할게요.", reply.reply)
     }
 }

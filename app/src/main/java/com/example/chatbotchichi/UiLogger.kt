@@ -7,7 +7,7 @@ import java.util.Date
 import java.util.Locale
 
 object UiLogger {
-    private val allowedLabels = setOf("IN", "OUT", "OUT_FAIL")
+    private val allowedLabels = setOf("IN", "OUT", "OUT_FAIL", "OUT_SKIP")
 
     fun log(
         context: Context,
@@ -18,10 +18,10 @@ object UiLogger {
         serverMessage: String? = null
     ) {
         if (!allowedLabels.contains(label)) return
-        val normalizedMessage = if (label == "OUT_FAIL" && !message.trimStart().startsWith("❌")) {
-            "❌ $message"
-        } else {
-            message
+        val normalizedMessage = when {
+            label == "OUT_FAIL" && !message.trimStart().startsWith("❌") -> "❌ $message"
+            label == "OUT_SKIP" && !message.trimStart().startsWith("⏭") -> "⏭ $message"
+            else -> message
         }
         val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val line = "[$time][$label] $normalizedMessage"
