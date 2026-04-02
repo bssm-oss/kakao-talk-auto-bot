@@ -5,11 +5,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Build
 import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import androidx.core.content.ContextCompat
 
 class NotificationListener : NotificationListenerService() {
     private val processedNotifications = mutableMapOf<String, Long>()
@@ -28,11 +28,7 @@ class NotificationListener : NotificationListenerService() {
         super.onListenerConnected()
         updateStatus("알림 리스너 연결됨", true)
         val filter = IntentFilter("com.example.kakaotalkautobot.DEBUG_MSG")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(debugReceiver, filter, Context.RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(debugReceiver, filter)
-        }
+        ContextCompat.registerReceiver(this, debugReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onListenerDisconnected() {

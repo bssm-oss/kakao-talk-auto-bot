@@ -1,0 +1,51 @@
+name: 버그 제보
+description: 재현 가능한 문제, 빌드 실패, CI 실패, 앱 오동작을 제보합니다.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 요약
+      description: 어떤 문제가 발생했는지 한두 문장으로 적어주세요.
+      placeholder: 메인 화면에서 AI 자동 답장 스위치를 끄면 앱이 종료됩니다.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 절차
+      description: 재현 가능한 순서대로 적어주세요.
+      placeholder: |
+        1. 앱 실행
+        2. 대상 방 관리 진입
+        3. 특정 방 추가
+        4. 앱 종료 또는 오동작 확인
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 동작
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 동작
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 환경 정보
+      description: 기기/OS/앱 버전/브랜치/커밋/JDK/Gradle 등
+      placeholder: Android 15, emulator API 36, commit abc123, JDK 21
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 로그 또는 스크린샷
+      description: logcat, CI 링크, 화면 캡처가 있으면 첨부해주세요.

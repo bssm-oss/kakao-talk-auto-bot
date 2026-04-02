@@ -3,11 +3,21 @@ name: Android CI
 on:
   push:
     branches: ["**"]
+    tags-ignore:
+      - "v*"
   pull_request:
 
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  build-test:
+  quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -19,28 +29,34 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Grant Gradle permission
         run: chmod +x gradlew
 
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest
+      - name: Run quality gates
+        run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease --console=plain
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug
-
-      - name: Upload debug APK
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: apk-artifacts
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
 
-      - name: Upload unit test reports
+      - name: Upload quality reports
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: unit-test-reports
+          name: android-quality-reports
           path: |
             app/build/reports/tests/**
             app/build/test-results/**
+            app/build/reports/lint-results-*.html
+            app/build/intermediates/lint_intermediate_text_report/**

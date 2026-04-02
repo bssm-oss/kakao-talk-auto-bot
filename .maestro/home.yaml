@@ -1,0 +1,8 @@
+appId: com.example.kakaotalkautobot
+---
+- launchApp:
+    clearState: true
+- assertVisible: "상태"
+- assertVisible: "AI 자동 답장"
+- assertVisible: "응답 설정"
+- assertVisible: "대상 방"
