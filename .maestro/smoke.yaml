@@ -1,0 +1,10 @@
+appId: com.example.kakaotalkautobot
+---
+- launchApp
+- assertVisible: "kakao-talk-auto-bot"
+- assertVisible: "AI 자동 답장"
+- tapOn: "응답 설정 편집"
+- assertVisible: "AI 답장 설정"
+- pressKey: back
+- tapOn: "대상 방 관리"
+- assertVisible: "대상 방 관리"
