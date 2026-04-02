@@ -1,0 +1,17 @@
+appId: com.example.kakaotalkautobot
+---
+- launchApp:
+    clearState: true
+- tapOn: "대상 방 관리"
+- assertVisible: "새 대상 방 추가"
+- tapOn:
+    id: "input_room_name"
+- inputText: "test-room"
+- tapOn:
+    id: "btn_add_room"
+- assertVisible: "test-room"
+- tapOn: "test-room"
+- assertVisible: "방 메모리 편집"
+- assertVisible: "방 메모리"
+- pressKey: back
+- assertVisible: "대상 방 관리"
