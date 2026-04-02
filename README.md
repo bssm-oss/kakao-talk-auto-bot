@@ -51,7 +51,7 @@
 ## CI / 릴리즈
 
 - `Android CI`: JVM 테스트, lint, debug/release APK 빌드, 리포트 업로드
-- `Maestro UI Test`: 에뮬레이터에서 메인/설정/방 관리/테마 흐름 검증
+- `Maestro UI Test`: 현재는 GitHub-hosted 에뮬레이터 불안정으로 `workflow_dispatch` 수동 실행 전용
 - `Release APK`: `v*` 태그 푸시 시 검증을 다시 수행한 뒤 GitHub Release에 APK 첨부
 
 ## APK 다운로드
