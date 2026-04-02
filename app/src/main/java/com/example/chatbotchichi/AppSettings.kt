@@ -1,6 +1,7 @@
 package com.example.kakaotalkautobot
 
 import android.content.Context
+import androidx.appcompat.app.AppCompatDelegate
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -14,6 +15,7 @@ object AppSettings {
     private const val KEY_API_KEY = "api_key"
     private const val KEY_REPLY_MODE = "reply_mode"
     private const val KEY_TRIGGER_MODE = "trigger_mode"
+    private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_ROOM_TARGETS = "room_targets"
     private const val KEY_ROOM_MEMORIES = "room_memories"
 
@@ -34,6 +36,18 @@ object AppSettings {
         val lastImportSource: String?
     )
 
+    enum class ThemeMode(val preferenceValue: String, val appCompatMode: Int) {
+        SYSTEM("system", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM),
+        LIGHT("light", AppCompatDelegate.MODE_NIGHT_NO),
+        DARK("dark", AppCompatDelegate.MODE_NIGHT_YES);
+
+        companion object {
+            fun fromPreference(value: String?): ThemeMode {
+                return entries.firstOrNull { it.preferenceValue == value } ?: SYSTEM
+            }
+        }
+    }
+
     fun isAiReplyEnabled(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getBoolean(KEY_AI_REPLY_ENABLED, true)
@@ -48,6 +62,21 @@ object AppSettings {
 
     fun setGlobalEnabled(context: Context, enabled: Boolean) {
         setAiReplyEnabled(context, enabled)
+    }
+
+    fun getThemeMode(context: Context): ThemeMode {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return ThemeMode.fromPreference(prefs.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.preferenceValue))
+    }
+
+    fun setThemeMode(context: Context, mode: ThemeMode) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_THEME_MODE, mode.preferenceValue).apply()
+        AppCompatDelegate.setDefaultNightMode(mode.appCompatMode)
+    }
+
+    fun applySavedThemeMode(context: Context) {
+        AppCompatDelegate.setDefaultNightMode(getThemeMode(context).appCompatMode)
     }
 
     fun getAiConfig(context: Context): AiConfig {

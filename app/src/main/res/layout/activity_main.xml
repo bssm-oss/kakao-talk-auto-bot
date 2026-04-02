@@ -14,23 +14,6 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="kakao-talk-auto-bot"
-            android:textColor="@color/colorTextPrimary"
-            android:textSize="24sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_1"
-            android:layout_marginBottom="@dimen/space_4"
-            android:text="카카오톡 방 기반 AI 자동 답장 설정을 간단하게 관리합니다."
-            android:textColor="@color/colorTextSecondary"
-            android:textSize="13sp" />
-
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_status"
             android:layout_width="match_parent"
@@ -167,6 +150,55 @@
                     android:text="OFF여도 메시지는 계속 수집하고 세션을 유지합니다."
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_5"
+                    android:text="화면 모드"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/theme_toggle_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    app:checkedButton="@id/theme_button_system"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/theme_button_system"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/touch_target"
+                        android:layout_weight="1"
+                        android:text="@string/theme_mode_system"
+                        android:textColor="@color/colorTextPrimary"
+                        app:strokeColor="@color/colorBorder" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/theme_button_light"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/touch_target"
+                        android:layout_weight="1"
+                        android:text="@string/theme_mode_light"
+                        android:textColor="@color/colorTextPrimary"
+                        app:strokeColor="@color/colorBorder" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/theme_button_dark"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/touch_target"
+                        android:layout_weight="1"
+                        android:text="@string/theme_mode_dark"
+                        android:textColor="@color/colorTextPrimary"
+                        app:strokeColor="@color/colorBorder" />
+                </com.google.android.material.button.MaterialButtonToggleGroup>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
