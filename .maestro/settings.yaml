@@ -1,0 +1,11 @@
+appId: com.example.kakaotalkautobot
+---
+- launchApp:
+    clearState: true
+- tapOn: "응답 설정 편집"
+- assertVisible: "AI 답장 설정"
+- assertVisible: "내 정보"
+- assertVisible: "모델 / 인증"
+- assertVisible: "답장 동작"
+- tapOn: "설정 저장"
+- assertVisible: "AI 자동 답장"
