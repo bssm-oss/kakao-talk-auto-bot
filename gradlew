@@ -142,6 +142,80 @@ location of your Java installation."
     fi
 fi
 
+java_major_version() {
+    java_version_output=$("$1" -version 2>&1 | sed -n '1p')
+    case $java_version_output in
+      *\"1.*)
+        printf '%s\n' "$java_version_output" | sed -n 's/.*version "1\.\([0-9][0-9]*\).*".*/\1/p'
+        ;;
+      *)
+        printf '%s\n' "$java_version_output" | sed -n 's/.*version "\([0-9][0-9]*\).*".*/\1/p'
+        ;;
+    esac
+}
+
+set_java_home() {
+    JAVA_HOME=$1
+    JAVACMD=$JAVA_HOME/bin/java
+}
+
+find_compatible_java_home() {
+    for candidate_var in JAVA21_HOME JDK21_HOME JAVA17_HOME JDK17_HOME JAVA11_HOME JDK11_HOME
+    do
+        eval candidate_home=\${$candidate_var}
+        if [ -n "$candidate_home" ] && [ -x "$candidate_home/bin/java" ]
+        then
+            printf '%s\n' "$candidate_home"
+            return 0
+        fi
+    done
+
+    if "$darwin" && [ -x /usr/libexec/java_home ]
+    then
+        for candidate_version in 21 17 11
+        do
+            candidate_home=$(/usr/libexec/java_home -v "$candidate_version" 2>/dev/null) || continue
+            if [ -n "$candidate_home" ] && [ -x "$candidate_home/bin/java" ]
+            then
+                printf '%s\n' "$candidate_home"
+                return 0
+            fi
+        done
+    fi
+
+    if [ -d /usr/lib/jvm ]
+    then
+        for candidate_home in \
+            /usr/lib/jvm/*21* \
+            /usr/lib/jvm/*17* \
+            /usr/lib/jvm/*11*
+        do
+            if [ -x "$candidate_home/bin/java" ]
+            then
+                printf '%s\n' "$candidate_home"
+                return 0
+            fi
+        done
+    fi
+
+    return 1
+}
+
+CURRENT_JAVA_MAJOR=$(java_major_version "$JAVACMD")
+if [ -n "$CURRENT_JAVA_MAJOR" ] && [ "$CURRENT_JAVA_MAJOR" -gt 23 ]
+then
+    COMPATIBLE_JAVA_HOME=$(find_compatible_java_home) || COMPATIBLE_JAVA_HOME=
+    if [ -n "$COMPATIBLE_JAVA_HOME" ]
+    then
+        warn "Detected Java $CURRENT_JAVA_MAJOR for Gradle bootstrap; switching to compatible JDK at $COMPATIBLE_JAVA_HOME"
+        set_java_home "$COMPATIBLE_JAVA_HOME"
+    else
+        die "ERROR: Detected Java $CURRENT_JAVA_MAJOR, which is not supported by this project's Gradle/Kotlin DSL bootstrap.
+
+Install JDK 21 (preferred) or JDK 17 and point JAVA_HOME, JAVA21_HOME, or JDK21_HOME to it."
+    fi
+fi
+
 # Increase the maximum file descriptors if we can.
 if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
     case $MAX_FD in #(
