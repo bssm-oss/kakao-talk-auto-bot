@@ -1,4 +1,4 @@
-package com.example.chatbotchichi
+package com.example.kakaotalkautobot
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.example.chatbotchichi", appContext.packageName)
+        assertEquals("com.example.kakaotalkautobot", appContext.packageName)
     }
 }

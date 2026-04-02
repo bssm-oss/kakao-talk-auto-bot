@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.chatbotchichi"
+    namespace = "com.example.kakaotalkautobot"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.chatbotchichi"
+        applicationId = "com.example.kakaotalkautobot"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -43,9 +43,7 @@ dependencies {
     implementation(libs.material)
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.wear:wear:1.2.0")
-    implementation("com.faendir.rhino:rhino-android:1.6.0")
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("org.json:json:20231013")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

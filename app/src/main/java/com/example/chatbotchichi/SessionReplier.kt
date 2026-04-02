@@ -1,17 +1,10 @@
-package com.example.chatbotchichi
+package com.example.kakaotalkautobot
 
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.core.app.RemoteInput
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 
 class SessionReplier(
     val context: Context,
@@ -19,8 +12,6 @@ class SessionReplier(
     val isDebug: Boolean = false // 디버그 모드 여부
 ) {
     private val TAG = "BotEngine-Replier"
-    private val client = SharedHttpClient.instance
-
     private fun logOutgoing(targetRoom: String, message: String, success: Boolean, reason: String? = null) {
         val label = if (success) "OUT" else "OUT_FAIL"
         val base = "[$targetRoom] $message"
@@ -92,11 +83,12 @@ class SessionReplier(
                             }
                             pendingIntent.send(context, 0, intent)
                             Log.d(TAG, "Reply sent to $targetRoom: $message")
+                            RoomStore.recordOutgoing(context, targetRoom, message)
                             logOutgoing(targetRoom, message, true, null)
                             
                             // 디버그 모드에서 실전송 성공 시, 디버깅 룸에도 로그 남김
                             if (isDebug) {
-                                val intentDebug = Intent("com.example.chatbotchichi.BOT_REPLY")
+                                val intentDebug = Intent("com.example.kakaotalkautobot.BOT_REPLY")
                                 intentDebug.putExtra("msg", "✅ [실전송] $targetRoom: $message")
                                 intentDebug.putExtra("room", room) // 현재 디버깅 중인 방에 표시
                                 intentDebug.setPackage(context.packageName)
@@ -119,7 +111,8 @@ class SessionReplier(
         // 2. 실전 세션이 없고 디버그 모드인 경우 (가상 시뮬레이션)
         if (isDebug) {
             Log.d(TAG, "[DEBUG] Simulation Reply to $targetRoom: $message")
-            val intent = Intent("com.example.chatbotchichi.BOT_REPLY")
+            RoomStore.recordOutgoing(context, targetRoom, message)
+            val intent = Intent("com.example.kakaotalkautobot.BOT_REPLY")
             intent.putExtra("msg", "🛠 [가상] $targetRoom: $message")
             intent.putExtra("room", room)
             intent.setPackage(context.packageName)
@@ -132,58 +125,14 @@ class SessionReplier(
         return false
     }
 
-    fun executeWorkflow(actionType: String, data: Map<String, Any>): Boolean {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val json = JSONObject()
-                json.put("action", actionType)
-                json.put("timestamp", System.currentTimeMillis())
-                json.put("room", room)
-                
-                for ((key, value) in data) {
-                    json.put(key, value)
-                }
-
-                val body = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                val request = Request.Builder()
-                    .url("https://YOUR_N8N_DOMAIN/webhook/chatbot-hook") // 실제 주소로 변경 필요
-                    .post(body)
-                    .build()
-
-                client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        Log.d(TAG, "N8N success: ${response.body?.string()}")
-                    } else {
-                        Log.e(TAG, "N8N fail: ${response.code}")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Workflow error", e)
-            }
-        }
-        return true
-    }
-
     fun log(message: String) {
         val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
             .format(java.util.Date())
         val line = "[$time] $message"
         LogStore.append(context, line)
-        val intent = Intent("com.example.chatbotchichi.LOG_UPDATE")
+        val intent = Intent("com.example.kakaotalkautobot.LOG_UPDATE")
         intent.putExtra("log", line)
         intent.setPackage(context.packageName)
         context.sendBroadcast(intent)
-    }
-
-    fun startPolling(botId: String, url: String, intervalMs: Long) {
-        PollingManager.start(botId, url, intervalMs, this)
-    }
-
-    fun startPolling(botId: String, url: String, intervalMs: Double) {
-        PollingManager.start(botId, url, intervalMs.toLong(), this)
-    }
-
-    fun stopPolling(botId: String) {
-        PollingManager.stop(botId, this)
     }
 }
