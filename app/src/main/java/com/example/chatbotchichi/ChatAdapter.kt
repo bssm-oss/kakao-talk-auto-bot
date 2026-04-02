@@ -1,4 +1,4 @@
-package com.example.chatbotchichi
+package com.example.kakaotalkautobot
 
 import android.view.LayoutInflater
 import android.view.View

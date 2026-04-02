@@ -1,4 +1,4 @@
-package com.example.chatbotchichi
+package com.example.kakaotalkautobot
 
 data class ChatMessage(
     val name: String,

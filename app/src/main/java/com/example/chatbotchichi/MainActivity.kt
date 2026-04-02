@@ -1,72 +1,62 @@
-package com.example.chatbotchichi
+package com.example.kakaotalkautobot
 
 import android.content.BroadcastReceiver
-import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Button
-import android.widget.Switch
-import android.widget.TextView
+import android.service.notification.NotificationListenerService
 import android.text.method.ScrollingMovementMethod
-import android.text.Editable
-import android.text.TextWatcher
-import android.content.ClipData
-import android.content.ClipboardManager
+import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
-import android.service.notification.NotificationListenerService
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var deviceNameText: TextView
-    private lateinit var statusIndicator: android.view.View
+    private lateinit var statusIndicator: View
+    private lateinit var sessionSummaryText: TextView
+    private lateinit var identitySummaryText: TextView
+    private lateinit var providerSummaryText: TextView
+    private lateinit var behaviorSummaryText: TextView
+    private lateinit var roomSummaryText: TextView
+    private lateinit var roomHistorySummaryText: TextView
+    private lateinit var roomEmptyText: TextView
     private lateinit var logText: TextView
-    private lateinit var logFilterInput: TextInputEditText
-    private lateinit var logErrorSwitch: SwitchMaterial
     private lateinit var copyLogsButton: MaterialButton
     private lateinit var recyclerView: RecyclerView
-    private lateinit var adapter: BotAdapter
-    private lateinit var globalSwitch: Switch
-    
-    private var bots = mutableListOf<BotInfo>()
-    private val logBuilder = StringBuilder()
+    private lateinit var roomAdapter: RoomTargetAdapter
+    private lateinit var replySwitch: SwitchMaterial
+    private lateinit var permissionButton: MaterialButton
+    private lateinit var editConfigButton: MaterialButton
+    private lateinit var manageRoomsButton: MaterialButton
+
+    private val roomTargets = mutableListOf<AppSettings.RoomTarget>()
     private val logLines = mutableListOf<String>()
-    private var logFilterText: String = ""
-    private var logErrorOnly: Boolean = false
     private val maxLogLines = 100
-    private var deviceDialogShown = false
+    private var receiverRegistered = false
+    private var bindingReplySwitch = false
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                "com.example.chatbotchichi.STATUS_UPDATE" -> {
-                    val status = intent.getStringExtra("status")
-                    val connected = intent.getBooleanExtra("connected", false)
-                    val globalEnabled = AppSettings.isGlobalEnabled(this@MainActivity)
-                    if (!globalEnabled) {
-                        applyStatusUi("전체 OFF (수집 중지)", StatusState.DISCONNECTED)
-                        return
-                    }
-                    if (status != null) {
-                        val state = if (connected) StatusState.CONNECTED else StatusState.DISCONNECTED
-                        applyStatusUi(status, state)
-                    }
-                }
-                "com.example.chatbotchichi.LOG_UPDATE" -> {
-                    val msg = intent.getStringExtra("log") ?: return
-                    appendLogLine(msg)
-                }
+                "com.example.kakaotalkautobot.STATUS_UPDATE" -> refreshStatusUi()
+                "com.example.kakaotalkautobot.LOG_UPDATE" -> appendLogLine(intent.getStringExtra("log") ?: return)
             }
         }
     }
@@ -78,297 +68,197 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.status_text)
         deviceNameText = findViewById(R.id.device_name_text)
         statusIndicator = findViewById(R.id.status_indicator)
+        sessionSummaryText = findViewById(R.id.text_session_summary)
+        identitySummaryText = findViewById(R.id.text_identity_summary)
+        providerSummaryText = findViewById(R.id.text_provider_summary)
+        behaviorSummaryText = findViewById(R.id.text_behavior_summary)
+        roomSummaryText = findViewById(R.id.text_room_summary)
+        roomHistorySummaryText = findViewById(R.id.text_room_history_summary)
+        roomEmptyText = findViewById(R.id.text_room_empty)
         logText = findViewById(R.id.log_text)
-        logFilterInput = findViewById(R.id.input_log_filter)
-        logErrorSwitch = findViewById(R.id.switch_log_error)
         copyLogsButton = findViewById(R.id.btn_copy_logs)
-        recyclerView = findViewById(R.id.recycler_view)
-        globalSwitch = findViewById(R.id.switch_global)
+        recyclerView = findViewById(R.id.recycler_rooms)
+        replySwitch = findViewById(R.id.switch_ai_replies)
+        permissionButton = findViewById(R.id.permission_button)
+        editConfigButton = findViewById(R.id.btn_edit_config)
+        manageRoomsButton = findViewById(R.id.btn_manage_rooms)
 
         logText.movementMethod = ScrollingMovementMethod.getInstance()
         logText.setOnTouchListener { v, _ ->
             v.parent?.requestDisallowInterceptTouchEvent(true)
             false
         }
-        logFilterInput.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-                logFilterText = s?.toString() ?: ""
-                applyLogFilter()
-            }
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-        logErrorSwitch.setOnCheckedChangeListener { _, isChecked ->
-            logErrorOnly = isChecked
-            applyLogFilter()
-        }
-        copyLogsButton.setOnClickListener {
-            copyAllLogsToClipboard()
-        }
-        
-        val btnPermission = findViewById<Button>(R.id.permission_button)
-        val btnShowSessions = findViewById<Button>(R.id.btn_show_sessions)
-        val btnAddBot = findViewById<Button>(R.id.btn_add_bot)
-        val btnAddPolling = findViewById<Button>(R.id.btn_add_polling)
-        val btnOpenDebug = findViewById<Button>(R.id.btn_open_debug)
+
+        copyLogsButton.setOnClickListener { copyAllLogsToClipboard() }
 
         recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = BotAdapter(
-            bots,
-            { bot ->
-                val intent = Intent(this, EditBotActivity::class.java)
-                intent.putExtra("botName", bot.name)
-                startActivity(intent)
-            },
-            { bot ->
+        roomAdapter = RoomTargetAdapter(
+            roomTargets,
+            secondaryActionLabel = "메모",
+            onRoomClick = { room -> openRoomMemory(room.name) },
+            onSecondaryActionClick = { room -> openRoomMemory(room.name) },
+            onDeleteClick = { room ->
                 androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("봇 삭제")
-                    .setMessage("'${bot.name}' 봇을 삭제할까요?")
-                    .setPositiveButton("삭제") { _, _ ->
-                        deleteBot(bot)
+                    .setTitle("대상 방 제거")
+                    .setMessage("'${room.name}' 방을 대상 목록에서 제거할까요?")
+                    .setPositiveButton("제거") { _, _ ->
+                        BotManager.deleteBot(this, room.name)
+                        AppSettings.removeRoomTarget(this, room.name)
+                        loadRoomTargets()
                     }
                     .setNegativeButton("취소", null)
                     .show()
             },
-            { bot, isChecked ->
-                val shouldRun = isChecked && shouldRunPollingBots()
-                PollingBotController.applyToggle(applicationContext, bot.name, shouldRun)
+            onToggleChanged = { room, isChecked ->
+                BotManager.setBotEnabled(this, room.name, isChecked)
+                loadRoomTargets()
             }
         )
-        recyclerView.adapter = adapter
+        recyclerView.adapter = roomAdapter
 
-        btnPermission.setOnClickListener {
+        permissionButton.setOnClickListener {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
 
-        btnShowSessions.setOnClickListener {
-            val rooms = SessionManager.getRegisteredRooms(this)
-            val message = if (rooms.isEmpty()) {
-                "활성화된 세션(방)이 없습니다.\n알림이 오면 자동으로 추가됩니다."
-            } else {
-                rooms.joinToString("\n") { formatRoomEntry(it) }
-            }
-            
-            androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("활성 세션 목록 (${rooms.size}개)")
-                .setMessage(message)
-                .setPositiveButton("확인", null)
-                .show()
-        }
-
-        btnAddBot.setOnClickListener {
+        editConfigButton.setOnClickListener {
             startActivity(Intent(this, EditBotActivity::class.java))
         }
 
-        btnAddPolling.setOnClickListener {
+        manageRoomsButton.setOnClickListener {
             startActivity(Intent(this, CreatePollingBotActivity::class.java))
         }
 
-        btnOpenDebug.setOnClickListener {
-            startActivity(Intent(this, DebugRoomActivity::class.java))
-        }
-
-        globalSwitch.isChecked = AppSettings.isGlobalEnabled(this)
-        globalSwitch.setOnCheckedChangeListener { _, isChecked ->
-            AppSettings.setGlobalEnabled(this, isChecked)
-            PollingBotController.syncAll(applicationContext, isChecked && shouldRunPollingBots())
-            sendGlobalCommand(isChecked)
+        replySwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (bindingReplySwitch) return@setOnCheckedChangeListener
+            AppSettings.setAiReplyEnabled(this, isChecked)
             refreshStatusUi()
         }
     }
 
     override fun onResume() {
         super.onResume()
-        
-        // 봇 목록 갱신
-        bots.clear()
-        bots.addAll(BotManager.getBots(this))
-        adapter.notifyDataSetChanged()
-        PollingBotController.syncAll(applicationContext, shouldRunPollingBots())
-        updateDeviceNameUi()
 
+        loadRoomTargets()
+        updateConfigSummary()
+        updateDeviceNameUi()
         loadLogHistory()
         refreshStatusUi()
         requestRebindIfNeeded()
-        ensureDeviceConfigured()
 
         val filter = IntentFilter().apply {
-            addAction("com.example.chatbotchichi.STATUS_UPDATE")
-            addAction("com.example.chatbotchichi.LOG_UPDATE")
+            addAction("com.example.kakaotalkautobot.STATUS_UPDATE")
+            addAction("com.example.kakaotalkautobot.LOG_UPDATE")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(receiver, filter)
         }
-    }
-
-    private fun ensureDeviceConfigured() {
-        if (deviceDialogShown) return
-        val current = DeviceSettings.getDeviceName(this)
-        if (!current.isNullOrBlank()) return
-        deviceDialogShown = true
-        ApiClient.fetchDevices { devices, error ->
-            runOnUiThread {
-                val names = devices?.map { it.name } ?: emptyList()
-                showDeviceDialog(names, error)
-            }
-        }
-    }
-
-    private fun showDeviceDialog(existingNames: List<String>, error: String?) {
-        val container = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 8)
-        }
-        val listLabel = android.widget.TextView(this).apply {
-            text = if (error != null) {
-                "디바이스 목록을 불러오지 못했습니다. 새 이름을 입력해주세요."
-            } else if (existingNames.isEmpty()) {
-                "등록된 디바이스가 없습니다. 새 이름을 입력해주세요."
-            } else {
-                "기존 디바이스 목록:\n" + existingNames.joinToString(", ")
-            }
-        }
-        val hintLabel = android.widget.TextView(this).apply {
-            text = "이 중에 없는 디바이스 이름을 입력해주세요."
-            setPadding(0, 16, 0, 8)
-        }
-        val input = android.widget.EditText(this).apply {
-            hint = "디바이스 이름"
-        }
-        container.addView(listLabel)
-        container.addView(hintLabel)
-        container.addView(input)
-
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("디바이스 등록")
-            .setView(container)
-            .setCancelable(false)
-            .setPositiveButton("등록", null)
-            .create()
-
-        dialog.setOnShowListener {
-            val btn = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
-            btn.setOnClickListener {
-                val name = input.text.toString().trim()
-                if (name.isBlank()) {
-                    input.error = "이름을 입력해주세요."
-                    return@setOnClickListener
-                }
-                if (existingNames.contains(name)) {
-                    input.error = "이미 존재하는 이름입니다."
-                    return@setOnClickListener
-                }
-                btn.isEnabled = false
-                ApiClient.registerDevice(name) { device, err ->
-                    runOnUiThread {
-                        btn.isEnabled = true
-                        if (device != null) {
-                            DeviceSettings.saveDevice(this, device.name, device.id.takeIf { it > 0L })
-                            updateDeviceNameUi()
-                            Toast.makeText(this, "디바이스 등록 완료: ${device.name}", Toast.LENGTH_SHORT).show()
-                            requestRebindIfNeeded()
-                            dialog.dismiss()
-                        } else {
-                            input.error = "등록 실패: ${err ?: "unknown"}"
-                        }
-                    }
-                }
-            }
-        }
-        dialog.show()
+        receiverRegistered = true
     }
 
     override fun onPause() {
         super.onPause()
-        unregisterReceiver(receiver)
+        if (receiverRegistered) {
+            unregisterReceiver(receiver)
+            receiverRegistered = false
+        }
     }
 
     private enum class StatusState {
-        CONNECTED,
-        PERMISSION_GRANTED,
+        ACTIVE,
+        CAPTURE_ONLY,
         DISCONNECTED
     }
 
     private fun refreshStatusUi() {
-        val enabled = NotificationManagerCompat.getEnabledListenerPackages(this)
+        val permissionGranted = NotificationManagerCompat.getEnabledListenerPackages(this)
             .contains(packageName)
-        val globalEnabled = AppSettings.isGlobalEnabled(this)
-        if (!globalEnabled) {
-            applyStatusUi("전체 OFF (수집 중지)", StatusState.DISCONNECTED)
+        val aiReplyEnabled = AppSettings.isAiReplyEnabled(this)
+        syncReplySwitch(aiReplyEnabled)
+
+        if (!permissionGranted) {
+            applyStatusUi("권한 필요 (알림 접근 허용)", StatusState.DISCONNECTED)
+            updateRoomSummary()
+            updateSessionSummary()
             return
         }
-        if (!enabled) {
-            applyStatusUi("권한 필요 (알림 접근 허용)", StatusState.DISCONNECTED)
+
+        if (!aiReplyEnabled) {
+            applyStatusUi("AI 답장 OFF · 메시지 수집 중", StatusState.CAPTURE_ONLY)
+            updateRoomSummary()
+            updateSessionSummary()
             return
         }
 
         val stored = StatusStore.get(this)
         if (stored != null && stored.isConnected) {
-            applyStatusUi(stored.text, StatusState.CONNECTED)
+            applyStatusUi("AI 답장 ON · 카카오톡 수신 대기 중", StatusState.ACTIVE)
         } else {
-            applyStatusUi("권한 허용됨 (대기 중)", StatusState.PERMISSION_GRANTED)
+            applyStatusUi("권한 허용됨 · 연결 대기 중", StatusState.CAPTURE_ONLY)
         }
-    }
-
-    private fun sendGlobalCommand(start: Boolean) {
-        val intent = Intent("com.example.chatbotchichi.DEBUG_MSG")
-        intent.putExtra("room", "__SYSTEM__")
-        intent.putExtra("msg", if (start) "__GLOBAL_START__" else "__GLOBAL_STOP__")
-        intent.putExtra("sender", "SYSTEM")
-        intent.putExtra("packageName", packageName)
-        intent.setPackage(packageName)
-        sendBroadcast(intent)
+        updateRoomSummary()
+        updateSessionSummary()
     }
 
     private fun requestRebindIfNeeded() {
         val enabled = NotificationManagerCompat.getEnabledListenerPackages(this)
             .contains(packageName)
-        if (!AppSettings.isGlobalEnabled(this)) return
         if (!enabled) return
         NotificationListenerService.requestRebind(ComponentName(this, NotificationListener::class.java))
     }
 
-    private fun shouldRunPollingBots(): Boolean {
-        if (!AppSettings.isGlobalEnabled(this)) return false
-        return NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)
-    }
-
     private fun updateDeviceNameUi() {
-        val deviceName = DeviceSettings.getDeviceName(this)?.trim().orEmpty()
-        val deviceId = DeviceSettings.getDeviceId(this)
-        deviceNameText.text = when {
-            deviceName.isBlank() -> "디바이스: 미설정"
-            deviceId != null && deviceId > 0L -> "디바이스: $deviceName (id=$deviceId)"
-            else -> "디바이스: $deviceName"
-        }
+        val aiConfig = AppSettings.getAiConfig(this)
+        val displayName = aiConfig.displayName.trim().ifBlank { "미설정" }
+        deviceNameText.text = "내 이름: $displayName · Provider: ${aiConfig.provider}"
     }
 
     private fun applyStatusUi(status: String, state: StatusState) {
         statusText.text = status
         val color = when (state) {
-            StatusState.CONNECTED -> "#4CAF50"
-            StatusState.PERMISSION_GRANTED -> "#FFB300"
-            StatusState.DISCONNECTED -> "#FF5252"
+            StatusState.ACTIVE -> ContextCompat.getColor(this, R.color.colorSuccess)
+            StatusState.CAPTURE_ONLY -> ContextCompat.getColor(this, R.color.colorInfo)
+            StatusState.DISCONNECTED -> ContextCompat.getColor(this, R.color.colorDanger)
         }
-        statusIndicator.backgroundTintList =
-            android.content.res.ColorStateList.valueOf(Color.parseColor(color))
+        statusIndicator.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
     }
 
     private fun loadLogHistory() {
-        val history = LogStore.getAll(this)
-        logBuilder.clear()
         logLines.clear()
+        val history = LogStore.getAll(this)
         if (history.isBlank()) {
-            logText.text = "시스템 대기 중..."
+            logText.text = "아직 수집된 로그가 없습니다."
             return
         }
         history.split("\n")
             .filter { it.isNotBlank() }
             .forEach { logLines.add(it) }
         trimLogLines()
-        applyLogFilter()
+        renderLogPreview()
+    }
+
+    private fun appendLogLine(line: String) {
+        logLines.add(line)
+        trimLogLines()
+        renderLogPreview()
+    }
+
+    private fun trimLogLines() {
+        if (logLines.size <= maxLogLines) return
+        val overflow = logLines.size - maxLogLines
+        if (overflow > 0) {
+            logLines.subList(0, overflow).clear()
+        }
+    }
+
+    private fun renderLogPreview() {
+        if (logLines.isEmpty()) {
+            logText.text = "아직 수집된 로그가 없습니다."
+            return
+        }
+        logText.text = logLines.takeLast(12).joinToString("\n")
+        scrollLogToBottom()
     }
 
     private fun scrollLogToBottom() {
@@ -383,44 +273,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun appendLogLine(line: String) {
-        logLines.add(line)
-        trimLogLines()
-        applyLogFilter()
-    }
-
-    private fun trimLogLines() {
-        if (logLines.size <= maxLogLines) return
-        val overflow = logLines.size - maxLogLines
-        if (overflow > 0) {
-            logLines.subList(0, overflow).clear()
-        }
-    }
-
-    private fun applyLogFilter() {
-        if (logLines.isEmpty()) {
-            logText.text = "시스템 대기 중..."
-            return
-        }
-        val query = logFilterText.trim()
-        val filtered = logLines.filter { line ->
-            val isError = line.contains("❌") || line.contains("ERROR", true) || line.contains("Error", true)
-            val passError = !logErrorOnly || isError
-            val passQuery = query.isBlank() || line.contains(query, true)
-            passError && passQuery
-        }
-        if (filtered.isEmpty()) {
-            logText.text = "필터 조건에 맞는 로그가 없습니다."
-            return
-        }
-        logBuilder.clear()
-        for (line in filtered) {
-            logBuilder.append(line).append('\n')
-        }
-        logText.text = logBuilder.toString()
-        scrollLogToBottom()
-    }
-
     private fun copyAllLogsToClipboard() {
         val allLogs = LogStore.getAll(this)
         if (allLogs.isBlank()) {
@@ -428,32 +280,68 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val clipboard = getSystemService(ClipboardManager::class.java)
-        val clip = ClipData.newPlainText("Chatbotchichi Logs", allLogs)
+        val clip = ClipData.newPlainText("kakao-talk-auto-bot logs", allLogs)
         clipboard.setPrimaryClip(clip)
         Toast.makeText(this, "로그가 복사되었습니다.", Toast.LENGTH_SHORT).show()
     }
 
-    private fun formatRoomEntry(entry: SessionManager.RoomEntry): String {
-        val timeLabel = if (entry.lastSeen > 0L) {
-            val formatter = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-            formatter.format(java.util.Date(entry.lastSeen))
+    private fun updateConfigSummary() {
+        val config = AppSettings.getAiConfig(this)
+        identitySummaryText.text = "이름: ${config.displayName} · 페르소나: ${config.persona.take(40)}"
+        providerSummaryText.text = "Provider: ${config.provider} · API 키: ${config.apiKeyMode}"
+        behaviorSummaryText.text = "답장 방식: ${config.replyMode} · 트리거: ${config.triggerMode}"
+    }
+
+    private fun loadRoomTargets() {
+        val rooms = BotManager.getBots(this)
+            .filterNot { it.name == "기본 자동응답" }
+            .map { bot ->
+                val metadata = AppSettings.getRoomTarget(this, bot.roomPattern)
+                AppSettings.RoomTarget(
+                    name = bot.roomPattern,
+                    isEnabled = bot.isEnabled,
+                    lastImportedAt = metadata?.lastImportedAt ?: 0L,
+                    lastImportSource = metadata?.lastImportSource
+                )
+            }
+        roomAdapter.replaceItems(rooms)
+        roomEmptyText.visibility = if (rooms.isEmpty()) View.VISIBLE else View.GONE
+        updateRoomSummary()
+        updateSessionSummary()
+    }
+
+    private fun updateRoomSummary() {
+        val allRooms = BotManager.getBots(this).filterNot { it.name == "기본 자동응답" }
+        val enabledCount = allRooms.count { it.isEnabled }
+        roomSummaryText.text = "응답 대상 ${enabledCount}개 · 전체 저장 ${allRooms.size}개"
+
+        val recentImport = AppSettings.getMostRecentImportedRoom(this)
+        roomHistorySummaryText.text = if (recentImport == null) {
+            "가져온 CSV가 아직 없습니다."
         } else {
-            null
-        }
-        val stateLabel = if (entry.isActive) "활성" else "최근"
-        return if (timeLabel != null) {
-            "• ${entry.name} ($stateLabel: $timeLabel)"
-        } else {
-            "• ${entry.name} ($stateLabel)"
+            val formatter = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
+            val importedAt = formatter.format(Date(recentImport.lastImportedAt))
+            val source = recentImport.lastImportSource ?: "CSV"
+            "최근 가져오기: ${recentImport.name} · ${source} · ${importedAt}"
         }
     }
 
-    private fun deleteBot(bot: BotInfo) {
-        val index = bots.indexOfFirst { it.name == bot.name }
-        if (index == -1) return
-        PollingBotController.applyToggle(applicationContext, bot.name, false)
-        BotManager.deleteBot(this, bot.name)
-        bots.removeAt(index)
-        adapter.notifyItemRemoved(index)
+    private fun updateSessionSummary() {
+        val knownRooms = SessionManager.getRegisteredRooms(this)
+        val configuredRooms = BotManager.getBots(this).count { it.name != "기본 자동응답" }
+        sessionSummaryText.text = "대상 방 ${configuredRooms}개 · 최근 감지 방 ${knownRooms.size}개"
+    }
+
+    private fun syncReplySwitch(enabled: Boolean) {
+        bindingReplySwitch = true
+        replySwitch.isChecked = enabled
+        bindingReplySwitch = false
+    }
+
+    private fun openRoomMemory(roomName: String) {
+        startActivity(
+            Intent(this, DebugRoomActivity::class.java)
+                .putExtra("roomName", roomName)
+        )
     }
 }
