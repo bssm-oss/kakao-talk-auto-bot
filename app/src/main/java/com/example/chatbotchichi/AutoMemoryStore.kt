@@ -43,6 +43,13 @@ object AutoMemoryStore {
         return root.optJSONObject(normalizedRoom)?.optString("summary", "").orEmpty()
     }
 
+    fun getPersonaHint(context: Context, room: String, displayName: String): String? {
+        val normalizedRoom = room.trim()
+        val normalizedDisplayName = displayName.trim()
+        if (normalizedRoom.isBlank() || normalizedDisplayName.isBlank()) return null
+        return buildPersonaHint(normalizedDisplayName, RoomStore.recentMessages(context, normalizedRoom, limit = 30))
+    }
+
     internal fun buildSummary(history: List<RoomHistoryMessage>): String {
         val incomingMessages = history
             .filter { it.incoming }
@@ -89,6 +96,28 @@ object AutoMemoryStore {
                 append(topDomains.joinToString(", "))
             }
         }
+    }
+
+    internal fun buildPersonaHint(displayName: String, history: List<RoomHistoryMessage>): String? {
+        val ownMessages = history
+            .filter { it.sender.equals(displayName, ignoreCase = true) }
+            .map { it.message.trim() }
+            .filter { it.isNotBlank() }
+            .takeLast(8)
+
+        if (ownMessages.isEmpty()) return null
+
+        val politeCount = ownMessages.count { message ->
+            message.endsWith("요") || message.contains("합니다") || message.contains("습니다")
+        }
+        val averageLength = ownMessages.map { it.length }.average()
+        val questionCount = ownMessages.count { it.endsWith("?") || it.endsWith("？") }
+
+        val tone = if (politeCount * 2 >= ownMessages.size) "존댓말" else "짧고 캐주얼한 말투"
+        val density = if (averageLength >= 18.0) "설명형 답변" else "짧은 답변"
+        val interaction = if (questionCount >= 2) "대화를 이어가는 질문형 표현을 자주 씀" else "짧게 확인하는 표현을 선호함"
+
+        return "최근 ${displayName} 발화 기준 말투는 ${tone}, 응답 밀도는 ${density}, ${interaction}."
     }
 
     private fun describeSender(messages: List<RoomHistoryMessage>): String {

@@ -163,6 +163,7 @@ object BotManager {
 
     private fun applyGlobalAiSettings(context: Context, config: AutoReplyConfig): AutoReplyConfig {
         val ai = AppSettings.getAiConfig(context)
+        val autoPersonaHint = AutoMemoryStore.getPersonaHint(context, config.roomPattern, ai.displayName.ifBlank { "나" })
         val providerType = when (ai.provider.lowercase()) {
             "openai" -> "openai"
             "openrouter" -> "openai"
@@ -187,6 +188,11 @@ object BotManager {
             append("기본 페르소나: ")
             append(ai.persona.ifBlank { config.persona })
             append("\n")
+            autoPersonaHint?.let {
+                append("자동 페르소나 힌트: ")
+                append(it)
+                append("\n")
+            }
             append("말투 지침: ")
             append(toneGuide)
         }
