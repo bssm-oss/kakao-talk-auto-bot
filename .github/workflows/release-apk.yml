@@ -4,11 +4,70 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
-  release:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version_tag: ${{ steps.meta.outputs.version_tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version metadata
+        id: meta
+        run: echo "version_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant Gradle permission
+        run: chmod +x gradlew
+
+      - name: Build and validate release candidates
+        run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease --console=plain
+
+      - name: Upload release APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apks
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+
+      - name: Upload validation reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-quality-reports
+          path: |
+            app/build/reports/tests/**
+            app/build/test-results/**
+            app/build/reports/lint-results-*.html
+            app/build/intermediates/lint_intermediate_text_report/**
+
+  maestro:
+    runs-on: macos-latest
+    timeout-minutes: 35
+    needs: validate
 
     steps:
       - name: Checkout
@@ -20,19 +79,92 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Grant Gradle permission
         run: chmod +x gradlew
 
-      - name: Build APKs
-        run: ./gradlew testDebugUnitTest assembleDebug assembleRelease
+      - name: Install Maestro
+        run: curl -Ls "https://get.maestro.mobile.dev" | bash
+
+      - name: Run release smoke suite
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          profile: pixel_5
+          script: |
+            export PATH="$PATH:$HOME/.maestro/bin"
+            mkdir -p .maestro-results .maestro-debug .maestro-artifacts
+            adb logcat -c
+            ./gradlew assembleDebug
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            maestro test .maestro \
+              --format junit \
+              --output .maestro-results/junit.xml \
+              --debug-output .maestro-debug \
+              --test-output-dir .maestro-artifacts \
+              --flatten-debug-output
+            adb logcat -d > .maestro-results/logcat.txt
+
+      - name: Upload Maestro artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-maestro-results
+          path: |
+            .maestro-results/**
+            .maestro-debug/**
+            .maestro-artifacts/**
+
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - validate
+      - maestro
+
+    steps:
+      - name: Download APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-apks
+          path: release-assets
+
+      - name: Rename release assets for direct download
+        run: |
+          mkdir -p release-bundle
+          shopt -s nullglob
+          for apk in release-assets/**/*.apk release-assets/*.apk; do
+            base="$(basename "$apk")"
+            case "$base" in
+              *debug*)
+                cp "$apk" "release-bundle/kakao-auto-reply-${{ needs.validate.outputs.version_tag }}-debug.apk"
+                ;;
+              *release*)
+                cp "$apk" "release-bundle/kakao-auto-reply-${{ needs.validate.outputs.version_tag }}-release-unsigned.apk"
+                ;;
+            esac
+          done
+
+      - name: Write release notes header
+        run: |
+          cat <<'EOF' > release-notes.md
+          ## 다운로드
+
+          - `kakao-auto-reply-${{ needs.validate.outputs.version_tag }}-debug.apk`: 바로 설치해 테스트하기 쉬운 디버그 빌드
+          - `kakao-auto-reply-${{ needs.validate.outputs.version_tag }}-release-unsigned.apk`: 릴리즈 후보 검증용 unsigned APK
+
+          자동 생성 릴리즈 노트는 아래에 이어집니다.
+          EOF
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
+          files: release-bundle/*.apk
+          body_path: release-notes.md
           generate_release_notes: true
