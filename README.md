@@ -1,50 +1,68 @@
-# kakao-talk-auto-bot
+# 카톡 자동답장 도우미
 
-카카오톡 단톡방/개인방의 알림을 로컬에서 수집하고, 선택한 방에만 AI 자동응답을 붙일 수 있게 만든 안드로이드 앱입니다.
+카카오톡 알림을 로컬에서 수집하고, 선택한 방에만 AI 자동응답을 연결하는 안드로이드 앱입니다. 모든 데이터를 기기 안에 저장하고, 방별 메모리와 트리거 조건을 분리해 과도한 자동응답을 막는 데 초점을 맞춥니다.
 
-이 프로젝트는 더 이상 자유 스크립트형 봇 엔진이나 n8n 연동 앱이 아닙니다. 이제는 **방 선택 → 과거 대화 CSV 가져오기 → 내 페르소나/방 메모리 설정 → AI 공급자 API 키 입력 → ON/OFF 제어** 흐름에 맞춘 간단한 자동응답 앱을 목표로 합니다.
+## 한눈에 보기
+
+| 항목 | 내용 |
+| --- | --- |
+| 응답 대상 | 모든 방이 아니라 선택한 방만 응답 |
+| 저장 방식 | 대화/설정/로그를 기기 로컬에 저장 |
+| AI 공급자 | OpenAI / Claude(Anthropic) / Gemini API Key |
+| 응답 조건 | AI 판단, 호출어/멘션, 질문/명령, 키워드, 고정 답장 |
+| 운영 제어 | OFF 상태에서도 메시지 저장 유지, 답장만 중지 |
+| UI | 메인 화면에서 상태, 대상 방, 설정, 로그, 라이트/다크 모드 제어 |
 
 ## 핵심 기능
 
-- 카카오톡 알림을 기반으로 방별 세션을 확보하고 로컬에 대화 흐름 저장
-- 특정 방만 골라 자동응답 대상에 추가
-- CSV/텍스트 형태의 과거 대화 이력 가져오기
-- 내 이름/페르소나, 방 메모리, 허용/차단 발화자, 트리거 조건 저장
-- OpenAI / Claude(Anthropic) / Gemini API Key 기반 답장
-- AI 답장 또는 고정 답장 모드 선택
-- OFF 상태에서도 메시지 저장은 계속하고, 답장만 중지
+- 카카오톡 알림을 세션으로 묶어 방별 최근 대화를 저장합니다.
+- 자동응답할 방만 별도로 등록하고 방별 메모리를 관리합니다.
+- CSV/텍스트 이력을 가져와 방 컨텍스트를 보강할 수 있습니다.
+- 내 이름, 페르소나, 공급자, API Key 보관 방식, 기본 트리거 성향을 저장합니다.
+- 메인 화면에서 AI 자동 답장을 즉시 ON/OFF 할 수 있습니다.
+- 라이트/다크/시스템 테마를 앱 안에서 전환하고 유지합니다.
 
-## 현재 지원 범위
+## 지원 범위
 
-- **지원**: API Key 기반 OpenAI / Claude / Gemini 호출
-- **지원**: AI 판단형 응답, 호출어/멘션 반응, 질문/명령형 반응, 고정 답장
-- **미지원**: 소비자용 ChatGPT Plus/Pro, Gemini 유료 플랜을 제3자 앱 로그인으로 그대로 연결하는 OAuth 패스스루
+- 지원: API Key 기반 OpenAI / Claude / Gemini 호출
+- 지원: AI 판단형 응답, 멘션 반응, 질문/명령형 반응, 고정 답장
+- 미지원: 소비자용 ChatGPT Plus/Pro, Gemini 유료 플랜을 제3자 앱 로그인으로 그대로 연결하는 OAuth 패스스루
 
-위 OAuth 계열은 공급자 정책/공식 문서 기준으로 안전하게 보장되는 구현 경로가 아니어서 현재는 넣지 않았습니다. 대신 외부 관리 또는 직접 입력 방식의 API Key 경로를 기본으로 둡니다.
+공급자 정책과 안정성 문제 때문에 OAuth 패스스루 대신 공식적으로 검증 가능한 API Key 경로만 유지합니다.
 
-## 사용자 플로우
+## 빠른 시작
 
-1. 앱 설치 후 **알림 접근 권한** 허용
-2. **응답 설정 편집**에서 내 이름, 페르소나, 공급자, API Key 저장
-3. **대상 방 관리**에서 자동응답할 방 추가
-4. 방별 **CSV 이력 가져오기 / 방 메모리 / 허용·차단 발화자 / 트리거 / 고정 답장** 설정
-5. 메인 화면에서 **AI 자동 답장** 스위치를 ON/OFF
+1. 앱 설치 후 알림 접근 권한을 허용합니다.
+2. `응답 설정 편집`에서 내 이름, 페르소나, 공급자, API Key를 저장합니다.
+3. `대상 방 관리`에서 자동응답할 방을 추가합니다.
+4. 필요하면 방별 CSV 이력과 메모리를 불러옵니다.
+5. 메인 화면에서 `AI 자동 답장`을 켭니다.
 
-## 저장 구조
-
-- 방별 설정: 앱 내부 JSON 파일
-- 방별 최근 대화: 앱 내부 JSON 파일
-- 전역 설정/메타데이터: SharedPreferences
-- 로그: 앱 내부 파일
-
-모든 데이터는 기본적으로 기기 로컬에 저장되며, n8n 같은 외부 자동화 서버로 전송하지 않습니다.
-
-## 개발 및 테스트
+## 개발
 
 ```bash
-export JAVA_HOME="/Users/heodongun/Library/Java/JavaVirtualMachines/ms-21.0.9/Contents/Home"
-./gradlew testDebugUnitTest assembleDebug
+./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
 ```
+
+- 기본 검증 JDK는 21입니다.
+- 셸 기본 `java`가 25 이상이면 `gradlew`가 호환 가능한 JDK 21을 먼저 찾고, 없으면 17, 11 순으로 fallback 합니다.
+- 자동 탐색이 막힌 환경이면 `JAVA_HOME`을 JDK 21로 명시하는 편이 가장 안정적입니다.
+
+## CI / 릴리즈
+
+- `Android CI`: JVM 테스트, lint, debug/release APK 빌드, 리포트 업로드
+- `Maestro UI Test`: 에뮬레이터에서 메인/설정/방 관리/테마 흐름 검증
+- `Release APK`: `v*` 태그 푸시 시 검증을 다시 수행한 뒤 GitHub Release에 APK 첨부
+
+## APK 다운로드
+
+- 가장 쉬운 설치 경로는 GitHub `Releases`의 최신 버전에서 APK를 받는 방식입니다.
+- 릴리즈 자산 이름은 아래처럼 고정됩니다.
+  - `kakao-auto-reply-vX.Y.Z-debug.apk`
+  - `kakao-auto-reply-vX.Y.Z-release-unsigned.apk`
+- `debug.apk`는 바로 설치 테스트용, `release-unsigned.apk`는 릴리즈 후보 검증용입니다.
+
+세부 운영 절차는 `docs/ci-release.md`, `docs/testing-quality.md`, `docs/open-source-maintenance.md`를 참고하세요.
 
 ## 문서
 
@@ -53,9 +71,23 @@ export JAVA_HOME="/Users/heodongun/Library/Java/JavaVirtualMachines/ms-21.0.9/Co
 - `docs/storage-and-memory.md`
 - `docs/providers.md`
 - `docs/ci-release.md`
+- `docs/testing-quality.md`
+- `docs/open-source-maintenance.md`
 - `docs/contributing-guide.md`
 - `docs/agent-workflow.md`
 
-## 오픈소스 기여
+## 기여 안내
 
-기여 전에는 반드시 `CONTRIBUTING.md` 와 `AGENTS.md` 를 먼저 읽어주세요. 이 저장소는 **작은 브랜치 / 작은 커밋 / PR 중심 작업 / docs 동반 변경**을 기본 규칙으로 삼습니다.
+- 기여 전에 `CONTRIBUTING.md`, `AGENTS.md`, `docs/contributing-guide.md`를 먼저 읽어 주세요.
+- 이 저장소는 작은 브랜치, 작은 커밋, 작은 PR, 문서 동반 변경을 기본 원칙으로 합니다.
+- UI/플로우/테스트/CI/릴리즈를 바꾸면 관련 `docs/` 문서도 반드시 함께 갱신해야 합니다.
+
+## 보안과 커뮤니티
+
+- 커뮤니티 참여 규칙은 `CODE_OF_CONDUCT.md`
+- 보안 제보 절차는 `SECURITY.md`
+- 이슈와 PR 작성 형식은 `.github/ISSUE_TEMPLATE`, `.github/pull_request_template.md`
+
+## 라이선스
+
+이 프로젝트는 [MIT License](/Users/Projects/bssm-oss/kakao-talk-auto-bot/LICENSE)를 따릅니다.
