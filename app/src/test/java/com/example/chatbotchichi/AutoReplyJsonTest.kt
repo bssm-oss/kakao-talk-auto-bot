@@ -1,7 +1,7 @@
 package com.example.kakaotalkautobot
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class AutoReplyJsonTest {
@@ -54,7 +54,7 @@ class AutoReplyJsonTest {
             """.trimIndent()
         )
 
-        assertEquals("지금은 제가 정리해드릴게요.", reply)
+        assertEquals("지금은 제가 정리해드릴게요.", reply.reply)
     }
 
     @Test
@@ -66,6 +66,7 @@ class AutoReplyJsonTest {
             "{" + "\"shouldReply\":false,\"reply\":\"\"}" 
         )
 
-        assertTrue(reply == null)
+        assertNull(reply.reply)
+        assertEquals("AI 판단에 따라 이번 메시지는 답장하지 않았습니다.", reply.skippedReason)
     }
 }

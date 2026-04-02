@@ -7,6 +7,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
@@ -15,6 +16,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 class CreatePollingBotActivity : AppCompatActivity() {
+    private lateinit var rootScroll: NestedScrollView
     private lateinit var inputRoomName: TextInputEditText
     private lateinit var addRoomButton: MaterialButton
     private lateinit var recyclerView: RecyclerView
@@ -32,12 +34,14 @@ class CreatePollingBotActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_create_polling)
 
+        rootScroll = findViewById(R.id.create_polling_scroll)
         inputRoomName = findViewById(R.id.input_room_name)
         addRoomButton = findViewById(R.id.btn_add_room)
         recyclerView = findViewById(R.id.recycler_rooms)
         emptyText = findViewById(R.id.text_room_empty)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
+        rootScroll.bindFocusScroll(inputRoomName)
         roomAdapter = RoomTargetAdapter(
             roomTargets,
             secondaryActionLabel = "CSV",

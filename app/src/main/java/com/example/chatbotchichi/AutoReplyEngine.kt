@@ -3,6 +3,12 @@ package com.example.kakaotalkautobot
 import android.content.Context
 
 object AutoReplyEngine {
+    data class ReplyResolution(
+        val reply: String? = null,
+        val failureReason: String? = null,
+        val skippedReason: String? = null
+    )
+
     fun onIncoming(
         context: Context,
         room: String,
@@ -25,38 +31,81 @@ object AutoReplyEngine {
                     messages
                 }
             }
-            val reply = when (config.replyMode.lowercase()) {
-                "canned" -> cannedReply(config, room, sender, message)
+            val memoryAugmentedConfig = withAutoMemory(context, room, config)
+            val resolution = when (memoryAugmentedConfig.replyMode.lowercase()) {
+                "canned" -> cannedReply(memoryAugmentedConfig, room, sender, message)
                 else -> AiProviderClient.generate(
-                    config = config,
+                    config = memoryAugmentedConfig,
                     room = room,
                     sender = sender,
                     message = message,
                     history = history
-                )
+                ).toResolution()
             }
-            if (reply.isNullOrBlank()) {
-                UiLogger.log(
+            when {
+                !resolution.reply.isNullOrBlank() -> replier.replyToRoom(room, resolution.reply)
+                !resolution.skippedReason.isNullOrBlank() -> UiLogger.log(
                     context,
-                    "OUT_FAIL",
-                    "[$room] AI reply skipped or provider config missing",
+                    "OUT_SKIP",
+                    "[$room] ${resolution.skippedReason}",
                     roomName = room,
                     speaker = "AI",
-                    serverMessage = "reply skipped"
+                    serverMessage = resolution.skippedReason
                 )
-                return@Thread
+                else -> {
+                    val reason = resolution.failureReason ?: "응답 조건을 충족하지 못했습니다."
+                    UiLogger.log(
+                        context,
+                        "OUT_FAIL",
+                        "[$room] $reason",
+                        roomName = room,
+                        speaker = "AI",
+                        serverMessage = reason
+                    )
+                }
             }
-            replier.replyToRoom(room, reply)
         }.start()
     }
 
-    private fun cannedReply(config: AutoReplyConfig, room: String, sender: String, message: String): String? {
-        if (config.cannedReplies.isEmpty()) return null
+    private fun withAutoMemory(context: Context, room: String, config: AutoReplyConfig): AutoReplyConfig {
+        val autoMemory = AutoMemoryStore.getSummary(context, room)
+        if (autoMemory.isBlank()) return config
+        val combinedMemory = buildString {
+            if (config.roomMemory.isNotBlank()) {
+                append(config.roomMemory.trim())
+                append("\n\n")
+            }
+            append(autoMemory)
+        }
+        return config.copy(roomMemory = combinedMemory.trim())
+    }
+
+    private fun cannedReply(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String
+    ): ReplyResolution {
+        if (config.cannedReplies.isEmpty()) {
+            return ReplyResolution(failureReason = "고정 답장 목록이 비어 있습니다.")
+        }
         val raw = config.cannedReplies[(message.hashCode() and Int.MAX_VALUE) % config.cannedReplies.size]
-        return raw
+        val reply = raw
             .replace("{room}", room)
             .replace("{sender}", sender)
             .replace("{message}", message)
             .trim()
+        if (reply.isBlank()) {
+            return ReplyResolution(failureReason = "고정 답장 템플릿이 비어 있습니다.")
+        }
+        return ReplyResolution(reply = reply)
+    }
+
+    private fun AiProviderClient.GenerationResult.toResolution(): ReplyResolution {
+        return ReplyResolution(
+            reply = reply,
+            failureReason = failureReason,
+            skippedReason = skippedReason
+        )
     }
 }
