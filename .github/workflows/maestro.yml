@@ -1,12 +1,23 @@
-name: Maestro Smoke Test
+name: Maestro UI Test
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: maestro-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   maestro:
     runs-on: macos-latest
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -18,6 +29,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -27,7 +41,7 @@ jobs:
       - name: Install Maestro
         run: curl -Ls "https://get.maestro.mobile.dev" | bash
 
-      - name: Run Maestro smoke flow
+      - name: Run Maestro flows
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
@@ -35,6 +49,24 @@ jobs:
           profile: pixel_5
           script: |
             export PATH="$PATH:$HOME/.maestro/bin"
+            mkdir -p .maestro-results .maestro-debug .maestro-artifacts
+            adb logcat -c
             ./gradlew assembleDebug
             adb install -r app/build/outputs/apk/debug/app-debug.apk
-            maestro test .maestro/smoke.yaml
+            maestro test .maestro \
+              --format junit \
+              --output .maestro-results/junit.xml \
+              --debug-output .maestro-debug \
+              --test-output-dir .maestro-artifacts \
+              --flatten-debug-output
+            adb logcat -d > .maestro-results/logcat.txt
+
+      - name: Upload Maestro artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-results
+          path: |
+            .maestro-results/**
+            .maestro-debug/**
+            .maestro-artifacts/**

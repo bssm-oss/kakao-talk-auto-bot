@@ -7,7 +7,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
@@ -21,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.switchmaterial.SwitchMaterial
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -42,6 +42,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var roomAdapter: RoomTargetAdapter
     private lateinit var replySwitch: SwitchMaterial
+    private lateinit var themeToggleGroup: MaterialButtonToggleGroup
     private lateinit var permissionButton: MaterialButton
     private lateinit var editConfigButton: MaterialButton
     private lateinit var manageRoomsButton: MaterialButton
@@ -51,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private val maxLogLines = 100
     private var receiverRegistered = false
     private var bindingReplySwitch = false
+    private var bindingThemeToggle = false
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -79,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         copyLogsButton = findViewById(R.id.btn_copy_logs)
         recyclerView = findViewById(R.id.recycler_rooms)
         replySwitch = findViewById(R.id.switch_ai_replies)
+        themeToggleGroup = findViewById(R.id.theme_toggle_group)
         permissionButton = findViewById(R.id.permission_button)
         editConfigButton = findViewById(R.id.btn_edit_config)
         manageRoomsButton = findViewById(R.id.btn_manage_rooms)
@@ -133,6 +136,18 @@ class MainActivity : AppCompatActivity() {
             AppSettings.setAiReplyEnabled(this, isChecked)
             refreshStatusUi()
         }
+
+        themeToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (bindingThemeToggle || !isChecked) return@addOnButtonCheckedListener
+            val themeMode = when (checkedId) {
+                R.id.theme_button_light -> AppSettings.ThemeMode.LIGHT
+                R.id.theme_button_dark -> AppSettings.ThemeMode.DARK
+                else -> AppSettings.ThemeMode.SYSTEM
+            }
+            AppSettings.setThemeMode(this, themeMode)
+        }
+
+        syncThemeToggle(AppSettings.getThemeMode(this))
     }
 
     override fun onResume() {
@@ -143,17 +158,14 @@ class MainActivity : AppCompatActivity() {
         updateDeviceNameUi()
         loadLogHistory()
         refreshStatusUi()
+        syncThemeToggle(AppSettings.getThemeMode(this))
         requestRebindIfNeeded()
 
         val filter = IntentFilter().apply {
             addAction("com.example.kakaotalkautobot.STATUS_UPDATE")
             addAction("com.example.kakaotalkautobot.LOG_UPDATE")
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(receiver, filter)
-        }
+        ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         receiverRegistered = true
     }
 
@@ -280,7 +292,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val clipboard = getSystemService(ClipboardManager::class.java)
-        val clip = ClipData.newPlainText("kakao-talk-auto-bot logs", allLogs)
+        val clip = ClipData.newPlainText("자동답장 로그", allLogs)
         clipboard.setPrimaryClip(clip)
         Toast.makeText(this, "로그가 복사되었습니다.", Toast.LENGTH_SHORT).show()
     }
@@ -336,6 +348,18 @@ class MainActivity : AppCompatActivity() {
         bindingReplySwitch = true
         replySwitch.isChecked = enabled
         bindingReplySwitch = false
+    }
+
+    private fun syncThemeToggle(mode: AppSettings.ThemeMode) {
+        bindingThemeToggle = true
+        themeToggleGroup.check(
+            when (mode) {
+                AppSettings.ThemeMode.LIGHT -> R.id.theme_button_light
+                AppSettings.ThemeMode.DARK -> R.id.theme_button_dark
+                AppSettings.ThemeMode.SYSTEM -> R.id.theme_button_system
+            }
+        )
+        bindingThemeToggle = false
     }
 
     private fun openRoomMemory(roomName: String) {
