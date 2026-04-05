@@ -4,11 +4,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 data class ProviderConfig(
-    val type: String = "openai",
+    val type: String = "local",
     val apiKey: String = "",
     val model: String = "",
     val endpoint: String = "",
-    val authMode: String = "api_key"
+    val authMode: String = "local"
 )
 
 data class TriggerConfig(
@@ -42,7 +42,7 @@ object AutoReplyJson {
             roomMemory = "이 방의 맥락, 금지어, 말투를 간단히 적어두세요.",
             cannedReplies = listOf("확인했어요.", "조금 뒤에 답할게요."),
             trigger = TriggerConfig(mode = "ai_judge", value = ""),
-            provider = ProviderConfig(type = "openai", model = "gpt-4o-mini")
+            provider = ProviderConfig(type = "local", model = "kotlin-retrieval")
         )
     }
 
@@ -68,11 +68,11 @@ object AutoReplyJson {
                 value = triggerJson.optString("value", "")
             ),
             provider = ProviderConfig(
-                type = providerJson.optString("type", "openai"),
+                type = providerJson.optString("type", "local"),
                 apiKey = providerJson.optString("apiKey", ""),
                 model = providerJson.optString("model", ""),
                 endpoint = providerJson.optString("endpoint", ""),
-                authMode = providerJson.optString("authMode", "api_key")
+                authMode = providerJson.optString("authMode", "local")
             ),
             importHistory = json.optString("importHistory", "")
         )

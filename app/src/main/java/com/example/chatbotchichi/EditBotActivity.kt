@@ -21,8 +21,8 @@ class EditBotActivity : AppCompatActivity() {
     private lateinit var spinnerTriggerMode: Spinner
     private lateinit var btnSave: Button
 
-    private val providers = listOf("OpenAI", "OpenRouter", "Anthropic", "Gemini", "Custom")
-    private val apiKeyModes = listOf("앱에 저장", "직접 입력", "외부에서 관리")
+    private val providers = listOf("로컬 Kotlin 엔진")
+    private val apiKeyModes = listOf("불필요")
     private val replyModes = listOf("간결하게", "균형 있게", "조금 더 자세히")
     private val triggerModes = listOf("AI가 판단", "호출어/멘션만", "질문/명령만", "모든 메시지")
 
@@ -48,13 +48,9 @@ class EditBotActivity : AppCompatActivity() {
 
         spinnerApiKeyMode.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                val mode = apiKeyModes[position]
-                val enabled = mode != "외부에서 관리"
-                editApiKey.isEnabled = enabled
-                editApiKey.alpha = if (enabled) 1f else 0.5f
-                if (!enabled) {
-                    editApiKey.setText("")
-                }
+                editApiKey.isEnabled = false
+                editApiKey.alpha = 0.5f
+                editApiKey.setText("")
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
@@ -65,8 +61,6 @@ class EditBotActivity : AppCompatActivity() {
         btnSave.setOnClickListener {
             val displayName = editDisplayName.text?.toString()?.trim().orEmpty()
             val persona = editPersona.text?.toString()?.trim().orEmpty()
-            val apiKeyMode = spinnerApiKeyMode.selectedItem?.toString().orEmpty()
-            val apiKey = if (apiKeyMode == "외부에서 관리") "" else editApiKey.text?.toString()?.trim().orEmpty()
 
             if (displayName.isEmpty()) {
                 Toast.makeText(this, "내 이름을 입력해주세요.", Toast.LENGTH_SHORT).show()
@@ -82,9 +76,9 @@ class EditBotActivity : AppCompatActivity() {
                 AppSettings.AiConfig(
                     displayName = displayName,
                     persona = persona,
-                    provider = spinnerProvider.selectedItem?.toString().orEmpty(),
-                    apiKeyMode = apiKeyMode,
-                    apiKey = apiKey,
+                    provider = providers.first(),
+                    apiKeyMode = apiKeyModes.first(),
+                    apiKey = "",
                     replyMode = spinnerReplyMode.selectedItem?.toString().orEmpty(),
                     triggerMode = spinnerTriggerMode.selectedItem?.toString().orEmpty()
                 )
@@ -99,9 +93,9 @@ class EditBotActivity : AppCompatActivity() {
         val config = AppSettings.getAiConfig(this)
         editDisplayName.setText(config.displayName)
         editPersona.setText(config.persona)
-        editApiKey.setText(config.apiKey)
-        spinnerProvider.setSelection(indexOrZero(providers, config.provider))
-        spinnerApiKeyMode.setSelection(indexOrZero(apiKeyModes, config.apiKeyMode))
+        editApiKey.setText("")
+        spinnerProvider.setSelection(0)
+        spinnerApiKeyMode.setSelection(0)
         spinnerReplyMode.setSelection(indexOrZero(replyModes, config.replyMode))
         spinnerTriggerMode.setSelection(indexOrZero(triggerModes, config.triggerMode))
     }

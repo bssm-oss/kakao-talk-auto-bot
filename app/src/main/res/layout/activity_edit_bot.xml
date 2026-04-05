@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_1"
             android:layout_marginBottom="@dimen/space_4"
-            android:text="내 이름/페르소나, 모델 공급자, API 키 보관 방식, 답장 조건을 저장합니다."
+            android:text="내 이름/페르소나, 로컬 응답 엔진, 답장 조건을 저장합니다."
             android:textColor="@color/colorTextSecondary"
             android:textSize="13sp" />
 
@@ -113,7 +113,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:text="Provider"
+                    android:text="응답 엔진"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
 
@@ -127,7 +127,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:text="API 키 보관 방식"
+                    android:text="인증"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
 
@@ -142,7 +142,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:hint="API Key">
+                    android:hint="API Key 불필요">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/edit_api_key"

@@ -243,7 +243,7 @@
                     android:layout_marginTop="@dimen/space_2"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp"
-                    tools:text="Provider: OpenAI · API 키: 앱에 저장" />
+                    tools:text="응답 엔진: 로컬 Kotlin 엔진 · API 키 없음" />
 
                 <TextView
                     android:id="@+id/text_behavior_summary"

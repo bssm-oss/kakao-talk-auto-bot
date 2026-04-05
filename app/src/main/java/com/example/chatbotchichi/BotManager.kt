@@ -164,17 +164,6 @@ object BotManager {
     private fun applyGlobalAiSettings(context: Context, config: AutoReplyConfig): AutoReplyConfig {
         val ai = AppSettings.getAiConfig(context)
         val autoPersonaHint = AutoMemoryStore.getPersonaHint(context, config.roomPattern, ai.displayName.ifBlank { "나" })
-        val providerType = when (ai.provider.lowercase()) {
-            "openai" -> "openai"
-            "openrouter" -> "openai"
-            "anthropic", "claude" -> "anthropic"
-            "gemini" -> "gemini"
-            else -> config.provider.type
-        }
-        val providerEndpoint = when (ai.provider.lowercase()) {
-            "openrouter" -> "https://openrouter.ai/api/v1/chat/completions"
-            else -> config.provider.endpoint
-        }
         val trigger = resolveTrigger(ai, config)
         val toneGuide = when (ai.replyMode) {
             "간결하게" -> "한두 문장으로 짧고 자연스럽게 답해라."
@@ -200,10 +189,11 @@ object BotManager {
             persona = persona,
             trigger = trigger,
             provider = config.provider.copy(
-                type = providerType,
-                apiKey = ai.apiKey,
-                endpoint = providerEndpoint,
-                authMode = if (ai.apiKeyMode == "외부에서 관리") "external" else "api_key"
+                type = "local",
+                apiKey = "",
+                endpoint = "",
+                authMode = "local",
+                model = "kotlin-retrieval"
             )
         )
     }
