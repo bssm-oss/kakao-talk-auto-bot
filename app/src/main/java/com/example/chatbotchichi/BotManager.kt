@@ -135,18 +135,19 @@ object BotManager {
         return config.allowedSenders.any { it.equals(sender, true) }
     }
 
-    private fun triggerMatches(config: AutoReplyConfig, message: String, isGroupChat: Boolean): Boolean {
+    internal fun triggerMatches(config: AutoReplyConfig, message: String, isGroupChat: Boolean): Boolean {
         val value = config.trigger.value.trim()
         return when (config.trigger.mode.lowercase()) {
             "always" -> true
             "prefix" -> value.isNotBlank() && message.startsWith(value, true)
             "keyword", "contains" -> value.split(',', '\n').map { it.trim() }.any { it.isNotBlank() && message.contains(it, true) }
             "mention" -> {
+                val normalizedValue = value.removePrefix("@").trim()
                 val candidates = buildList {
-                    if (value.isNotBlank()) add(value)
-                    if (value.isNotBlank()) add("@$value")
-                    if (value.isNotBlank()) add("${value}아")
-                    if (value.isNotBlank()) add("${value}야")
+                    if (normalizedValue.isNotBlank()) add(normalizedValue)
+                    if (normalizedValue.isNotBlank()) add("@$normalizedValue")
+                    if (normalizedValue.isNotBlank()) add("${normalizedValue}아")
+                    if (normalizedValue.isNotBlank()) add("${normalizedValue}야")
                 }
                 candidates.any { it.isNotBlank() && message.contains(it, true) }
             }
@@ -162,6 +163,7 @@ object BotManager {
 
     private fun applyGlobalAiSettings(context: Context, config: AutoReplyConfig): AutoReplyConfig {
         val ai = AppSettings.getAiConfig(context)
+        val autoPersonaHint = AutoMemoryStore.getPersonaHint(context, config.roomPattern, ai.displayName.ifBlank { "나" })
         val providerType = when (ai.provider.lowercase()) {
             "openai" -> "openai"
             "openrouter" -> "openai"
@@ -173,13 +175,7 @@ object BotManager {
             "openrouter" -> "https://openrouter.ai/api/v1/chat/completions"
             else -> config.provider.endpoint
         }
-        val trigger = when (ai.triggerMode) {
-            "AI가 판단" -> TriggerConfig(mode = "ai_judge", value = "")
-            "호출어/멘션만" -> TriggerConfig(mode = "mention", value = ai.displayName.trim())
-            "질문/명령만" -> TriggerConfig(mode = "question", value = "")
-            "모든 메시지" -> TriggerConfig(mode = "always", value = "")
-            else -> config.trigger
-        }
+        val trigger = resolveTrigger(ai, config)
         val toneGuide = when (ai.replyMode) {
             "간결하게" -> "한두 문장으로 짧고 자연스럽게 답해라."
             "조금 더 자세히" -> "필요한 맥락을 조금 더 붙여 설명하되 장황하지 않게 답해라."
@@ -192,6 +188,11 @@ object BotManager {
             append("기본 페르소나: ")
             append(ai.persona.ifBlank { config.persona })
             append("\n")
+            autoPersonaHint?.let {
+                append("자동 페르소나 힌트: ")
+                append(it)
+                append("\n")
+            }
             append("말투 지침: ")
             append(toneGuide)
         }
@@ -205,6 +206,20 @@ object BotManager {
                 authMode = if (ai.apiKeyMode == "외부에서 관리") "external" else "api_key"
             )
         )
+    }
+
+    private fun resolveTrigger(ai: AppSettings.AiConfig, config: AutoReplyConfig): TriggerConfig {
+        val normalizedMode = config.trigger.mode.trim().lowercase()
+        val hasRoomSpecificTrigger = normalizedMode !in setOf("", "ai_judge", "smart") || config.trigger.value.isNotBlank()
+        if (hasRoomSpecificTrigger) {
+            return config.trigger
+        }
+        return when (ai.triggerMode) {
+            "호출어/멘션만" -> TriggerConfig(mode = "mention", value = ai.displayName.trim())
+            "질문/명령만" -> TriggerConfig(mode = "question", value = "")
+            "모든 메시지" -> TriggerConfig(mode = "always", value = "")
+            else -> TriggerConfig(mode = "ai_judge", value = "")
+        }
     }
 
     private fun configFiles(context: Context): List<File> {

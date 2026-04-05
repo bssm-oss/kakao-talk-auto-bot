@@ -6,6 +6,7 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.NestedScrollView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import java.text.SimpleDateFormat
@@ -13,6 +14,7 @@ import java.util.Date
 import java.util.Locale
 
 class DebugRoomActivity : AppCompatActivity() {
+    private lateinit var rootScroll: NestedScrollView
     private lateinit var editRoomName: TextInputEditText
     private lateinit var roomMetaText: TextView
     private lateinit var editMemory: TextInputEditText
@@ -32,6 +34,7 @@ class DebugRoomActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_debug_room)
 
+        rootScroll = findViewById(R.id.debug_room_scroll)
         editRoomName = findViewById(R.id.edit_room_name)
         roomMetaText = findViewById(R.id.text_room_meta)
         editMemory = findViewById(R.id.edit_memory)
@@ -46,6 +49,14 @@ class DebugRoomActivity : AppCompatActivity() {
 
         configureSpinner(spinnerReplyMode, replyModes)
         configureSpinner(spinnerTriggerMode, triggerModes)
+        rootScroll.bindFocusScroll(
+            editRoomName,
+            editMemory,
+            editTriggerValue,
+            editAllowedSenders,
+            editBlockedSenders,
+            editCannedReplies
+        )
 
         val initialRoomName = intent.getStringExtra("roomName")
             ?.trim()
@@ -109,13 +120,18 @@ class DebugRoomActivity : AppCompatActivity() {
         editCannedReplies.setText(config?.cannedReplies?.joinToString("\n").orEmpty())
         val roomTarget = AppSettings.getRoomTarget(this, roomName)
         if (roomTarget == null || roomTarget.lastImportedAt <= 0L) {
-            roomMetaText.text = "가져온 CSV 정보가 없습니다. 필요한 맥락을 직접 메모해둘 수 있습니다."
+            val autoMemory = AutoMemoryStore.getSummary(this, roomName)
+            roomMetaText.text = if (autoMemory.isBlank()) {
+                "가져온 CSV 정보가 없습니다. 필요한 맥락을 직접 메모해둘 수 있습니다."
+            } else {
+                "자동 메모리가 최근 대화 기준으로 함께 관리됩니다."
+            }
             return
         }
 
         val formatter = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
         val importSource = roomTarget.lastImportSource ?: "CSV"
-        roomMetaText.text = "최근 가져오기: ${importSource} · ${formatter.format(Date(roomTarget.lastImportedAt))}"
+        roomMetaText.text = "최근 가져오기: ${importSource} · ${formatter.format(Date(roomTarget.lastImportedAt))}\n자동 메모리가 최근 대화 기준으로 함께 관리됩니다."
     }
 
     private fun configureSpinner(spinner: Spinner, items: List<String>) {
