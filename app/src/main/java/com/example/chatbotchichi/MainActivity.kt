@@ -223,7 +223,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateDeviceNameUi() {
         val aiConfig = AppSettings.getAiConfig(this)
         val displayName = aiConfig.displayName.trim().ifBlank { "미설정" }
-        deviceNameText.text = "내 이름: $displayName · Provider: ${aiConfig.provider}"
+        deviceNameText.text = "내 이름: $displayName · 로컬 AI 답장"
     }
 
     private fun applyStatusUi(status: String, state: StatusState) {
@@ -300,7 +300,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateConfigSummary() {
         val config = AppSettings.getAiConfig(this)
         identitySummaryText.text = "이름: ${config.displayName} · 페르소나: ${config.persona.take(40)}"
-        providerSummaryText.text = "Provider: ${config.provider} · API 키: ${config.apiKeyMode}"
+        providerSummaryText.text = "응답 엔진: ${config.provider} · API 키 없음"
         behaviorSummaryText.text = "답장 방식: ${config.replyMode} · 트리거: ${config.triggerMode}"
     }
 

@@ -14,6 +14,11 @@ import androidx.core.content.ContextCompat
 class NotificationListener : NotificationListenerService() {
     private val processedNotifications = mutableMapOf<String, Long>()
 
+    internal data class IncomingHandlingPlan(
+        val shouldCapture: Boolean,
+        val shouldAttemptReply: Boolean
+    )
+
     private val debugReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != "com.example.kakaotalkautobot.DEBUG_MSG") return
@@ -101,7 +106,8 @@ class NotificationListener : NotificationListenerService() {
 
     private fun processIncoming(room: String, msg: String, sender: String, isGroupChat: Boolean, replier: SessionReplier) {
         val roomConfig = BotManager.findRoomConfig(this, room, sender)
-        if (roomConfig?.captureEnabled == true) {
+        val handlingPlan = incomingHandlingPlan(roomConfig, AppSettings.isAiReplyEnabled(this))
+        if (handlingPlan.shouldCapture) {
             RoomStore.recordIncoming(this, room, sender, msg)
         }
         UiLogger.log(
@@ -112,11 +118,18 @@ class NotificationListener : NotificationListenerService() {
             speaker = sender,
             serverMessage = msg
         )
-        if (!AppSettings.isAiReplyEnabled(this)) {
-            return
-        }
-        if (roomConfig == null) return
+        if (!handlingPlan.shouldAttemptReply || roomConfig == null) return
         AutoReplyEngine.onIncoming(this, room, msg, sender, isGroupChat, replier, roomConfig)
+    }
+
+    internal fun incomingHandlingPlan(
+        roomConfig: AutoReplyConfig?,
+        aiReplyEnabled: Boolean
+    ): IncomingHandlingPlan {
+        return IncomingHandlingPlan(
+            shouldCapture = roomConfig?.captureEnabled == true,
+            shouldAttemptReply = aiReplyEnabled && roomConfig != null
+        )
     }
 
     private fun updateStatus(msg: String, isConnected: Boolean) {

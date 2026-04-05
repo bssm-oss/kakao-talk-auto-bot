@@ -45,14 +45,6 @@ jobs:
       - name: Build and validate release candidates
         run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease --console=plain
 
-      - name: Upload release APK artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-apks
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
-
       - name: Upload validation reports
         uses: actions/upload-artifact@v4
         if: always()
@@ -71,35 +63,73 @@ jobs:
       - validate
 
     steps:
-      - name: Download APK artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-apks
-          path: release-assets
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Rename release assets for direct download
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant Gradle permission
+        run: chmod +x gradlew
+
+      - name: Require release signing secrets
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
         run: |
-          mkdir -p release-bundle
-          shopt -s nullglob
-          for apk in release-assets/**/*.apk release-assets/*.apk; do
-            base="$(basename "$apk")"
-            case "$base" in
-              *debug*)
-                cp "$apk" "release-bundle/kakao-auto-reply-${{ needs.validate.outputs.version_tag }}-debug.apk"
-                ;;
-              *release*)
-                cp "$apk" "release-bundle/kakao-auto-reply-${{ needs.validate.outputs.version_tag }}-release-unsigned.apk"
-                ;;
-            esac
+          missing=0
+          for name in ANDROID_RELEASE_KEYSTORE_BASE64 ANDROID_RELEASE_STORE_PASSWORD ANDROID_RELEASE_KEY_ALIAS ANDROID_RELEASE_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing release signing secret::$name must be configured for tagged release publishing."
+              missing=1
+            fi
           done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Decode release signing keystore
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/android-signing"
+          printf '%s' "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-signing/release.keystore"
+
+      - name: Build signed release APK
+        env:
+          ANDROID_RELEASE_STORE_FILE: ${{ runner.temp }}/android-signing/release.keystore
+          ANDROID_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --console=plain
+
+      - name: Prepare signed release asset
+        run: |
+          signed_apk="app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$signed_apk" ]; then
+            echo "::error title=Signed release APK missing::Expected signed APK at $signed_apk after assembleRelease."
+            exit 1
+          fi
+          mkdir -p release-bundle
+          cp "$signed_apk" "release-bundle/kakao-auto-reply-${{ needs.validate.outputs.version_tag }}.apk"
 
       - name: Write release notes header
         run: |
           cat <<'EOF' > release-notes.md
           ## 다운로드
 
-          - `kakao-auto-reply-${{ needs.validate.outputs.version_tag }}-debug.apk`: 바로 설치해 테스트하기 쉬운 디버그 빌드
-          - `kakao-auto-reply-${{ needs.validate.outputs.version_tag }}-release-unsigned.apk`: 릴리즈 후보 검증용 unsigned APK
+          - `kakao-auto-reply-${{ needs.validate.outputs.version_tag }}.apk`: GitHub Secrets로 서명한 최종 사용자용 릴리즈 APK
 
           자동 생성 릴리즈 노트는 아래에 이어집니다.
           EOF
