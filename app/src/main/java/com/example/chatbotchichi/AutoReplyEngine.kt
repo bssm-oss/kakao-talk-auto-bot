@@ -1,8 +1,18 @@
 package com.example.kakaotalkautobot
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 object AutoReplyEngine {
+    /**
+     * Reply generation stays off the main thread so notification capture remains responsive
+     * even when local context scoring needs to inspect room history and memory.
+     */
+    private val replyScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     data class ReplyResolution(
         val reply: String? = null,
         val failureReason: String? = null,
@@ -22,8 +32,8 @@ object AutoReplyEngine {
             return
         }
         if (!config.replyEnabled) return
-        Thread {
-            val history = RoomStore.recentMessages(context, room).let { messages ->
+        replyScope.launch {
+            val history = RoomStore.recentMessages(context, room, limit = 40).let { messages ->
                 if (messages.isNotEmpty()) {
                     val last = messages.last()
                     if (last.incoming && last.sender == sender && last.message == message) messages.dropLast(1) else messages
@@ -64,7 +74,7 @@ object AutoReplyEngine {
                     )
                 }
             }
-        }.start()
+        }
     }
 
     private fun withAutoMemory(context: Context, room: String, config: AutoReplyConfig): AutoReplyConfig {

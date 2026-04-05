@@ -8,7 +8,7 @@
 | --- | --- |
 | 응답 대상 | 모든 방이 아니라 선택한 방만 응답 |
 | 저장 방식 | 대화/설정/로그를 기기 로컬에 저장 |
-| AI 공급자 | OpenAI / Claude(Anthropic) / Gemini API Key |
+| AI 공급자 | 로컬 Kotlin 검색/답장 엔진 |
 | 응답 조건 | AI 판단, 호출어/멘션, 질문/명령, 키워드, 고정 답장 |
 | 운영 제어 | OFF 상태에서도 메시지 저장 유지, 답장만 중지 |
 | UI | 메인 화면에서 상태, 대상 방, 설정, 로그, 라이트/다크 모드 제어 |
@@ -18,7 +18,7 @@
 - 카카오톡 알림을 세션으로 묶어 방별 최근 대화를 저장합니다.
 - 자동응답할 방만 별도로 등록하고 방별 메모리를 관리합니다.
 - CSV/텍스트 이력을 가져와 방 컨텍스트를 보강할 수 있습니다.
-- 내 이름, 페르소나, 공급자, API Key 보관 방식, 기본 트리거 성향을 저장합니다.
+- 내 이름, 페르소나, 로컬 답장 엔진 설정, 기본 트리거 성향을 저장합니다.
 - 메인 화면에서 AI 자동 답장을 즉시 ON/OFF 할 수 있습니다.
 - 라이트/다크/시스템 테마를 앱 안에서 전환하고 유지합니다.
 - 최근 대화 기준으로 방별 자동 메모리를 생성해 프롬프트에 함께 반영합니다.
@@ -26,16 +26,17 @@
 
 ## 지원 범위
 
-- 지원: API Key 기반 OpenAI / Claude / Gemini 호출
+- 지원: 로컬 Kotlin 검색/답장 엔진 기반 자동응답
 - 지원: AI 판단형 응답, 멘션 반응, 질문/명령형 반응, 고정 답장
+- 미지원: OpenAI / Claude / Gemini 등 원격 API 호출, API Key 입력 기반 응답
 - 미지원: 소비자용 ChatGPT Plus/Pro, Gemini 유료 플랜을 제3자 앱 로그인으로 그대로 연결하는 OAuth 패스스루
 
-공급자 정책과 안정성 문제 때문에 OAuth 패스스루 대신 공식적으로 검증 가능한 API Key 경로만 유지합니다.
+정상 동작 경로는 기기 안에 저장된 최근 방 이력, 방 메모리, CSV로 가져온 맥락을 재사용하는 로컬 엔진입니다.
 
 ## 빠른 시작
 
 1. 앱 설치 후 알림 접근 권한을 허용합니다.
-2. `응답 설정 편집`에서 내 이름, 페르소나, 공급자, API Key를 저장합니다.
+2. `응답 설정 편집`에서 내 이름, 페르소나, 로컬 답장 톤, 기본 트리거를 저장합니다.
 3. `대상 방 관리`에서 자동응답할 방을 추가합니다.
 4. 필요하면 방별 CSV 이력과 메모리를 불러옵니다.
 5. 메인 화면에서 `AI 자동 답장`을 켭니다.
@@ -55,15 +56,13 @@
 
 - `Android CI`: JVM 테스트, lint, debug/release APK 빌드, 리포트 업로드
 - `Maestro UI Test`: 현재는 GitHub-hosted 에뮬레이터 불안정으로 `workflow_dispatch` 수동 실행 전용
-- `Release APK`: `v*` 태그 푸시 시 검증을 다시 수행한 뒤 GitHub Release에 APK 첨부
+- `Release APK`: `v*` 태그 푸시 시 검증을 다시 수행한 뒤 GitHub Secrets 기반으로 서명한 release APK 1개만 GitHub Release에 첨부
 
 ## APK 다운로드
 
 - 가장 쉬운 설치 경로는 GitHub `Releases`의 최신 버전에서 APK를 받는 방식입니다.
-- 릴리즈 자산 이름은 아래처럼 고정됩니다.
-  - `kakao-auto-reply-vX.Y.Z-debug.apk`
-  - `kakao-auto-reply-vX.Y.Z-release-unsigned.apk`
-- `debug.apk`는 바로 설치 테스트용, `release-unsigned.apk`는 릴리즈 후보 검증용입니다.
+- 일반 사용자용 릴리즈 자산 이름은 `kakao-auto-reply-vX.Y.Z.apk` 형식으로 고정됩니다.
+- debug/unsigned APK는 검증 산출물일 뿐이며 GitHub Release의 기본 설치 대상으로 배포하지 않습니다.
 
 세부 운영 절차는 `docs/ci-release.md`, `docs/testing-quality.md`, `docs/open-source-maintenance.md`를 참고하세요.
 
@@ -73,7 +72,9 @@
 - `docs/user-flow.md`
 - `docs/storage-and-memory.md`
 - `docs/providers.md`
+- `docs/local-ai-migration-status.md`
 - `docs/ci-release.md`
+- `docs/release-distribution-status.md`
 - `docs/testing-quality.md`
 - `docs/open-source-maintenance.md`
 - `docs/contributing-guide.md`

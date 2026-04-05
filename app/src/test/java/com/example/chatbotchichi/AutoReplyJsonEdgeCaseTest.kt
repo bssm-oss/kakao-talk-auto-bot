@@ -22,8 +22,8 @@ class AutoReplyJsonEdgeCaseTest {
         assertEquals("프로젝트방", parsed.roomPattern)
         assertEquals("provider", parsed.replyMode)
         assertEquals("always", parsed.trigger.mode)
-        assertEquals("openai", parsed.provider.type)
-        assertEquals("api_key", parsed.provider.authMode)
+        assertEquals("local", parsed.provider.type)
+        assertEquals("local", parsed.provider.authMode)
     }
 
     @Test
