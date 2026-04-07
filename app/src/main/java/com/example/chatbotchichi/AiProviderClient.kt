@@ -1,28 +1,19 @@
 package com.example.kakaotalkautobot
 
-import org.json.JSONObject
-import java.util.Locale
+import android.content.Context
+import android.util.Log
 
 object AiProviderClient {
+    private const val TAG = "AiProviderClient"
+
     data class GenerationResult(
         val reply: String? = null,
         val failureReason: String? = null,
         val skippedReason: String? = null
     )
 
-    private val tokenRegex = Regex("""[A-Za-z0-9가-힣._@-]{2,}""")
-    private val stopwords = setOf(
-        "그리고", "그러면", "그냥", "이거", "저거", "오늘", "내일", "지금", "방금",
-        "일단", "혹시", "정도", "관련", "문의", "확인", "부탁", "좀", "the", "and"
-    )
-    private val lowSignalMessages = setOf("ㅇㅋ", "ok", "넵", "네", "응", "ㅇㅇ", "ㅋㅋ", "ㅎㅎ", "ㄱㄱ")
-    private val trimSuffixes = listOf(
-        "입니다", "이에요", "예요", "이네요", "하네요", "해요", "했어요", "합니다",
-        "이야", "야", "요", "은", "는", "이", "가", "을", "를", "에", "의",
-        "와", "과", "도", "만", "랑", "으로", "로", "해", "줘"
-    )
-
     fun generate(
+        context: Context,
         config: AutoReplyConfig,
         room: String,
         sender: String,
@@ -34,284 +25,142 @@ object AiProviderClient {
             return GenerationResult(skippedReason = "빈 메시지에는 답장하지 않습니다.")
         }
 
+        // Ensure LLM is loaded
+        if (!ensureLlmLoaded(context)) {
+            return GenerationResult(failureReason = "LLM 모델이 로드되지 않았습니다. 모델 다운로드를 기다려주세요.")
+        }
+
+        // Check trigger conditions first (non-AI logic still applies)
         val judgeMode = config.trigger.mode.equals("ai_judge", true) || config.trigger.mode.equals("smart", true)
-        val tone = selectTone(config.persona)
-        val signal = analyzeSignal(config, sender, normalizedMessage)
-        val candidate = bestCandidate(config, sender, normalizedMessage, history)
 
-        if (judgeMode && shouldAbstain(signal, candidate)) {
-            return GenerationResult(skippedReason = "로컬 판단 결과 이번 메시지는 개입하지 않았습니다.")
-        }
-
-        signal.fixedReply(tone)?.let { return GenerationResult(reply = it) }
-
-        if (candidate != null && candidate.score >= 1.6) {
-            val grounded = groundedReply(signal, candidate, tone)
-            if (grounded != null) {
-                return GenerationResult(reply = grounded)
+        // Low signal quick check - skip for very short meaningless messages
+        if (isLowSignalMessage(normalizedMessage) && !hasRecentContext(history, 3)) {
+            if (judgeMode) {
+                return GenerationResult(skippedReason = "의미 없는 짧은 메시지입니다.")
             }
         }
 
-        if (judgeMode) {
-            return GenerationResult(skippedReason = "로컬 판단 결과 확신이 낮아 답장을 보류했습니다.")
-        }
+        // Build the prompt and generate
+        return try {
+            val prompt = buildPrompt(config, room, sender, normalizedMessage, history)
+            Log.d(TAG, "Prompt length: ${prompt.length} chars")
 
-        return GenerationResult(reply = tone.uncertainReply)
-    }
+            val rawResponse = LlmEngine.generate(prompt, maxTokens = 256)
+            val reply = cleanResponse(rawResponse)
 
-    internal fun normalizeGeneratedReply(config: AutoReplyConfig, raw: String?): GenerationResult {
-        val text = raw?.trim()?.removeSurrounding("```")?.trim()?.ifBlank { null }
-            ?: return GenerationResult(failureReason = "AI 응답 본문이 비어 있습니다.")
-        if (!config.trigger.mode.equals("ai_judge", true) && !config.trigger.mode.equals("smart", true)) {
-            return GenerationResult(reply = text)
-        }
-        val jsonText = text
-            .removePrefix("json")
-            .trim()
-            .let { candidate ->
-                val start = candidate.indexOf('{')
-                val end = candidate.lastIndexOf('}')
-                if (start >= 0 && end > start) candidate.substring(start, end + 1) else candidate
+            if (reply.isNotBlank()) {
+                GenerationResult(reply = reply)
+            } else {
+                GenerationResult(failureReason = "AI가 빈 응답을 생성했습니다.")
             }
-        return runCatching {
-            val json = JSONObject(jsonText)
-            val shouldReply = json.optBoolean("shouldReply", false)
-            val reply = json.optString("reply", "").trim()
-            when {
-                shouldReply && reply.isNotBlank() -> GenerationResult(reply = reply)
-                shouldReply -> GenerationResult(failureReason = "AI가 답장을 생성했지만 내용이 비어 있습니다.")
-                else -> GenerationResult(skippedReason = "AI 판단에 따라 이번 메시지는 답장하지 않았습니다.")
-            }
-        }.getOrElse {
-            GenerationResult(failureReason = "AI 판단 JSON을 해석하지 못했습니다.")
+        } catch (e: Exception) {
+            Log.e(TAG, "LLM generation failed", e)
+            GenerationResult(failureReason = "AI 응답 생성 중 오류: ${e.message}")
         }
     }
 
-    private fun bestCandidate(
+    private fun ensureLlmLoaded(context: Context): Boolean {
+        if (LlmEngine.isLoaded) return true
+
+        if (!LlmModelManager.hasModel(context)) {
+            return false
+        }
+
+        return LlmEngine.loadModel(context)
+    }
+
+    private fun buildPrompt(
         config: AutoReplyConfig,
+        room: String,
         sender: String,
         message: String,
         history: List<RoomHistoryMessage>
-    ): ScoredCandidate? {
-        val messageTokens = tokenize(message)
-        val memoryCandidates = config.roomMemory.lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .mapIndexed { index, line ->
-                val parsed = parseMemoryLine(line)
-                ContextCandidate(
-                    text = parsed,
-                    source = if (line.startsWith("[CSV 가져오기:")) "csv_header" else "memory",
-                    order = index
-                )
+    ): String {
+        return buildString {
+            // System instruction
+            append("<|im_start|>system\n")
+            append("너는 카카오톡 자동 응답 도우미다. 아래 규칙을 따른다:\n")
+            append("1. 짧고 자연스럽게 카톡 답장처럼 답변해라 (한두 문장)\n")
+            append("2. 모르는 것은 모른다고 말해라. 추측하지 마라.\n")
+            append("3. 한국어로만 답변 영어를 섞지 마라.\n")
+            append("4. 이모지, 읽음 표시, 확인 등의 과도한 표현은 자제해라.\n")
+            append("5. 오직 답장 내용만 출력해라. 설명이나 부가 문구를 넣지 마라.\n")
+
+            // Persona from config
+            if (config.persona.isNotBlank()) {
+                append("6. 다음 페르소나를 참고해라: ")
+                append(config.persona.take(200))
+                append("\n")
             }
-            .filter { it.text.isNotBlank() }
 
-        val historyCandidates = history.mapIndexed { index, item ->
-            ContextCandidate(
-                text = item.message.trim(),
-                source = if (item.incoming) "history_in" else "history_out",
-                sender = item.sender.trim(),
-                order = index
-            )
-        }.filter { it.text.isNotBlank() }
-
-        return (memoryCandidates + historyCandidates)
-            .mapNotNull { candidate ->
-                scoreCandidate(message, messageTokens, sender, candidate)
+            // Room memory
+            if (config.roomMemory.isNotBlank()) {
+                append("7. 다음 방 맥락을 참고해라: ")
+                append(config.roomMemory.take(300))
+                append("\n")
             }
-            .sortedWith(compareByDescending<ScoredCandidate> { it.score }.thenByDescending { it.order })
-            .firstOrNull()
-    }
 
-    private fun scoreCandidate(
-        message: String,
-        messageTokens: Set<String>,
-        sender: String,
-        candidate: ContextCandidate
-    ): ScoredCandidate? {
-        if (candidate.source == "csv_header") return null
-        if (candidate.text.equals(message, ignoreCase = true)) return null
+            append("<|im_end|>\n")
 
-        val candidateTokens = tokenize(candidate.text)
-        if (candidateTokens.isEmpty() && !containsDigits(candidate.text)) return null
+            // Conversation history (recent messages)
+            val recentHistory = history.takeLast(20)
+            if (recentHistory.isNotEmpty()) {
+                append("<|im_start|>user\n")
+                append("이전 대화 맥락:\n")
+                recentHistory.forEach { msg ->
+                    val role = if (msg.incoming) "상대방" else "나"
+                    append("- [$role/${msg.sender}] ${msg.message}\n")
+                }
+                append("<|im_end|>\n")
+            }
 
-        var score = overlapScore(messageTokens, candidateTokens)
-        if (containsDigits(message) && containsDigits(candidate.text)) {
-            score += 0.9
-        }
-        if (candidate.sender.equals(sender, ignoreCase = true)) {
-            score -= 0.2
-        }
-        if (candidate.source == "memory") {
-            score += 0.25
-        }
-        if (candidate.source == "history_out") {
-            score += 0.1
-        }
-        if (candidate.text.length <= 60) {
-            score += 0.15
-        }
+            // Actual incoming message
+            append("<|im_start|>user\n")
+            append("[$sender]님이 보낸 메시지: $message\n")
+            append("위 메시지에 대한 자연스러운 카톡 답장을 한두 문장으로 작성해라.\n")
+            append("<|im_end|>\n")
 
-        return if (score >= 0.8) ScoredCandidate(candidate.text, candidate.source, candidate.order, score) else null
-    }
-
-    private fun analyzeSignal(config: AutoReplyConfig, sender: String, message: String): MessageSignal {
-        val lowered = message.lowercase(Locale.ROOT)
-        val mentionsDisplayName = config.persona.lineSequence()
-            .firstOrNull { it.startsWith("사용자 이름:") }
-            ?.substringAfter(':')
-            ?.trim()
-            ?.let { displayName ->
-                displayName.isNotBlank() && (
-                    message.contains(displayName, ignoreCase = true) ||
-                        message.contains("@$displayName", ignoreCase = true) ||
-                        message.contains("${displayName}아", ignoreCase = true) ||
-                        message.contains("${displayName}야", ignoreCase = true)
-                    )
-            } == true
-        val isQuestion = message.endsWith("?") || message.endsWith("？") || listOf("왜", "뭐", "어디", "언제", "누가", "몇 시", "얼마", "가능", "맞아", "맞나요", "알려", "있어")
-            .any { lowered.contains(it) }
-        val isRequest = listOf("해줘", "봐줘", "부탁", "확인", "정리", "보내", "알려줘", "가능해", "될까").any { lowered.contains(it) }
-        val isGreeting = listOf("안녕", "ㅎㅇ", "좋은 아침", "굿모닝").any { lowered.contains(it) }
-        val isThanks = listOf("고마워", "감사", "thanks").any { lowered.contains(it) }
-        val isLowSignal = lowered in lowSignalMessages || Regex("^[ㅋㅎㅠㅜ!?~. ]+$").matches(lowered)
-        return MessageSignal(
-            mentionsDisplayName = mentionsDisplayName,
-            isQuestion = isQuestion,
-            isRequest = isRequest,
-            isGreeting = isGreeting,
-            isThanks = isThanks,
-            isLowSignal = isLowSignal,
-            sender = sender
-        )
-    }
-
-    private fun shouldAbstain(signal: MessageSignal, candidate: ScoredCandidate?): Boolean {
-        if (signal.isLowSignal && candidate == null) return true
-        if (signal.isGreeting || signal.isThanks) return false
-        if (signal.mentionsDisplayName && (signal.isQuestion || signal.isRequest)) return false
-        if ((signal.isQuestion || signal.isRequest) && candidate != null && candidate.score >= 1.6) return false
-        return !(signal.isQuestion || signal.isRequest || signal.mentionsDisplayName) || candidate == null || candidate.score < 1.6
-    }
-
-    private fun groundedReply(signal: MessageSignal, candidate: ScoredCandidate, tone: ReplyTone): String? {
-        val snippet = candidate.text
-            .substringBefore('\n')
-            .trim()
-            .removePrefix("-")
-            .trim()
-            .take(46)
-            .trimEnd()
-            .ifBlank { return null }
-
-        return when {
-            signal.isQuestion -> "기록상 ${snippet}${tone.contextEnding}"
-            signal.isRequest -> "${snippet}${tone.confirmEnding}"
-            else -> "${snippet}${tone.shortEnding}"
+            // Assistant response
+            append("<|im_start|>assistant\n")
         }
     }
 
-    private fun MessageSignal.fixedReply(tone: ReplyTone): String? {
-        return when {
-            isThanks -> tone.thanksReply
-            isGreeting -> tone.greetingReply
-            isLowSignal -> tone.shortAck
-            else -> null
-        }
-    }
+    private fun cleanResponse(raw: String): String {
+        var text = raw.trim()
 
-    private fun selectTone(persona: String): ReplyTone {
-        val casual = persona.contains("반말") || persona.contains("캐주얼")
-        return if (casual) {
-            ReplyTone(
-                greetingReply = "안녕. 필요한 내용만 짧게 도와줄게.",
-                thanksReply = "응, 괜찮아.",
-                shortAck = "응, 확인했어.",
-                uncertainReply = "지금은 확실하지 않아. 확인 후 답할게.",
-                contextEnding = "야.",
-                confirmEnding = "로 보여.",
-                shortEnding = " 같아."
-            )
-        } else {
-            ReplyTone(
-                greetingReply = "안녕하세요. 필요한 내용만 짧게 도와드릴게요.",
-                thanksReply = "네, 괜찮아요.",
-                shortAck = "네, 확인했어요.",
-                uncertainReply = "지금은 확실하지 않아요. 확인 후 답할게요.",
-                contextEnding = "예요.",
-                confirmEnding = "로 보여요.",
-                shortEnding = " 같아요."
-            )
-        }
-    }
+        // Remove any markdown code blocks
+        text = text.replace(Regex("```\\w*\\n?"), "")
 
-    private fun parseMemoryLine(line: String): String {
-        val trimmed = line.trim()
-        if (trimmed.startsWith("[CSV 가져오기:")) return ""
-        if (trimmed.startsWith("자동 메모리 요약")) return ""
-        return if (trimmed.startsWith("-")) trimmed.removePrefix("-").trim() else trimmed
-    }
+        // Remove system-like prefixes if model outputs them
+        text = text.replace(Regex("^<\\|im_start\\|>assistant\\n?"), "")
+        text = text.replace(Regex("^<\\|im_end\\|>"), "")
 
-    private fun tokenize(text: String): Set<String> {
-        return tokenRegex.findAll(text)
-            .map { normalizeToken(it.value) }
-            .filter { it.isNotBlank() }
-            .filterNot { it in stopwords }
-            .toSet()
-    }
+        // Remove common AI filler phrases
+        text = text.replace(Regex("^(답장:|답변:|메시지:)\\s*"), "")
 
-    private fun normalizeToken(token: String): String {
-        var normalized = token.lowercase(Locale.ROOT)
-        trimSuffixes.forEach { suffix ->
-            if (normalized.length > suffix.length + 1 && normalized.endsWith(suffix)) {
-                normalized = normalized.removeSuffix(suffix)
-                return@forEach
+        // Take only first line/sentence if too long
+        if (text.length > 200) {
+            val sentenceBreak = text.indexOfAny(charArrayOf('.', '!', '?'), 100)
+            if (sentenceBreak > 0) {
+                text = text.substring(0, sentenceBreak + 1)
+            } else {
+                text = text.take(150)
             }
         }
-        return normalized
+
+        return text.trim()
     }
 
-    private fun overlapScore(messageTokens: Set<String>, candidateTokens: Set<String>): Double {
-        if (messageTokens.isEmpty() || candidateTokens.isEmpty()) return 0.0
-        val overlap = messageTokens.intersect(candidateTokens).size.toDouble()
-        if (overlap == 0.0) return 0.0
-        return overlap + (overlap / candidateTokens.size.coerceAtLeast(1))
+    private fun isLowSignalMessage(message: String): Boolean {
+        val lowered = message.lowercase()
+        val lowSignalSet = setOf("ㅇㅋ", "ok", "넵", "네", "응", "ㅇㅇ", "ㅋㅋ", "ㅎㅎ", "ㄱㄱ")
+        if (lowered in lowSignalSet) return true
+        if (Regex("^[ㅋㅎㅠㅜ!?~. ]+$").matches(lowered)) return true
+        return false
     }
 
-    private fun containsDigits(text: String): Boolean = text.any(Char::isDigit)
-
-    private data class ContextCandidate(
-        val text: String,
-        val source: String,
-        val sender: String = "",
-        val order: Int
-    )
-
-    private data class ScoredCandidate(
-        val text: String,
-        val source: String,
-        val order: Int,
-        val score: Double
-    )
-
-    private data class MessageSignal(
-        val mentionsDisplayName: Boolean,
-        val isQuestion: Boolean,
-        val isRequest: Boolean,
-        val isGreeting: Boolean,
-        val isThanks: Boolean,
-        val isLowSignal: Boolean,
-        val sender: String
-    )
-
-    private data class ReplyTone(
-        val greetingReply: String,
-        val thanksReply: String,
-        val shortAck: String,
-        val uncertainReply: String,
-        val contextEnding: String,
-        val confirmEnding: String,
-        val shortEnding: String
-    )
+    private fun hasRecentContext(history: List<RoomHistoryMessage>, minCount: Int): Boolean {
+        val recent = history.takeLast(minCount)
+        return recent.any { it.message.length > 10 }
+    }
 }

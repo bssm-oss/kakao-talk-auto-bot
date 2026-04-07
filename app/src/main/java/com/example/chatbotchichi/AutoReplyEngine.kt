@@ -45,6 +45,7 @@ object AutoReplyEngine {
             val resolution = when (memoryAugmentedConfig.replyMode.lowercase()) {
                 "canned" -> cannedReply(memoryAugmentedConfig, room, sender, message)
                 else -> AiProviderClient.generate(
+                    context = context,
                     config = memoryAugmentedConfig,
                     room = room,
                     sender = sender,

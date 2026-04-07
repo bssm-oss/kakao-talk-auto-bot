@@ -5,7 +5,7 @@
 - `AiProviderClient`를 원격 API 호출 대신 로컬 Kotlin 검색/답장 엔진으로 교체
 - 최근 방 이력, 방 메모리, 자동 메모리, CSV 기반 맥락을 재사용하도록 연결
 - `ai_judge` / `smart` 모드에서 저확신 시 답장 보류 허용
-- 설정 UI를 로컬 전용 경로로 정리하고 API Key 정상 경로 제거
+- 설정 UI에서 provider/API Key 입력을 제거하고 로컬 엔진 안내만 남김
 - 로컬 답장 실행 경로를 raw `Thread` 대신 coroutine 기반 백그라운드 실행으로 정리
 - 더 이상 쓰지 않는 `SharedHttpClient` 및 OkHttp 의존성 제거
 

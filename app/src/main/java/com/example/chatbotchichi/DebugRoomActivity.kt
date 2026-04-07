@@ -118,20 +118,14 @@ class DebugRoomActivity : AppCompatActivity() {
         editAllowedSenders.setText(config?.allowedSenders?.joinToString("\n").orEmpty())
         editBlockedSenders.setText(config?.blockedSenders?.joinToString("\n").orEmpty())
         editCannedReplies.setText(config?.cannedReplies?.joinToString("\n").orEmpty())
-        val roomTarget = AppSettings.getRoomTarget(this, roomName)
-        if (roomTarget == null || roomTarget.lastImportedAt <= 0L) {
-            val autoMemory = AutoMemoryStore.getSummary(this, roomName)
-            roomMetaText.text = if (autoMemory.isBlank()) {
-                "가져온 CSV 정보가 없습니다. 필요한 맥락을 직접 메모해둘 수 있습니다."
-            } else {
-                "자동 메모리가 최근 대화 기준으로 함께 관리됩니다."
-            }
-            return
-        }
 
-        val formatter = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
-        val importSource = roomTarget.lastImportSource ?: "CSV"
-        roomMetaText.text = "최근 가져오기: ${importSource} · ${formatter.format(Date(roomTarget.lastImportedAt))}\n자동 메모리가 최근 대화 기준으로 함께 관리됩니다."
+        val roomTarget = AppSettings.getRoomTarget(this, roomName)
+        val autoMemory = AutoMemoryStore.getSummary(this, roomName)
+        roomMetaText.text = if (autoMemory.isBlank()) {
+            "메모가 비어 있습니다. AI가 참고할 맥락을 적어주세요."
+        } else {
+            "최근 대화가 자동으로 요약되어 메모에 반영됩니다."
+        }
     }
 
     private fun configureSpinner(spinner: Spinner, items: List<String>) {

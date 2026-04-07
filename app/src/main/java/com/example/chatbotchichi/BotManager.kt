@@ -51,8 +51,18 @@ object BotManager {
             .filter { roomMatches(it.roomPattern, room) }
             .filter { senderAllowed(it, sender) }
             .firstOrNull()
-            ?: return null
-        return applyGlobalAiSettings(context, roomConfig)
+            ?: run {
+                // If no specific room config found, check "all rooms" setting
+                val allRoomsEnabled = context.getSharedPreferences("AppSettingsPrefs", Context.MODE_PRIVATE)
+                    .getBoolean("all_rooms_enabled", false)
+                if (allRoomsEnabled) {
+                    getConfig(context, "기본 자동응답")
+                        ?.let { applyGlobalAiSettings(context, it) }
+                } else {
+                    null
+                }
+            }
+        return roomConfig
     }
 
     fun findMatchingConfig(context: Context, room: String, sender: String, message: String, isGroupChat: Boolean): AutoReplyConfig? {
@@ -189,11 +199,8 @@ object BotManager {
             persona = persona,
             trigger = trigger,
             provider = config.provider.copy(
-                type = "local",
-                apiKey = "",
-                endpoint = "",
-                authMode = "local",
-                model = "kotlin-retrieval"
+                type = "llm",
+                model = config.provider.model.ifBlank { "local-gguf" }
             )
         )
     }

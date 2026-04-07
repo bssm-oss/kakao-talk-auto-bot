@@ -6,12 +6,14 @@ import org.junit.Test
 
 class AutoReplyJsonTest {
     @Test
-    fun defaultConfig_usesAiJudgeTrigger() {
+    fun defaultConfig_uses_llm_provider() {
         val config = AutoReplyJson.defaultConfig("테스트방")
 
         assertEquals("테스트방", config.name)
         assertEquals("ai_judge", config.trigger.mode)
         assertEquals("provider", config.replyMode)
+        assertEquals("llm", config.provider.type)
+        assertEquals("local-gguf", config.provider.model)
     }
 
     @Test
@@ -25,7 +27,7 @@ class AutoReplyJsonTest {
             blockedSenders = listOf("광고봇"),
             cannedReplies = listOf("확인했습니다.", "잠시 후 답할게요."),
             trigger = TriggerConfig(mode = "keyword", value = "@봇, 도와줘"),
-            provider = ProviderConfig(type = "gemini", apiKey = "secret", model = "gemini-1.5-flash")
+            provider = ProviderConfig(type = "llm", model = "local-gguf")
         )
 
         val json = AutoReplyJson.toJson(original, includeImportHistory = true)
@@ -41,32 +43,5 @@ class AutoReplyJsonTest {
         assertEquals(original.trigger.value, reparsed.trigger.value)
         assertEquals(original.provider.type, reparsed.provider.type)
         assertEquals(original.provider.model, reparsed.provider.model)
-    }
-
-    @Test
-    fun normalizeGeneratedReply_readsAiJudgeJson() {
-        val config = AutoReplyJson.defaultConfig("테스트").copy(trigger = TriggerConfig(mode = "ai_judge"))
-
-        val reply = AiProviderClient.normalizeGeneratedReply(
-            config,
-            """
-            {"shouldReply":true,"reply":"지금은 제가 정리해드릴게요."}
-            """.trimIndent()
-        )
-
-        assertEquals("지금은 제가 정리해드릴게요.", reply.reply)
-    }
-
-    @Test
-    fun normalizeGeneratedReply_skipsWhenJudgeSaysNo() {
-        val config = AutoReplyJson.defaultConfig("테스트").copy(trigger = TriggerConfig(mode = "ai_judge"))
-
-        val reply = AiProviderClient.normalizeGeneratedReply(
-            config,
-            "{" + "\"shouldReply\":false,\"reply\":\"\"}" 
-        )
-
-        assertNull(reply.reply)
-        assertEquals("AI 판단에 따라 이번 메시지는 답장하지 않았습니다.", reply.skippedReason)
     }
 }

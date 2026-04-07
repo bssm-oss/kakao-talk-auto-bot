@@ -81,11 +81,17 @@ object AppSettings {
 
     fun getAiConfig(context: Context): AiConfig {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val modelInfo = LlmModelManager.getModelInfo(context)
+        val modelStatus = if (modelInfo.exists) {
+            "LLM ${modelInfo.sizeMb}MB 준비됨"
+        } else {
+            "LLM 모델 미설치"
+        }
         return AiConfig(
             displayName = prefs.getString(KEY_DISPLAY_NAME, "나") ?: "나",
             persona = prefs.getString(KEY_PERSONA, "친절하고 짧게 핵심만 답장합니다.")
                 ?: "친절하고 짧게 핵심만 답장합니다.",
-            provider = "로컬 Kotlin 엔진",
+            provider = modelStatus,
             apiKeyMode = "불필요",
             apiKey = "",
             replyMode = prefs.getString(KEY_REPLY_MODE, "간결하게") ?: "간결하게",
@@ -98,7 +104,7 @@ object AppSettings {
         prefs.edit()
             .putString(KEY_DISPLAY_NAME, config.displayName)
             .putString(KEY_PERSONA, config.persona)
-            .putString(KEY_PROVIDER, "로컬 Kotlin 엔진")
+            .putString(KEY_PROVIDER, "llm")
             .putString(KEY_API_KEY_MODE, "불필요")
             .putString(KEY_API_KEY, "")
             .putString(KEY_REPLY_MODE, config.replyMode)

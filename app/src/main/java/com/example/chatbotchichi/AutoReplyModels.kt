@@ -4,9 +4,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 data class ProviderConfig(
-    val type: String = "local",
+    val type: String = "llm",
     val apiKey: String = "",
-    val model: String = "",
+    val model: String = "local-gguf",
     val endpoint: String = "",
     val authMode: String = "local"
 )
@@ -42,7 +42,7 @@ object AutoReplyJson {
             roomMemory = "이 방의 맥락, 금지어, 말투를 간단히 적어두세요.",
             cannedReplies = listOf("확인했어요.", "조금 뒤에 답할게요."),
             trigger = TriggerConfig(mode = "ai_judge", value = ""),
-            provider = ProviderConfig(type = "local", model = "kotlin-retrieval")
+            provider = ProviderConfig(type = "llm", model = "local-gguf")
         )
     }
 

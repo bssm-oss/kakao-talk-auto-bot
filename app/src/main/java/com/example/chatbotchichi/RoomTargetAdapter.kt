@@ -67,13 +67,7 @@ class RoomTargetAdapter(
         } else {
             "메모 ${memoryText.length}자"
         }
-        val importLabel = if (room.lastImportedAt > 0L) {
-            val formatter = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
-            val source = room.lastImportSource?.takeIf { it.isNotBlank() } ?: "CSV"
-            "${source} · ${formatter.format(Date(room.lastImportedAt))}"
-        } else {
-            "CSV 미가져옴"
-        }
-        return listOf(memoryLabel, importLabel).joinToString(" · ")
+        val statusLabel = if (room.isEnabled) "활성" else "비활성"
+        return "$memoryLabel · $statusLabel"
     }
 }
