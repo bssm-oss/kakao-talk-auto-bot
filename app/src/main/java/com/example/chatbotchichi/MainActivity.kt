@@ -223,7 +223,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateDeviceNameUi() {
         val aiConfig = AppSettings.getAiConfig(this)
         val displayName = aiConfig.displayName.trim().ifBlank { "미설정" }
-        deviceNameText.text = "내 이름: $displayName · Provider: ${aiConfig.provider}"
+        deviceNameText.text = "내 이름: $displayName · 로컬 AI 답장"
     }
 
     private fun applyStatusUi(status: String, state: StatusState) {
@@ -300,7 +300,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateConfigSummary() {
         val config = AppSettings.getAiConfig(this)
         identitySummaryText.text = "이름: ${config.displayName} · 페르소나: ${config.persona.take(40)}"
-        providerSummaryText.text = "Provider: ${config.provider} · API 키: ${config.apiKeyMode}"
+        providerSummaryText.text = "응답 엔진: ${config.provider}"
         behaviorSummaryText.text = "답장 방식: ${config.replyMode} · 트리거: ${config.triggerMode}"
     }
 
@@ -327,14 +327,12 @@ class MainActivity : AppCompatActivity() {
         val enabledCount = allRooms.count { it.isEnabled }
         roomSummaryText.text = "응답 대상 ${enabledCount}개 · 전체 저장 ${allRooms.size}개"
 
-        val recentImport = AppSettings.getMostRecentImportedRoom(this)
-        roomHistorySummaryText.text = if (recentImport == null) {
-            "가져온 CSV가 아직 없습니다."
+        val allRoomsEnabled = getSharedPreferences("AppSettingsPrefs", MODE_PRIVATE)
+            .getBoolean("all_rooms_enabled", false)
+        roomHistorySummaryText.text = if (allRoomsEnabled) {
+            "모든 채팅방에서 AI 답장이 활성화되어 있습니다."
         } else {
-            val formatter = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
-            val importedAt = formatter.format(Date(recentImport.lastImportedAt))
-            val source = recentImport.lastImportSource ?: "CSV"
-            "최근 가져오기: ${recentImport.name} · ${source} · ${importedAt}"
+            "특정 방만 선택한 경우에만 답장합니다."
         }
     }
 

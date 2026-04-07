@@ -7,7 +7,7 @@
     android:background="@color/colorBackground"
     android:fillViewport="true"
     android:fitsSystemWindows="true"
-    android:padding="@dimen/space_4">
+    android:padding="@dimen/space_5">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -21,7 +21,7 @@
             android:layout_marginBottom="@dimen/space_4"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
-            app:cardElevation="1dp"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 
@@ -39,8 +39,8 @@
 
                     <View
                         android:id="@+id/status_indicator"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
                         android:background="@drawable/bg_indicator_off"
                         android:backgroundTint="@color/colorDanger" />
 
@@ -56,7 +56,7 @@
                             android:layout_height="wrap_content"
                             android:text="상태"
                             android:textColor="@color/colorTextSecondary"
-                            android:textSize="12sp"
+                            android:textSize="11sp"
                             android:textStyle="bold" />
 
                         <TextView
@@ -65,7 +65,7 @@
                             android:layout_height="wrap_content"
                             android:text="알림 접근 필요"
                             android:textColor="@color/colorTextPrimary"
-                            android:textSize="18sp"
+                            android:textSize="20sp"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
@@ -74,7 +74,7 @@
                     android:id="@+id/device_name_text"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_3"
+                    android:layout_marginTop="@dimen/space_4"
                     android:text="디바이스: 미설정"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp"
@@ -209,7 +209,7 @@
             android:layout_marginBottom="@dimen/space_4"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
-            app:cardElevation="1dp"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 
@@ -243,7 +243,7 @@
                     android:layout_marginTop="@dimen/space_2"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp"
-                    tools:text="Provider: OpenAI · API 키: 앱에 저장" />
+                    tools:text="응답 엔진: 로컬 Kotlin 엔진 · API 키 없음" />
 
                 <TextView
                     android:id="@+id/text_behavior_summary"
@@ -273,7 +273,7 @@
             android:layout_marginBottom="@dimen/space_4"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
-            app:cardElevation="1dp"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 
@@ -304,7 +304,7 @@
                     android:id="@+id/text_room_history_summary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_1"
+                    android:layout_marginTop="@dimen/space_2"
                     android:text="가져온 CSV가 아직 없습니다."
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
@@ -336,7 +336,7 @@
             android:layout_height="wrap_content"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
-            app:cardElevation="1dp"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 

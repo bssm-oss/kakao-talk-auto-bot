@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:background="@color/colorBackground"
     android:fillViewport="true"
-    android:padding="@dimen/space_4">
+    android:padding="@dimen/space_5">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -26,8 +26,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_1"
-            android:layout_marginBottom="@dimen/space_4"
-            android:text="답장을 보낼 방을 켜고, CSV 기록을 불러오고, 방 메모리를 편집합니다."
+            android:layout_marginBottom="@dimen/space_5"
+            android:text="답장을 보낼 방을 추가하고 메모를 편집합니다."
             android:textColor="@color/colorTextSecondary"
             android:textSize="13sp" />
 
@@ -37,6 +37,54 @@
             android:layout_marginBottom="@dimen/space_4"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/colorBorder"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/space_5">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="모든 방에서 답장"
+                        android:textColor="@color/colorTextPrimary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switch_all_rooms"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:text="켜면 특정 방을 지정하지 않아도 모든 채팅방에서 AI가 답장합니다."
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/space_4"
+            app:cardBackgroundColor="@color/colorSurface"
+            app:cardCornerRadius="@dimen/radius_md"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 
@@ -80,7 +128,7 @@
                         android:id="@+id/btn_add_room"
                         android:layout_width="wrap_content"
                         android:layout_height="@dimen/touch_target"
-                        android:layout_marginStart="@dimen/space_2"
+                        android:layout_marginStart="@dimen/space_3"
                         android:backgroundTint="@color/colorPrimary"
                         android:text="추가"
                         android:textColor="@color/colorOnPrimary" />
@@ -90,10 +138,10 @@
                     android:id="@+id/text_room_hint"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_2"
-                    android:text="각 방에서 메모를 수정하거나 CSV 대화 이력을 불러올 수 있습니다."
+                    android:layout_marginTop="@dimen/space_3"
+                    android:text="각 방에서 메모를 수정하여 AI가 맥락을 이해하도록 도울 수 있습니다."
                     android:textColor="@color/colorTextSecondary"
-                    android:textSize="12sp" />
+                    android:textSize="13sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -102,6 +150,7 @@
             android:layout_height="wrap_content"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 
