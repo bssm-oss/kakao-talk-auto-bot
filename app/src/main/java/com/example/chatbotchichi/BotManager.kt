@@ -51,8 +51,18 @@ object BotManager {
             .filter { roomMatches(it.roomPattern, room) }
             .filter { senderAllowed(it, sender) }
             .firstOrNull()
-            ?: return null
-        return applyGlobalAiSettings(context, roomConfig)
+            ?: run {
+                // If no specific room config found, check "all rooms" setting
+                val allRoomsEnabled = context.getSharedPreferences("AppSettingsPrefs", Context.MODE_PRIVATE)
+                    .getBoolean("all_rooms_enabled", false)
+                if (allRoomsEnabled) {
+                    getConfig(context, "기본 자동응답")
+                        ?.let { applyGlobalAiSettings(context, it) }
+                } else {
+                    null
+                }
+            }
+        return roomConfig
     }
 
     fun findMatchingConfig(context: Context, room: String, sender: String, message: String, isGroupChat: Boolean): AutoReplyConfig? {
@@ -164,17 +174,6 @@ object BotManager {
     private fun applyGlobalAiSettings(context: Context, config: AutoReplyConfig): AutoReplyConfig {
         val ai = AppSettings.getAiConfig(context)
         val autoPersonaHint = AutoMemoryStore.getPersonaHint(context, config.roomPattern, ai.displayName.ifBlank { "나" })
-        val providerType = when (ai.provider.lowercase()) {
-            "openai" -> "openai"
-            "openrouter" -> "openai"
-            "anthropic", "claude" -> "anthropic"
-            "gemini" -> "gemini"
-            else -> config.provider.type
-        }
-        val providerEndpoint = when (ai.provider.lowercase()) {
-            "openrouter" -> "https://openrouter.ai/api/v1/chat/completions"
-            else -> config.provider.endpoint
-        }
         val trigger = resolveTrigger(ai, config)
         val toneGuide = when (ai.replyMode) {
             "간결하게" -> "한두 문장으로 짧고 자연스럽게 답해라."
@@ -200,10 +199,8 @@ object BotManager {
             persona = persona,
             trigger = trigger,
             provider = config.provider.copy(
-                type = providerType,
-                apiKey = ai.apiKey,
-                endpoint = providerEndpoint,
-                authMode = if (ai.apiKeyMode == "외부에서 관리") "external" else "api_key"
+                type = "llm",
+                model = config.provider.model.ifBlank { "local-gguf" }
             )
         )
     }

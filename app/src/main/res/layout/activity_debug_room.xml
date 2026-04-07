@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@color/colorBackground"
     android:fillViewport="true"
-    android:padding="@dimen/space_4">
+    android:padding="@dimen/space_5">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,7 +16,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="방 메모리 편집"
+            android:text="방 메모 편집"
             android:textColor="@color/colorTextPrimary"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -25,8 +25,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_1"
-            android:layout_marginBottom="@dimen/space_4"
-            android:text="불러온 CSV 요약이나 방별 추가 컨텍스트를 저장해 AI 답장에 반영할 수 있게 준비합니다."
+            android:layout_marginBottom="@dimen/space_5"
+            android:text="AI가 답변할 때 참고할 방의 맥락을 적어주세요."
             android:textColor="@color/colorTextSecondary"
             android:textSize="13sp" />
 
@@ -35,6 +35,7 @@
             android:layout_height="wrap_content"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 
@@ -62,7 +63,7 @@
                     android:id="@+id/text_room_meta"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_3"
+                    android:layout_marginTop="@dimen/space_4"
                     android:text="가져온 CSV 정보가 없습니다."
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
@@ -72,7 +73,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:hint="방 메모리">
+                    android:hint="메모">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/edit_memory"
@@ -86,7 +87,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_3"
+                    android:layout_marginTop="@dimen/space_4"
                     android:text="답장 방식"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
@@ -100,7 +101,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_3"
+                    android:layout_marginTop="@dimen/space_4"
                     android:text="반응 조건"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
@@ -129,7 +130,7 @@
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_3"
+                    android:layout_marginTop="@dimen/space_4"
                     android:hint="반응할 사람 이름 목록 (줄바꿈 또는 쉼표)">
 
                     <com.google.android.material.textfield.TextInputEditText
@@ -176,7 +177,7 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_4"
+                    android:layout_marginTop="@dimen/space_5"
                     android:orientation="horizontal">
 
                     <com.google.android.material.button.MaterialButton

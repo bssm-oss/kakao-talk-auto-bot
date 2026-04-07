@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@color/colorBackground"
     android:fillViewport="true"
-    android:padding="@dimen/space_4">
+    android:padding="@dimen/space_5">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -25,8 +25,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_1"
-            android:layout_marginBottom="@dimen/space_4"
-            android:text="내 이름/페르소나, 모델 공급자, API 키 보관 방식, 답장 조건을 저장합니다."
+            android:layout_marginBottom="@dimen/space_5"
+            android:text="내 이름/페르소나, 로컬 응답 엔진, 답장 조건을 저장합니다."
             android:textColor="@color/colorTextSecondary"
             android:textSize="13sp" />
 
@@ -36,6 +36,7 @@
             android:layout_marginBottom="@dimen/space_4"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 
@@ -92,6 +93,7 @@
             android:layout_marginBottom="@dimen/space_4"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 
@@ -104,52 +106,55 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="모델 / 인증"
+                    android:text="응답 엔진 (LLM)"
                     android:textColor="@color/colorTextPrimary"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/text_model_status"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:text="Provider"
-                    android:textColor="@color/colorTextSecondary"
-                    android:textSize="13sp" />
-
-                <Spinner
-                    android:id="@+id/spinner_provider"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_1" />
+                    android:text="모델 상태 확인 중..."
+                    android:textColor="@color/colorTextPrimary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_3"
-                    android:text="API 키 보관 방식"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:text="Qwen2.5 1.5B 기반 로컬 AI 모델입니다. 인터넷 없이 동작합니다."
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
 
-                <Spinner
-                    android:id="@+id/spinner_api_key_mode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_1" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                    android:layout_width="match_parent"
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_download_model"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:hint="API Key">
+                    android:text="모델 다운로드 (~1.1GB)"
+                    android:textColor="@color/colorPrimary"
+                    app:strokeColor="@color/colorPrimary" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/edit_api_key"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textPassword|textNoSuggestions" />
-                </com.google.android.material.textfield.TextInputLayout>
+                <ProgressBar
+                    android:id="@+id/progress_model_download"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/text_download_progress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_1"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -158,6 +163,7 @@
             android:layout_height="wrap_content"
             app:cardBackgroundColor="@color/colorSurface"
             app:cardCornerRadius="@dimen/radius_md"
+            app:cardElevation="0dp"
             app:strokeColor="@color/colorBorder"
             app:strokeWidth="1dp">
 
@@ -179,7 +185,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:text="Reply mode"
+                    android:text="답장 방식"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
 
@@ -193,7 +199,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:text="Trigger behavior"
+                    android:text="반응 조건"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
 
@@ -209,7 +215,7 @@
             android:id="@+id/btn_save"
             android:layout_width="match_parent"
             android:layout_height="@dimen/touch_target"
-            android:layout_marginTop="@dimen/space_4"
+            android:layout_marginTop="@dimen/space_5"
             android:backgroundTint="@color/colorPrimary"
             android:text="설정 저장"
             android:textColor="@color/colorOnPrimary" />

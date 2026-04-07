@@ -1,14 +1,10 @@
 package com.example.kakaotalkautobot
 
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
+import android.content.Context
+import android.util.Log
 
 object AiProviderClient {
-    private val client = SharedHttpClient.instance
-    private val jsonType = "application/json; charset=utf-8".toMediaType()
+    private const val TAG = "AiProviderClient"
 
     data class GenerationResult(
         val reply: String? = null,
@@ -17,222 +13,154 @@ object AiProviderClient {
     )
 
     fun generate(
+        context: Context,
         config: AutoReplyConfig,
         room: String,
         sender: String,
         message: String,
         history: List<RoomHistoryMessage>
     ): GenerationResult {
-        val provider = config.provider
-        if (!provider.authMode.equals("api_key", true)) {
-            return GenerationResult(failureReason = "API Key 보관 방식이 '외부에서 관리'로 되어 있어 자동 응답을 생성할 수 없습니다.")
+        val normalizedMessage = message.trim()
+        if (normalizedMessage.isBlank()) {
+            return GenerationResult(skippedReason = "빈 메시지에는 답장하지 않습니다.")
         }
-        if (provider.apiKey.isBlank()) {
-            return GenerationResult(failureReason = "${provider.type.ifBlank { "AI" }} API Key가 비어 있습니다.")
-        }
-        return when (provider.type.lowercase()) {
-            "openai" -> callOpenAi(config, room, sender, message, history)
-            "claude", "anthropic" -> callClaude(config, room, sender, message, history)
-            "gemini", "google" -> callGemini(config, room, sender, message, history)
-            else -> GenerationResult(failureReason = "지원하지 않는 공급자 유형입니다: ${provider.type}")
-        }
-    }
 
-    private fun callOpenAi(
-        config: AutoReplyConfig,
-        room: String,
-        sender: String,
-        message: String,
-        history: List<RoomHistoryMessage>
-    ): GenerationResult {
-        val payload = JSONObject()
-            .put("model", config.provider.model.ifBlank { "gpt-4o-mini" })
-            .put("messages", buildOpenAiMessages(config, room, sender, message, history))
-        val request = Request.Builder()
-            .url(config.provider.endpoint.ifBlank { "https://api.openai.com/v1/chat/completions" })
-            .header("Authorization", "Bearer ${config.provider.apiKey}")
-            .header("Content-Type", "application/json")
-            .post(payload.toString().toRequestBody(jsonType))
-            .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                return GenerationResult(failureReason = "OpenAI 응답 실패 (${response.code})")
-            }
-            val body = response.body?.string().orEmpty()
-            return normalizeGeneratedReply(
-                config,
-                JSONObject(body)
-                    .optJSONArray("choices")
-                    ?.optJSONObject(0)
-                    ?.optJSONObject("message")
-                    ?.optString("content", "")
-                    ?.trim()
-                    ?.ifBlank { null }
-            )
+        // Ensure LLM is loaded
+        if (!ensureLlmLoaded(context)) {
+            return GenerationResult(failureReason = "LLM 모델이 로드되지 않았습니다. 모델 다운로드를 기다려주세요.")
         }
-    }
 
-    private fun callClaude(
-        config: AutoReplyConfig,
-        room: String,
-        sender: String,
-        message: String,
-        history: List<RoomHistoryMessage>
-    ): GenerationResult {
-        val payload = JSONObject()
-            .put("model", config.provider.model.ifBlank { "claude-3-5-haiku-latest" })
-            .put("max_tokens", 300)
-            .put("system", buildSystemPrompt(config, room))
-            .put("messages", buildClaudeMessages(sender, message, history))
-        val request = Request.Builder()
-            .url(config.provider.endpoint.ifBlank { "https://api.anthropic.com/v1/messages" })
-            .header("x-api-key", config.provider.apiKey)
-            .header("anthropic-version", "2023-06-01")
-            .header("Content-Type", "application/json")
-            .post(payload.toString().toRequestBody(jsonType))
-            .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                return GenerationResult(failureReason = "Claude 응답 실패 (${response.code})")
-            }
-            val body = response.body?.string().orEmpty()
-            val content = JSONObject(body).optJSONArray("content")
-                ?: return GenerationResult(failureReason = "Claude 응답 본문이 비어 있습니다.")
-            return normalizeGeneratedReply(config, content.optJSONObject(0)?.optString("text", "")?.trim()?.ifBlank { null })
-        }
-    }
+        // Check trigger conditions first (non-AI logic still applies)
+        val judgeMode = config.trigger.mode.equals("ai_judge", true) || config.trigger.mode.equals("smart", true)
 
-    private fun callGemini(
-        config: AutoReplyConfig,
-        room: String,
-        sender: String,
-        message: String,
-        history: List<RoomHistoryMessage>
-    ): GenerationResult {
-        val model = config.provider.model.ifBlank { "gemini-1.5-flash" }
-        val endpoint = config.provider.endpoint.ifBlank {
-            "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=${config.provider.apiKey}"
-        }
-        val payload = JSONObject()
-            .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", buildSystemPrompt(config, room)))))
-            .put("contents", buildGeminiContents(sender, message, history))
-        val request = Request.Builder()
-            .url(endpoint)
-            .header("Content-Type", "application/json")
-            .post(payload.toString().toRequestBody(jsonType))
-            .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                return GenerationResult(failureReason = "Gemini 응답 실패 (${response.code})")
+        // Low signal quick check - skip for very short meaningless messages
+        if (isLowSignalMessage(normalizedMessage) && !hasRecentContext(history, 3)) {
+            if (judgeMode) {
+                return GenerationResult(skippedReason = "의미 없는 짧은 메시지입니다.")
             }
-            val body = response.body?.string().orEmpty()
-            return normalizeGeneratedReply(
-                config,
-                JSONObject(body)
-                    .optJSONArray("candidates")
-                    ?.optJSONObject(0)
-                    ?.optJSONObject("content")
-                    ?.optJSONArray("parts")
-                    ?.optJSONObject(0)
-                    ?.optString("text", "")
-                    ?.trim()
-                    ?.ifBlank { null }
-            )
         }
-    }
 
-    private fun buildSystemPrompt(config: AutoReplyConfig, room: String): String {
-        return buildString {
-            append("너는 카카오톡 방 '")
-            append(room)
-            append("' 에서 동작하는 자동응답 도우미다. 답변은 짧고 자연스럽게 작성한다.\n")
-            if (config.persona.isNotBlank()) {
-                append("페르소나: ")
-                append(config.persona)
-                append("\n")
-            }
-            if (config.roomMemory.isNotBlank()) {
-                append("방 메모리: ")
-                append(config.roomMemory)
-                append("\n")
-            }
-            append("불확실하면 사실대로 말하고, 과장하거나 허위 사실을 만들지 마라.\n")
-            if (config.trigger.mode.equals("ai_judge", true) || config.trigger.mode.equals("smart", true)) {
-                append("지금 메시지에 끼어들 가치가 있는 경우에만 답장하라. 반드시 JSON 한 줄만 출력해라. 형식: {\"shouldReply\":true|false,\"reply\":\"답장 내용\"}. shouldReply가 false면 reply는 빈 문자열이어야 한다.")
+        // Build the prompt and generate
+        return try {
+            val prompt = buildPrompt(config, room, sender, normalizedMessage, history)
+            Log.d(TAG, "Prompt length: ${prompt.length} chars")
+
+            val rawResponse = LlmEngine.generate(prompt, maxTokens = 256)
+            val reply = cleanResponse(rawResponse)
+
+            if (reply.isNotBlank()) {
+                GenerationResult(reply = reply)
             } else {
-                append("답장 본문만 평문으로 출력해라.")
+                GenerationResult(failureReason = "AI가 빈 응답을 생성했습니다.")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "LLM generation failed", e)
+            GenerationResult(failureReason = "AI 응답 생성 중 오류: ${e.message}")
+        }
+    }
+
+    private fun ensureLlmLoaded(context: Context): Boolean {
+        if (LlmEngine.isLoaded) return true
+
+        if (!LlmModelManager.hasModel(context)) {
+            return false
+        }
+
+        return LlmEngine.loadModel(context)
+    }
+
+    private fun buildPrompt(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): String {
+        return buildString {
+            // System instruction
+            append("<|im_start|>system\n")
+            append("너는 카카오톡 자동 응답 도우미다. 아래 규칙을 따른다:\n")
+            append("1. 짧고 자연스럽게 카톡 답장처럼 답변해라 (한두 문장)\n")
+            append("2. 모르는 것은 모른다고 말해라. 추측하지 마라.\n")
+            append("3. 한국어로만 답변 영어를 섞지 마라.\n")
+            append("4. 이모지, 읽음 표시, 확인 등의 과도한 표현은 자제해라.\n")
+            append("5. 오직 답장 내용만 출력해라. 설명이나 부가 문구를 넣지 마라.\n")
+
+            // Persona from config
+            if (config.persona.isNotBlank()) {
+                append("6. 다음 페르소나를 참고해라: ")
+                append(config.persona.take(200))
+                append("\n")
+            }
+
+            // Room memory
+            if (config.roomMemory.isNotBlank()) {
+                append("7. 다음 방 맥락을 참고해라: ")
+                append(config.roomMemory.take(300))
+                append("\n")
+            }
+
+            append("<|im_end|>\n")
+
+            // Conversation history (recent messages)
+            val recentHistory = history.takeLast(20)
+            if (recentHistory.isNotEmpty()) {
+                append("<|im_start|>user\n")
+                append("이전 대화 맥락:\n")
+                recentHistory.forEach { msg ->
+                    val role = if (msg.incoming) "상대방" else "나"
+                    append("- [$role/${msg.sender}] ${msg.message}\n")
+                }
+                append("<|im_end|>\n")
+            }
+
+            // Actual incoming message
+            append("<|im_start|>user\n")
+            append("[$sender]님이 보낸 메시지: $message\n")
+            append("위 메시지에 대한 자연스러운 카톡 답장을 한두 문장으로 작성해라.\n")
+            append("<|im_end|>\n")
+
+            // Assistant response
+            append("<|im_start|>assistant\n")
+        }
+    }
+
+    private fun cleanResponse(raw: String): String {
+        var text = raw.trim()
+
+        // Remove any markdown code blocks
+        text = text.replace(Regex("```\\w*\\n?"), "")
+
+        // Remove system-like prefixes if model outputs them
+        text = text.replace(Regex("^<\\|im_start\\|>assistant\\n?"), "")
+        text = text.replace(Regex("^<\\|im_end\\|>"), "")
+
+        // Remove common AI filler phrases
+        text = text.replace(Regex("^(답장:|답변:|메시지:)\\s*"), "")
+
+        // Take only first line/sentence if too long
+        if (text.length > 200) {
+            val sentenceBreak = text.indexOfAny(charArrayOf('.', '!', '?'), 100)
+            if (sentenceBreak > 0) {
+                text = text.substring(0, sentenceBreak + 1)
+            } else {
+                text = text.take(150)
             }
         }
+
+        return text.trim()
     }
 
-    internal fun normalizeGeneratedReply(config: AutoReplyConfig, raw: String?): GenerationResult {
-        val text = raw?.trim()?.removeSurrounding("```")?.trim()?.ifBlank { null }
-            ?: return GenerationResult(failureReason = "AI 응답 본문이 비어 있습니다.")
-        if (!config.trigger.mode.equals("ai_judge", true) && !config.trigger.mode.equals("smart", true)) {
-            return GenerationResult(reply = text)
-        }
-        val jsonText = text
-            .removePrefix("json")
-            .trim()
-            .let { candidate ->
-                val start = candidate.indexOf('{')
-                val end = candidate.lastIndexOf('}')
-                if (start >= 0 && end > start) candidate.substring(start, end + 1) else candidate
-            }
-        return runCatching {
-            val json = JSONObject(jsonText)
-            val shouldReply = json.optBoolean("shouldReply", false)
-            val reply = json.optString("reply", "").trim()
-            when {
-                shouldReply && reply.isNotBlank() -> GenerationResult(reply = reply)
-                shouldReply -> GenerationResult(failureReason = "AI가 답장을 생성했지만 내용이 비어 있습니다.")
-                else -> GenerationResult(skippedReason = "AI 판단에 따라 이번 메시지는 답장하지 않았습니다.")
-            }
-        }.getOrElse {
-            GenerationResult(failureReason = "AI 판단 JSON을 해석하지 못했습니다.")
-        }
+    private fun isLowSignalMessage(message: String): Boolean {
+        val lowered = message.lowercase()
+        val lowSignalSet = setOf("ㅇㅋ", "ok", "넵", "네", "응", "ㅇㅇ", "ㅋㅋ", "ㅎㅎ", "ㄱㄱ")
+        if (lowered in lowSignalSet) return true
+        if (Regex("^[ㅋㅎㅠㅜ!?~. ]+$").matches(lowered)) return true
+        return false
     }
 
-    private fun buildOpenAiMessages(config: AutoReplyConfig, room: String, sender: String, message: String, history: List<RoomHistoryMessage>): JSONArray {
-        val messages = JSONArray().put(JSONObject().put("role", "system").put("content", buildSystemPrompt(config, room)))
-        history.forEach { item ->
-            messages.put(
-                JSONObject()
-                    .put("role", if (item.incoming) "user" else "assistant")
-                    .put("content", if (item.incoming) "${item.sender}: ${item.message}" else item.message)
-            )
-        }
-        messages.put(JSONObject().put("role", "user").put("content", "$sender: $message"))
-        return messages
-    }
-
-    private fun buildClaudeMessages(sender: String, message: String, history: List<RoomHistoryMessage>): JSONArray {
-        val messages = JSONArray()
-        history.forEach { item ->
-            messages.put(
-                JSONObject()
-                    .put("role", if (item.incoming) "user" else "assistant")
-                    .put("content", if (item.incoming) "${item.sender}: ${item.message}" else item.message)
-            )
-        }
-        messages.put(JSONObject().put("role", "user").put("content", "$sender: $message"))
-        return messages
-    }
-
-    private fun buildGeminiContents(sender: String, message: String, history: List<RoomHistoryMessage>): JSONArray {
-        val contents = JSONArray()
-        history.forEach { item ->
-            contents.put(
-                JSONObject()
-                    .put("role", if (item.incoming) "user" else "model")
-                    .put("parts", JSONArray().put(JSONObject().put("text", if (item.incoming) "${item.sender}: ${item.message}" else item.message)))
-            )
-        }
-        contents.put(
-            JSONObject()
-                .put("role", "user")
-                .put("parts", JSONArray().put(JSONObject().put("text", "$sender: $message")))
-        )
-        return contents
+    private fun hasRecentContext(history: List<RoomHistoryMessage>, minCount: Int): Boolean {
+        val recent = history.takeLast(minCount)
+        return recent.any { it.message.length > 10 }
     }
 }

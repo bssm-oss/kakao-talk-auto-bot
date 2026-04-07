@@ -1,28 +1,31 @@
 package com.example.kakaotalkautobot
 
 import android.os.Bundle
-import android.widget.AdapterView
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.NestedScrollView
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
+import kotlinx.coroutines.launch
 
 class EditBotActivity : AppCompatActivity() {
     private lateinit var rootScroll: NestedScrollView
     private lateinit var editDisplayName: TextInputEditText
     private lateinit var editPersona: TextInputEditText
-    private lateinit var spinnerProvider: Spinner
-    private lateinit var spinnerApiKeyMode: Spinner
-    private lateinit var editApiKey: TextInputEditText
+    private lateinit var textModelStatus: TextView
+    private lateinit var btnDownloadModel: Button
+    private lateinit var progressModelDownload: ProgressBar
+    private lateinit var textDownloadProgress: TextView
     private lateinit var spinnerReplyMode: Spinner
     private lateinit var spinnerTriggerMode: Spinner
     private lateinit var btnSave: Button
 
-    private val providers = listOf("OpenAI", "OpenRouter", "Anthropic", "Gemini", "Custom")
-    private val apiKeyModes = listOf("앱에 저장", "직접 입력", "외부에서 관리")
     private val replyModes = listOf("간결하게", "균형 있게", "조금 더 자세히")
     private val triggerModes = listOf("AI가 판단", "호출어/멘션만", "질문/명령만", "모든 메시지")
 
@@ -33,65 +36,78 @@ class EditBotActivity : AppCompatActivity() {
         rootScroll = findViewById(R.id.edit_bot_scroll)
         editDisplayName = findViewById(R.id.edit_display_name)
         editPersona = findViewById(R.id.edit_persona)
-        spinnerProvider = findViewById(R.id.spinner_provider)
-        spinnerApiKeyMode = findViewById(R.id.spinner_api_key_mode)
-        editApiKey = findViewById(R.id.edit_api_key)
+        textModelStatus = findViewById(R.id.text_model_status)
+        btnDownloadModel = findViewById(R.id.btn_download_model)
+        progressModelDownload = findViewById(R.id.progress_model_download)
+        textDownloadProgress = findViewById(R.id.text_download_progress)
         spinnerReplyMode = findViewById(R.id.spinner_reply_mode)
         spinnerTriggerMode = findViewById(R.id.spinner_trigger_mode)
         btnSave = findViewById(R.id.btn_save)
 
-        configureSpinner(spinnerProvider, providers)
-        configureSpinner(spinnerApiKeyMode, apiKeyModes)
         configureSpinner(spinnerReplyMode, replyModes)
         configureSpinner(spinnerTriggerMode, triggerModes)
-        rootScroll.bindFocusScroll(editDisplayName, editPersona, editApiKey)
-
-        spinnerApiKeyMode.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                val mode = apiKeyModes[position]
-                val enabled = mode != "외부에서 관리"
-                editApiKey.isEnabled = enabled
-                editApiKey.alpha = if (enabled) 1f else 0.5f
-                if (!enabled) {
-                    editApiKey.setText("")
-                }
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-        }
+        rootScroll.bindFocusScroll(editDisplayName, editPersona)
 
         bindCurrentConfig()
+        updateModelStatus()
 
-        btnSave.setOnClickListener {
-            val displayName = editDisplayName.text?.toString()?.trim().orEmpty()
-            val persona = editPersona.text?.toString()?.trim().orEmpty()
-            val apiKeyMode = spinnerApiKeyMode.selectedItem?.toString().orEmpty()
-            val apiKey = if (apiKeyMode == "외부에서 관리") "" else editApiKey.text?.toString()?.trim().orEmpty()
-
-            if (displayName.isEmpty()) {
-                Toast.makeText(this, "내 이름을 입력해주세요.", Toast.LENGTH_SHORT).show()
+        btnDownloadModel.setOnClickListener {
+            if (LlmModelManager.hasModel(this)) {
+                Toast.makeText(this, "이미 모델이 설치되어 있습니다.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            if (persona.isEmpty()) {
-                Toast.makeText(this, "페르소나를 입력해주세요.", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+            downloadModel()
+        }
+    }
+
+    private fun updateModelStatus() {
+        val info = LlmModelManager.getModelInfo(this)
+        if (info.exists) {
+            textModelStatus.text = "✅ LLM 모델 준비됨 (${info.sizeMb}MB)"
+            textModelStatus.setTextColor(getColor(R.color.colorSuccess))
+            btnDownloadModel.text = "모델 재다운로드"
+        } else {
+            textModelStatus.text = "⚠️ LLM 모델이 필요합니다"
+            textModelStatus.setTextColor(getColor(R.color.colorDanger))
+            btnDownloadModel.text = "모델 다운로드 (~1.1GB)"
+        }
+    }
+
+    private fun downloadModel() {
+        lifecycleScope.launch {
+            btnDownloadModel.isEnabled = false
+            progressModelDownload.visibility = View.VISIBLE
+            textDownloadProgress.visibility = View.VISIBLE
+
+            LlmModelManager.downloadModel(
+                this@EditBotActivity,
+                onProgress = { progress ->
+                    progressModelDownload.progress = progress
+                    textDownloadProgress.text = "다운로드 중... $progress%"
+                }
+            ).onSuccess { file ->
+                progressModelDownload.visibility = View.GONE
+                textDownloadProgress.visibility = View.GONE
+                textDownloadProgress.text = ""
+                updateModelStatus()
+                btnDownloadModel.isEnabled = true
+                Toast.makeText(
+                    this@EditBotActivity,
+                    "모델이 다운로드되었습니다. (${file.length() / 1024 / 1024}MB)",
+                    Toast.LENGTH_LONG
+                ).show()
+            }.onFailure { error ->
+                progressModelDownload.visibility = View.GONE
+                textDownloadProgress.visibility = View.GONE
+                textDownloadProgress.text = ""
+                updateModelStatus()
+                btnDownloadModel.isEnabled = true
+                Toast.makeText(
+                    this@EditBotActivity,
+                    "모델 다운로드 실패: ${error.message}",
+                    Toast.LENGTH_LONG
+                ).show()
             }
-
-            AppSettings.saveAiConfig(
-                this,
-                AppSettings.AiConfig(
-                    displayName = displayName,
-                    persona = persona,
-                    provider = spinnerProvider.selectedItem?.toString().orEmpty(),
-                    apiKeyMode = apiKeyMode,
-                    apiKey = apiKey,
-                    replyMode = spinnerReplyMode.selectedItem?.toString().orEmpty(),
-                    triggerMode = spinnerTriggerMode.selectedItem?.toString().orEmpty()
-                )
-            )
-
-            Toast.makeText(this, "AI 답장 설정을 저장했습니다.", Toast.LENGTH_SHORT).show()
-            finish()
         }
     }
 
@@ -99,9 +115,6 @@ class EditBotActivity : AppCompatActivity() {
         val config = AppSettings.getAiConfig(this)
         editDisplayName.setText(config.displayName)
         editPersona.setText(config.persona)
-        editApiKey.setText(config.apiKey)
-        spinnerProvider.setSelection(indexOrZero(providers, config.provider))
-        spinnerApiKeyMode.setSelection(indexOrZero(apiKeyModes, config.apiKeyMode))
         spinnerReplyMode.setSelection(indexOrZero(replyModes, config.replyMode))
         spinnerTriggerMode.setSelection(indexOrZero(triggerModes, config.triggerMode))
     }

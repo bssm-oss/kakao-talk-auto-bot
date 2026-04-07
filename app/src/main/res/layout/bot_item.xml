@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="@dimen/space_2"
+    android:layout_marginTop="@dimen/space_3"
     app:cardBackgroundColor="@color/colorSurfaceMuted"
     app:cardCornerRadius="@dimen/radius_sm"
     app:cardElevation="0dp"
@@ -47,12 +47,12 @@
             android:layout_marginTop="@dimen/space_2"
             android:text="메모 없음 · CSV 미가져옴"
             android:textColor="@color/colorTextSecondary"
-            android:textSize="12sp" />
+            android:textSize="13sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_3"
+            android:layout_marginTop="@dimen/space_4"
             android:gravity="end"
             android:orientation="horizontal">
 
@@ -73,7 +73,7 @@
                 android:layout_height="@dimen/compact_button_height"
                 android:text="제거"
                 android:textColor="@color/colorDanger"
-                app:strokeColor="@color/colorDanger" />
+                app:strokeColor="@color/colorBorder" />
         </LinearLayout>
     </LinearLayout>
 
