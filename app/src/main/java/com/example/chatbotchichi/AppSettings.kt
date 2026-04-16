@@ -7,12 +7,15 @@ import org.json.JSONObject
 
 object AppSettings {
     private const val PREFS_NAME = "AppSettingsPrefs"
+    private const val LOCAL_PROVIDER_TYPE = "llm"
+    private const val LOCAL_PROVIDER_MODEL = "gemma-4-e2b-it-litertlm"
     private const val KEY_AI_REPLY_ENABLED = "ai_reply_enabled"
     private const val KEY_DISPLAY_NAME = "display_name"
     private const val KEY_PERSONA = "persona"
     private const val KEY_PROVIDER = "provider"
     private const val KEY_API_KEY_MODE = "api_key_mode"
     private const val KEY_API_KEY = "api_key"
+    private const val KEY_PROVIDER_MODEL = "provider_model"
     private const val KEY_REPLY_MODE = "reply_mode"
     private const val KEY_TRIGGER_MODE = "trigger_mode"
     private const val KEY_THEME_MODE = "theme_mode"
@@ -23,6 +26,8 @@ object AppSettings {
         val displayName: String,
         val persona: String,
         val provider: String,
+        val providerType: String,
+        val providerModel: String,
         val apiKeyMode: String,
         val apiKey: String,
         val replyMode: String,
@@ -81,17 +86,23 @@ object AppSettings {
 
     fun getAiConfig(context: Context): AiConfig {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val providerType = normalizeProviderType(prefs.getString(KEY_PROVIDER, LOCAL_PROVIDER_TYPE))
+        val providerModel = LOCAL_PROVIDER_MODEL
         val modelInfo = LlmModelManager.getModelInfo(context)
-        val modelStatus = if (modelInfo.exists) {
-            "LLM ${modelInfo.sizeMb}MB 준비됨"
+        val providerStatus = if (modelInfo.matchesExpectedSource) {
+            "Gemma 4 로컬 · ${modelInfo.sizeMb}MB 준비됨"
+        } else if (modelInfo.exists) {
+            "Gemma 4 로컬 · 다른/이전 모델 감지 (${modelInfo.sizeMb}MB)"
         } else {
-            "LLM 모델 미설치"
+            "Gemma 4 로컬 · 모델 미설치"
         }
         return AiConfig(
             displayName = prefs.getString(KEY_DISPLAY_NAME, "나") ?: "나",
             persona = prefs.getString(KEY_PERSONA, "친절하고 짧게 핵심만 답장합니다.")
                 ?: "친절하고 짧게 핵심만 답장합니다.",
-            provider = modelStatus,
+            provider = providerStatus,
+            providerType = providerType,
+            providerModel = providerModel,
             apiKeyMode = "불필요",
             apiKey = "",
             replyMode = prefs.getString(KEY_REPLY_MODE, "간결하게") ?: "간결하게",
@@ -104,12 +115,20 @@ object AppSettings {
         prefs.edit()
             .putString(KEY_DISPLAY_NAME, config.displayName)
             .putString(KEY_PERSONA, config.persona)
-            .putString(KEY_PROVIDER, "llm")
+            .putString(KEY_PROVIDER, LOCAL_PROVIDER_TYPE)
+            .putString(KEY_PROVIDER_MODEL, LOCAL_PROVIDER_MODEL)
             .putString(KEY_API_KEY_MODE, "불필요")
             .putString(KEY_API_KEY, "")
             .putString(KEY_REPLY_MODE, config.replyMode)
             .putString(KEY_TRIGGER_MODE, config.triggerMode)
             .apply()
+    }
+
+    internal fun normalizeProviderType(providerType: String?): String {
+        return when (providerType?.trim()?.lowercase()) {
+            null, "", "local", "local-gguf", "local-litertlm", "openai", LOCAL_PROVIDER_TYPE -> LOCAL_PROVIDER_TYPE
+            else -> LOCAL_PROVIDER_TYPE
+        }
     }
 
     fun getRoomTargets(context: Context): List<RoomTarget> {
@@ -149,6 +168,20 @@ object AppSettings {
         }
 
         rooms.add(RoomTarget(normalized, true, 0L, null))
+        saveRoomTargets(context, rooms)
+        return true
+    }
+
+    fun ensureRoomTargetExists(context: Context, roomName: String, enabled: Boolean = false): Boolean {
+        val normalized = roomName.trim()
+        if (normalized.isBlank()) return false
+
+        val rooms = getRoomTargets(context).toMutableList()
+        if (rooms.any { it.name.equals(normalized, ignoreCase = true) }) {
+            return false
+        }
+
+        rooms.add(RoomTarget(normalized, enabled, 0L, null))
         saveRoomTargets(context, rooms)
         return true
     }

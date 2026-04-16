@@ -22,6 +22,8 @@ class EditBotActivity : AppCompatActivity() {
     private lateinit var btnDownloadModel: Button
     private lateinit var progressModelDownload: ProgressBar
     private lateinit var textDownloadProgress: TextView
+    private lateinit var textGroundingSummary: TextView
+    private lateinit var textProviderSummary: TextView
     private lateinit var spinnerReplyMode: Spinner
     private lateinit var spinnerTriggerMode: Spinner
     private lateinit var btnSave: Button
@@ -40,6 +42,8 @@ class EditBotActivity : AppCompatActivity() {
         btnDownloadModel = findViewById(R.id.btn_download_model)
         progressModelDownload = findViewById(R.id.progress_model_download)
         textDownloadProgress = findViewById(R.id.text_download_progress)
+        textGroundingSummary = findViewById(R.id.text_grounding_summary)
+        textProviderSummary = findViewById(R.id.text_provider_summary)
         spinnerReplyMode = findViewById(R.id.spinner_reply_mode)
         spinnerTriggerMode = findViewById(R.id.spinner_trigger_mode)
         btnSave = findViewById(R.id.btn_save)
@@ -50,27 +54,41 @@ class EditBotActivity : AppCompatActivity() {
 
         bindCurrentConfig()
         updateModelStatus()
+        updateProviderSummary()
 
         btnDownloadModel.setOnClickListener {
-            if (LlmModelManager.hasModel(this)) {
+            if (LlmModelManager.hasModel(this, LlmModelManager.DEFAULT_MODEL)) {
                 Toast.makeText(this, "이미 모델이 설치되어 있습니다.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             downloadModel()
         }
+
+        btnSave.setOnClickListener {
+            saveConfig()
+        }
     }
 
     private fun updateModelStatus() {
-        val info = LlmModelManager.getModelInfo(this)
-        if (info.exists) {
-            textModelStatus.text = "✅ LLM 모델 준비됨 (${info.sizeMb}MB)"
+        val info = LlmModelManager.getModelInfo(this, LlmModelManager.DEFAULT_MODEL)
+        if (info.matchesExpectedSource) {
+            textModelStatus.text = "✅ Gemma 4 준비됨 (${info.sizeMb}MB)"
             textModelStatus.setTextColor(getColor(R.color.colorSuccess))
             btnDownloadModel.text = "모델 재다운로드"
+        } else if (info.exists) {
+            textModelStatus.text = "⚠️ Gemma 4가 아닌 모델이 감지됨 (${info.sizeMb}MB) · 기본 모델 다운로드 필요"
+            textModelStatus.setTextColor(getColor(R.color.colorWarning))
+            btnDownloadModel.text = "Gemma 4 다운로드 (~2.58GB)"
         } else {
-            textModelStatus.text = "⚠️ LLM 모델이 필요합니다"
+            textModelStatus.text = "⚠️ Gemma 4 모델이 필요합니다"
             textModelStatus.setTextColor(getColor(R.color.colorDanger))
-            btnDownloadModel.text = "모델 다운로드 (~1.1GB)"
+            btnDownloadModel.text = "Gemma 4 다운로드 (~2.58GB)"
         }
+    }
+
+    private fun updateProviderSummary() {
+        textProviderSummary.text = "응답 엔진은 기기 내 Gemma 4 로컬 모델만 사용합니다. 저장된 예전 OpenAI 설정이 있어도 자동으로 로컬 Gemma로 정리됩니다."
+        textGroundingSummary.text = "답장 생성 시 현재 메시지, 최근 대화, 방 메모, 자동 메모리로 합쳐진 방 맥락을 함께 참고합니다."
     }
 
     private fun downloadModel() {
@@ -117,6 +135,27 @@ class EditBotActivity : AppCompatActivity() {
         editPersona.setText(config.persona)
         spinnerReplyMode.setSelection(indexOrZero(replyModes, config.replyMode))
         spinnerTriggerMode.setSelection(indexOrZero(triggerModes, config.triggerMode))
+    }
+
+    private fun saveConfig() {
+        AppSettings.saveAiConfig(
+            this,
+            AppSettings.AiConfig(
+                displayName = editDisplayName.text?.toString()?.trim().orEmpty().ifBlank { "나" },
+                persona = editPersona.text?.toString()?.trim().orEmpty().ifBlank { "친절하고 짧게 핵심만 답장합니다." },
+                provider = "",
+                providerType = "llm",
+                providerModel = "gemma-4-e2b-it-litertlm",
+                apiKeyMode = "불필요",
+                apiKey = "",
+                replyMode = spinnerReplyMode.selectedItem?.toString().orEmpty().ifBlank { replyModes.first() },
+                triggerMode = spinnerTriggerMode.selectedItem?.toString().orEmpty().ifBlank { triggerModes.first() }
+            )
+        )
+        updateModelStatus()
+        updateProviderSummary()
+        Toast.makeText(this, "응답 설정을 저장했습니다.", Toast.LENGTH_SHORT).show()
+        finish()
     }
 
     private fun configureSpinner(spinner: Spinner, items: List<String>) {

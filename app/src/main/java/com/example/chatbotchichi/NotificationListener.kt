@@ -108,6 +108,7 @@ class NotificationListener : NotificationListenerService() {
         val roomConfig = BotManager.findRoomConfig(this, room, sender)
         val handlingPlan = incomingHandlingPlan(roomConfig, AppSettings.isAiReplyEnabled(this))
         if (handlingPlan.shouldCapture) {
+            AppSettings.ensureRoomTargetExists(this, room, enabled = false)
             RoomStore.recordIncoming(this, room, sender, msg)
         }
         UiLogger.log(
@@ -127,8 +128,8 @@ class NotificationListener : NotificationListenerService() {
         aiReplyEnabled: Boolean
     ): IncomingHandlingPlan {
         return IncomingHandlingPlan(
-            shouldCapture = roomConfig?.captureEnabled == true,
-            shouldAttemptReply = aiReplyEnabled && roomConfig != null
+            shouldCapture = roomConfig?.captureEnabled ?: true,
+            shouldAttemptReply = aiReplyEnabled && roomConfig?.replyEnabled == true
         )
     }
 
