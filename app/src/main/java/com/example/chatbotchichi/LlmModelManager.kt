@@ -12,10 +12,9 @@ import java.security.MessageDigest
 object LlmModelManager {
     private const val TAG = "LlmModelManager"
     private const val MODEL_DIR_NAME = "llm_models"
-    const val MODEL_FILE_NAME = "model.gguf"
+    private const val DEFAULT_MODEL_FILE_NAME = "model.litertlm"
+    private const val TEST_MODEL_FILE_NAME = "model-test.litertlm"
 
-    // Default model: Qwen2.5-1.5B-Instruct GGUF Q4_K_M
-    // Using HuggingFace direct download URL
     data class ModelSource(
         val name: String,
         val downloadUrl: String,
@@ -24,9 +23,15 @@ object LlmModelManager {
     )
 
     val DEFAULT_MODEL = ModelSource(
-        name = "Qwen2.5-1.5B-Instruct-Q4_K_M",
-        downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-        expectedSizeBytes = 1_100_000_000L // ~1.1GB, approximate
+        name = "Gemma-4-E2B-it-LiteRT-LM",
+        downloadUrl = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+        expectedSizeBytes = 2_583_085_056L
+    )
+
+    val TEST_MODEL = ModelSource(
+        name = "Qwen3-0.6B-LiteRT",
+        downloadUrl = "https://huggingface.co/litert-community/Qwen3-0.6B/resolve/main/Qwen3-0.6B.litertlm",
+        expectedSizeBytes = 614_000_000L
     )
 
     fun getModelDir(context: Context): File {
@@ -35,22 +40,37 @@ object LlmModelManager {
         return dir
     }
 
-    fun getModelFile(context: Context): File {
-        return File(getModelDir(context), MODEL_FILE_NAME)
+    fun getModelFile(context: Context, source: ModelSource = DEFAULT_MODEL): File {
+        val fileName = if (source == TEST_MODEL) TEST_MODEL_FILE_NAME else DEFAULT_MODEL_FILE_NAME
+        return File(getModelDir(context), fileName)
     }
 
+    fun hasModel(context: Context, source: ModelSource = DEFAULT_MODEL): Boolean {
+        val file = getModelFile(context, source)
+        return file.exists() && file.length() > source.expectedSizeBytes * 0.9
+    }
+
+    @Deprecated("Use hasModel(context, source) to check a specific model source")
     fun hasModel(context: Context): Boolean {
-        val file = getModelFile(context)
-        return file.exists() && file.length() > 100_000_000L // At least 100MB
+        return hasAnyModel(context)
     }
 
-    fun getModelInfo(context: Context): ModelInfo {
-        val file = getModelFile(context)
+    fun hasAnyModel(context: Context): Boolean {
+        return listOf(DEFAULT_MODEL, TEST_MODEL).any { source ->
+            val file = getModelFile(context, source)
+            file.exists() && file.length() > 100_000_000L
+        }
+    }
+
+    fun getModelInfo(context: Context, source: ModelSource = DEFAULT_MODEL): ModelInfo {
+        val file = getModelFile(context, source)
+        val sizeBytes = if (file.exists()) file.length() else 0L
         return ModelInfo(
             exists = file.exists(),
             path = file.absolutePath,
-            sizeBytes = if (file.exists()) file.length() else 0L,
-            sizeMb = if (file.exists()) file.length() / 1024 / 1024 else 0L
+            sizeBytes = sizeBytes,
+            sizeMb = if (file.exists()) sizeBytes / 1024 / 1024 else 0L,
+            matchesExpectedSource = file.exists() && sizeBytes > source.expectedSizeBytes * 0.9
         )
     }
 
@@ -59,7 +79,7 @@ object LlmModelManager {
         source: ModelSource = DEFAULT_MODEL,
         onProgress: (Int) -> Unit = {}
     ): Result<File> = withContext(Dispatchers.IO) {
-        val outputFile = getModelFile(context)
+        val outputFile = getModelFile(context, source)
 
         if (outputFile.exists() && outputFile.length() > source.expectedSizeBytes * 0.9) {
             Log.i(TAG, "Model already exists and is complete: ${outputFile.absolutePath}")
@@ -70,6 +90,10 @@ object LlmModelManager {
             Log.i(TAG, "Downloading model from: ${source.downloadUrl}")
             val url = URL(source.downloadUrl)
             val connection = url.openConnection()
+            val hfToken = BuildConfig.HF_TOKEN.trim()
+            if (hfToken.isNotEmpty()) {
+                connection.setRequestProperty("Authorization", "Bearer $hfToken")
+            }
             connection.connect()
 
             val totalBytes = connection.contentLengthLong
@@ -90,7 +114,7 @@ object LlmModelManager {
                 }
             }
 
-            if (outputFile.length() > 100_000_000L) {
+            if (outputFile.length() > source.expectedSizeBytes * 0.9) {
                 Log.i(TAG, "Download complete: ${outputFile.length() / 1024 / 1024}MB")
                 Result.success(outputFile)
             } else {
@@ -105,19 +129,22 @@ object LlmModelManager {
     }
 
     fun deleteModel(context: Context): Boolean {
-        val file = getModelFile(context)
-        if (file.exists()) {
-            val deleted = file.delete()
-            if (deleted) Log.i(TAG, "Model deleted")
-            return deleted
+        var deletedAny = false
+        listOf(DEFAULT_MODEL, TEST_MODEL).forEach { source ->
+            val file = getModelFile(context, source)
+            if (file.exists() && file.delete()) {
+                deletedAny = true
+            }
         }
-        return false
+        if (deletedAny) Log.i(TAG, "Model deleted")
+        return deletedAny
     }
 
     data class ModelInfo(
         val exists: Boolean,
         val path: String,
         val sizeBytes: Long,
-        val sizeMb: Long
+        val sizeMb: Long,
+        val matchesExpectedSource: Boolean
     )
 }

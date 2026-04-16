@@ -6,7 +6,7 @@ import org.json.JSONObject
 data class ProviderConfig(
     val type: String = "llm",
     val apiKey: String = "",
-    val model: String = "local-gguf",
+    val model: String = "gemma-4-e2b-it-litertlm",
     val endpoint: String = "",
     val authMode: String = "local"
 )
@@ -34,6 +34,11 @@ data class AutoReplyConfig(
 )
 
 object AutoReplyJson {
+    private const val LOCAL_PROVIDER_TYPE = "llm"
+    private const val LOCAL_PROVIDER_MODEL = "gemma-4-e2b-it-litertlm"
+    private val LEGACY_LOCAL_PROVIDER_TYPES = setOf("", "local", "local-gguf", "local-litertlm", LOCAL_PROVIDER_TYPE)
+    private val LEGACY_LOCAL_PROVIDER_MODELS = setOf("", "local", "local-gguf", "local-litertlm", "gemma4", "gemma-4", LOCAL_PROVIDER_MODEL)
+
     fun defaultConfig(name: String = "새 자동응답"): AutoReplyConfig {
         return AutoReplyConfig(
             name = name,
@@ -42,7 +47,7 @@ object AutoReplyJson {
             roomMemory = "이 방의 맥락, 금지어, 말투를 간단히 적어두세요.",
             cannedReplies = listOf("확인했어요.", "조금 뒤에 답할게요."),
             trigger = TriggerConfig(mode = "ai_judge", value = ""),
-            provider = ProviderConfig(type = "llm", model = "local-gguf")
+            provider = ProviderConfig(type = LOCAL_PROVIDER_TYPE, model = LOCAL_PROVIDER_MODEL)
         )
     }
 
@@ -67,18 +72,21 @@ object AutoReplyJson {
                 mode = triggerJson.optString("mode", "always"),
                 value = triggerJson.optString("value", "")
             ),
-            provider = ProviderConfig(
-                type = providerJson.optString("type", "local"),
+            provider = normalizeProvider(
+                ProviderConfig(
+                    type = providerJson.optString("type", LOCAL_PROVIDER_TYPE),
                 apiKey = providerJson.optString("apiKey", ""),
                 model = providerJson.optString("model", ""),
                 endpoint = providerJson.optString("endpoint", ""),
                 authMode = providerJson.optString("authMode", "local")
+                )
             ),
             importHistory = json.optString("importHistory", "")
         )
     }
 
     fun toJson(config: AutoReplyConfig, includeImportHistory: Boolean = false): String {
+        val normalizedProvider = normalizeProvider(config.provider)
         val json = JSONObject()
             .put("name", config.name)
             .put("roomPattern", config.roomPattern)
@@ -100,11 +108,11 @@ object AutoReplyJson {
             .put(
                 "provider",
                 JSONObject()
-                    .put("type", config.provider.type)
-                    .put("apiKey", config.provider.apiKey)
-                    .put("model", config.provider.model)
-                    .put("endpoint", config.provider.endpoint)
-                    .put("authMode", config.provider.authMode)
+                    .put("type", normalizedProvider.type)
+                    .put("apiKey", normalizedProvider.apiKey)
+                    .put("model", normalizedProvider.model)
+                    .put("endpoint", normalizedProvider.endpoint)
+                    .put("authMode", normalizedProvider.authMode)
             )
         if (includeImportHistory) {
             json.put("importHistory", config.importHistory)
@@ -120,5 +128,33 @@ object AutoReplyJson {
             if (value.isNotBlank()) items.add(value)
         }
         return items
+    }
+
+    private fun normalizeProvider(provider: ProviderConfig): ProviderConfig {
+        val normalizedType = provider.type.trim().lowercase()
+        val normalizedModel = provider.model.trim().lowercase()
+        val shouldUseLocalProvider = normalizedType in LEGACY_LOCAL_PROVIDER_TYPES || normalizedType == "openai"
+
+        return if (shouldUseLocalProvider) {
+            provider.copy(
+                type = LOCAL_PROVIDER_TYPE,
+                apiKey = "",
+                model = if (normalizedModel in LEGACY_LOCAL_PROVIDER_MODELS || normalizedType == "openai") {
+                    LOCAL_PROVIDER_MODEL
+                } else {
+                    provider.model.trim()
+                },
+                endpoint = "",
+                authMode = "local"
+            )
+        } else {
+            provider.copy(
+                type = LOCAL_PROVIDER_TYPE,
+                apiKey = "",
+                model = LOCAL_PROVIDER_MODEL,
+                endpoint = "",
+                authMode = "local"
+            )
+        }
     }
 }

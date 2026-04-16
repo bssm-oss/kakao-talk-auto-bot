@@ -200,7 +200,10 @@ object BotManager {
             trigger = trigger,
             provider = config.provider.copy(
                 type = "llm",
-                model = config.provider.model.ifBlank { "local-gguf" }
+                apiKey = "",
+                model = "gemma-4-e2b-it-litertlm",
+                endpoint = "",
+                authMode = "local"
             )
         )
     }

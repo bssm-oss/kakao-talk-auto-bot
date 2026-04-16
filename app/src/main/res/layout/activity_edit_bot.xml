@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_1"
             android:layout_marginBottom="@dimen/space_5"
-            android:text="내 이름/페르소나, 로컬 응답 엔진, 답장 조건을 저장합니다."
+            android:text="이름, 말투, 로컬 Gemma 답장 조건을 간단하게 설정합니다."
             android:textColor="@color/colorTextSecondary"
             android:textSize="13sp" />
 
@@ -106,10 +106,27 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="응답 엔진 (LLM)"
+                    android:text="AI 엔진"
                     android:textColor="@color/colorTextPrimary"
                     android:textSize="18sp"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_3"
+                    android:text="로컬 응답 엔진"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/text_provider_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_3"
+                    android:text="Gemma 4 로컬 모델만 사용합니다."
+                    android:textColor="@color/colorTextPrimary"
+                    android:textSize="14sp" />
 
                 <TextView
                     android:id="@+id/text_model_status"
@@ -122,10 +139,19 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/text_grounding_summary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_2"
-                    android:text="Qwen2.5 1.5B 기반 로컬 AI 모델입니다. 인터넷 없이 동작합니다."
+                    android:text="현재 메시지, 최근 대화, 방 메모, 자동 메모리 요약을 함께 참고해 답장합니다."
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:text="기기 안의 Gemma 4 LiteRT-LM 모델로 답장하며, 인터넷 연결 없이 동작합니다."
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
 
@@ -135,7 +161,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:text="모델 다운로드 (~1.1GB)"
+                    android:text="Gemma 4 다운로드 (~2.58GB)"
                     android:textColor="@color/colorPrimary"
                     app:strokeColor="@color/colorPrimary" />
 

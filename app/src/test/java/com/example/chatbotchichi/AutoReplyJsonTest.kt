@@ -13,7 +13,7 @@ class AutoReplyJsonTest {
         assertEquals("ai_judge", config.trigger.mode)
         assertEquals("provider", config.replyMode)
         assertEquals("llm", config.provider.type)
-        assertEquals("local-gguf", config.provider.model)
+        assertEquals("gemma-4-e2b-it-litertlm", config.provider.model)
     }
 
     @Test
@@ -27,7 +27,7 @@ class AutoReplyJsonTest {
             blockedSenders = listOf("광고봇"),
             cannedReplies = listOf("확인했습니다.", "잠시 후 답할게요."),
             trigger = TriggerConfig(mode = "keyword", value = "@봇, 도와줘"),
-            provider = ProviderConfig(type = "llm", model = "local-gguf")
+            provider = ProviderConfig(type = "llm", model = "gemma-4-e2b-it-litertlm")
         )
 
         val json = AutoReplyJson.toJson(original, includeImportHistory = true)
@@ -43,5 +43,51 @@ class AutoReplyJsonTest {
         assertEquals(original.trigger.value, reparsed.trigger.value)
         assertEquals(original.provider.type, reparsed.provider.type)
         assertEquals(original.provider.model, reparsed.provider.model)
+    }
+
+    @Test
+    fun parse_legacyLocalProvider_isNormalizedToLitertCanonicalValues() {
+        val reparsed = AutoReplyJson.parse(
+            """
+            {
+              "name": "레거시방",
+              "provider": {
+                "type": "local",
+                "model": "local-gguf",
+                "authMode": "local"
+              }
+            }
+            """.trimIndent(),
+            "fallback"
+        )
+
+        assertEquals("llm", reparsed.provider.type)
+        assertEquals("gemma-4-e2b-it-litertlm", reparsed.provider.model)
+        assertEquals("local", reparsed.provider.authMode)
+    }
+
+    @Test
+    fun parse_legacyOpenAiProvider_isNormalizedToLocalGemma() {
+        val reparsed = AutoReplyJson.parse(
+            """
+            {
+              "name": "원격방",
+              "provider": {
+                "type": "openai",
+                "apiKey": "sk-test",
+                "model": "gpt-4.1-mini",
+                "endpoint": "https://api.openai.com/v1/responses",
+                "authMode": "api_key"
+              }
+            }
+            """.trimIndent(),
+            "fallback"
+        )
+
+        assertEquals("llm", reparsed.provider.type)
+        assertEquals("", reparsed.provider.apiKey)
+        assertEquals("gemma-4-e2b-it-litertlm", reparsed.provider.model)
+        assertEquals("", reparsed.provider.endpoint)
+        assertEquals("local", reparsed.provider.authMode)
     }
 }

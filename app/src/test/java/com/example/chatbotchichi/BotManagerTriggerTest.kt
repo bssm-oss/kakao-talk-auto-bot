@@ -26,4 +26,25 @@ class BotManagerTriggerTest {
         assertTrue(BotManager.triggerMatches(config, "@허동운 답해봐", isGroupChat = true))
         assertFalse(BotManager.triggerMatches(config, "아무 관련 없는 메시지", isGroupChat = true))
     }
+
+    @Test
+    fun questionTrigger_matches_question_and_request_phrases() {
+        val config = AutoReplyJson.defaultConfig("테스트방").copy(
+            trigger = TriggerConfig(mode = "question", value = "")
+        )
+
+        assertTrue(BotManager.triggerMatches(config, "이거 언제 끝나?", isGroupChat = true))
+        assertTrue(BotManager.triggerMatches(config, "자료 좀 알려줘", isGroupChat = true))
+        assertFalse(BotManager.triggerMatches(config, "오늘 점심 먹었어", isGroupChat = true))
+    }
+
+    @Test
+    fun directTrigger_matches_only_in_direct_chat() {
+        val config = AutoReplyJson.defaultConfig("테스트방").copy(
+            trigger = TriggerConfig(mode = "direct", value = "")
+        )
+
+        assertTrue(BotManager.triggerMatches(config, "바로 답해줘", isGroupChat = false))
+        assertFalse(BotManager.triggerMatches(config, "바로 답해줘", isGroupChat = true))
+    }
 }

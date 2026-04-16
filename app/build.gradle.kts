@@ -3,10 +3,29 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+fun loadDotEnv(rootDir: java.io.File): Map<String, String> {
+    val envFile = rootDir.resolve(".env")
+    if (!envFile.exists()) return emptyMap()
+
+    return envFile.readLines()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() && !it.startsWith("#") && it.contains("=") }
+        .associate { line ->
+            val idx = line.indexOf('=')
+            val key = line.substring(0, idx).trim()
+            val value = line.substring(idx + 1).trim().removeSurrounding("\"")
+            key to value
+        }
+}
+
 val releaseStoreFilePath = System.getenv("ANDROID_RELEASE_STORE_FILE")?.takeIf { it.isNotBlank() }
 val releaseStorePassword = System.getenv("ANDROID_RELEASE_STORE_PASSWORD")?.takeIf { it.isNotBlank() }
 val releaseKeyAlias = System.getenv("ANDROID_RELEASE_KEY_ALIAS")?.takeIf { it.isNotBlank() }
 val releaseKeyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+val dotEnv = loadDotEnv(rootDir)
+val huggingFaceToken = dotEnv["HF_TOKEN"]?.takeIf { it.isNotBlank() }
 val hasReleaseSigning = listOf(
     releaseStoreFilePath,
     releaseStorePassword,
@@ -20,6 +39,10 @@ android {
         version = release(36)
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.example.kakaotalkautobot"
         minSdk = 24
@@ -28,6 +51,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "HF_TOKEN", "\"${huggingFaceToken.orEmpty()}\"")
     }
 
     signingConfigs {
@@ -57,8 +81,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
     }
     externalNativeBuild {
         cmake {
@@ -79,6 +105,7 @@ dependencies {
     implementation(libs.material)
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.wear:wear:1.2.0")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.json:json:20231013")
     testImplementation(libs.junit)
