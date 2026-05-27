@@ -11,6 +11,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.launch
 
@@ -18,6 +20,11 @@ class EditBotActivity : AppCompatActivity() {
     private lateinit var rootScroll: NestedScrollView
     private lateinit var editDisplayName: TextInputEditText
     private lateinit var editPersona: TextInputEditText
+    private lateinit var editPersonaExamples: TextInputEditText
+    private lateinit var switchLearnedUserStyle: SwitchMaterial
+    private lateinit var learnedUserStylePreview: TextView
+    private lateinit var editLearnedUserStyle: TextInputEditText
+    private lateinit var resetLearnedUserStyleButton: MaterialButton
     private lateinit var textModelStatus: TextView
     private lateinit var btnDownloadModel: Button
     private lateinit var progressModelDownload: ProgressBar
@@ -38,6 +45,11 @@ class EditBotActivity : AppCompatActivity() {
         rootScroll = findViewById(R.id.edit_bot_scroll)
         editDisplayName = findViewById(R.id.edit_display_name)
         editPersona = findViewById(R.id.edit_persona)
+        editPersonaExamples = findViewById(R.id.edit_persona_examples)
+        switchLearnedUserStyle = findViewById(R.id.switch_learned_user_style)
+        learnedUserStylePreview = findViewById(R.id.text_learned_user_style_preview)
+        editLearnedUserStyle = findViewById(R.id.edit_learned_user_style)
+        resetLearnedUserStyleButton = findViewById(R.id.btn_reset_learned_user_style)
         textModelStatus = findViewById(R.id.text_model_status)
         btnDownloadModel = findViewById(R.id.btn_download_model)
         progressModelDownload = findViewById(R.id.progress_model_download)
@@ -50,7 +62,7 @@ class EditBotActivity : AppCompatActivity() {
 
         configureSpinner(spinnerReplyMode, replyModes)
         configureSpinner(spinnerTriggerMode, triggerModes)
-        rootScroll.bindFocusScroll(editDisplayName, editPersona)
+        rootScroll.bindFocusScroll(editDisplayName, editPersona, editPersonaExamples, editLearnedUserStyle)
 
         bindCurrentConfig()
         updateModelStatus()
@@ -66,6 +78,13 @@ class EditBotActivity : AppCompatActivity() {
 
         btnSave.setOnClickListener {
             saveConfig()
+        }
+
+        resetLearnedUserStyleButton.setOnClickListener {
+            StyleProfileStore.resetUserLearnedStyle(this)
+            editLearnedUserStyle.setText("")
+            bindLearnedUserStyle()
+            Toast.makeText(this, "학습된 내 말투 수정을 초기화했습니다.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -88,7 +107,7 @@ class EditBotActivity : AppCompatActivity() {
 
     private fun updateProviderSummary() {
         textProviderSummary.text = "응답 엔진은 기기 내 Gemma 4 로컬 모델만 사용합니다. 저장된 예전 OpenAI 설정이 있어도 자동으로 로컬 Gemma로 정리됩니다."
-        textGroundingSummary.text = "답장 생성 시 현재 메시지, 최근 대화, 방 메모, 자동 메모리로 합쳐진 방 맥락을 함께 참고합니다."
+        textGroundingSummary.text = "답장 생성 시 사용자 예시, 방별 말투, 최근 대화, 방 메모, 자동 메모리를 함께 참고합니다."
     }
 
     private fun downloadModel() {
@@ -133,8 +152,10 @@ class EditBotActivity : AppCompatActivity() {
         val config = AppSettings.getAiConfig(this)
         editDisplayName.setText(config.displayName)
         editPersona.setText(config.persona)
+        editPersonaExamples.setText(config.personaExamples)
         spinnerReplyMode.setSelection(indexOrZero(replyModes, config.replyMode))
         spinnerTriggerMode.setSelection(indexOrZero(triggerModes, config.triggerMode))
+        bindLearnedUserStyle()
     }
 
     private fun saveConfig() {
@@ -143,6 +164,7 @@ class EditBotActivity : AppCompatActivity() {
             AppSettings.AiConfig(
                 displayName = editDisplayName.text?.toString()?.trim().orEmpty().ifBlank { "나" },
                 persona = editPersona.text?.toString()?.trim().orEmpty().ifBlank { "친절하고 짧게 핵심만 답장합니다." },
+                personaExamples = editPersonaExamples.text?.toString()?.trim().orEmpty(),
                 provider = "",
                 providerType = "llm",
                 providerModel = "gemma-4-e2b-it-litertlm",
@@ -152,10 +174,31 @@ class EditBotActivity : AppCompatActivity() {
                 triggerMode = spinnerTriggerMode.selectedItem?.toString().orEmpty().ifBlank { triggerModes.first() }
             )
         )
+        StyleProfileStore.setUserLearnedStyleEnabled(this, switchLearnedUserStyle.isChecked)
+        StyleProfileStore.saveUserLearnedStyleOverride(this, editLearnedUserStyle.text?.toString().orEmpty())
         updateModelStatus()
         updateProviderSummary()
         Toast.makeText(this, "응답 설정을 저장했습니다.", Toast.LENGTH_SHORT).show()
         finish()
+    }
+
+    private fun bindLearnedUserStyle() {
+        val config = AppSettings.getAiConfig(this)
+        val sourceRoom = AppSettings.getMostRecentImportedRoom(this)?.name
+        val history = sourceRoom
+            ?.let { RoomStore.recentMessages(this, it, limit = 40) }
+            .orEmpty()
+        val importedText = sourceRoom
+            ?.let { AppSettings.getRoomMemory(this, it) }
+            .orEmpty()
+        val state = StyleProfileStore.getUserLearnedStyleState(this, config.displayName, history, importedText)
+        switchLearnedUserStyle.isChecked = state.enabled
+        editLearnedUserStyle.setText(state.override)
+        learnedUserStylePreview.text = if (state.generated.isBlank()) {
+            "자동 추출된 내 말투가 아직 없습니다. 방 대화나 CSV 내 발화가 쌓이면 답장 때 자동으로 참고합니다."
+        } else {
+            "자동 추출: ${state.generated}"
+        }
     }
 
     private fun configureSpinner(spinner: Spinner, items: List<String>) {

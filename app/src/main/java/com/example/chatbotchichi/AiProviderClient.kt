@@ -8,12 +8,15 @@ object AiProviderClient {
     private const val PRIMARY_HISTORY_LIMIT = 8
     private const val PRIMARY_PERSONA_LIMIT = 220
     private const val PRIMARY_ROOM_MEMORY_LIMIT = 320
+    private const val PRIMARY_STYLE_GUIDE_LIMIT = 640
     private const val COMPACT_HISTORY_LIMIT = 4
     private const val COMPACT_PERSONA_LIMIT = 100
     private const val COMPACT_ROOM_MEMORY_LIMIT = 160
+    private const val COMPACT_STYLE_GUIDE_LIMIT = 360
     private const val EMERGENCY_HISTORY_LIMIT = 2
     private const val EMERGENCY_PERSONA_LIMIT = 60
     private const val EMERGENCY_ROOM_MEMORY_LIMIT = 80
+    private const val EMERGENCY_STYLE_GUIDE_LIMIT = 180
 
     data class GenerationResult(
         val reply: String? = null,
@@ -62,11 +65,13 @@ object AiProviderClient {
 
         // Build the prompt and generate
         return try {
-            val prompt = buildPrompt(config, room, sender, normalizedMessage, history)
+            val aiConfig = AppSettings.getAiConfig(context)
+            val styleGuide = StyleProfileStore.buildPromptStyleGuide(context, aiConfig, config, room, history)
+            val prompt = buildPrompt(config, room, sender, normalizedMessage, history, styleGuide)
             Log.d(TAG, "Prompt length: ${prompt.length} chars, judgeMode=$judgeMode")
             Log.d(TAG, "Config: persona=${config.persona.take(30)}, roomMemory=${config.roomMemory.take(30)}, replyMode=${config.replyMode}")
 
-            val rawResponse = generateWithFallbackPrompts(config, room, sender, normalizedMessage, history, prompt)
+            val rawResponse = generateWithFallbackPrompts(config, room, sender, normalizedMessage, history, prompt, styleGuide)
 
             if (rawResponse.isNotEmpty()) {
                 Log.d(TAG, "Raw LLM response preview: '${rawResponse.take(100)}'")
@@ -126,7 +131,8 @@ object AiProviderClient {
         room: String,
         sender: String,
         message: String,
-        history: List<RoomHistoryMessage>
+        history: List<RoomHistoryMessage>,
+        styleGuide: String = ""
     ): String {
         return buildString {
             append("너는 카카오톡 자동 응답 도우미다. 아래 규칙을 따른다:\n")
@@ -136,7 +142,13 @@ object AiProviderClient {
             append("4. 한국어로만 답변 영어를 섞지 마라.\n")
             append("5. 이모지, 읽음 표시, 확인 등의 과도한 표현은 자제해라.\n")
             append("6. 오직 답장 내용만 출력해라. 설명이나 부가 문구를 넣지 마라.\n")
-            append("7. 현재 메시지보다 먼저 페르소나, 방 메모, 최근 대화에서 근거를 찾고 그 말투와 사실을 유지해라.\n")
+            append("7. 말투는 사용자 직접 예시, 수동 방 스타일, 학습된 사용자/방 스타일을 우선 적용해라.\n")
+            append("8. 사실은 현재 메시지보다 먼저 방 메모와 최근 대화에서 근거를 찾고, 모르면 추측하지 마라.\n")
+
+            if (styleGuide.isNotBlank()) {
+                append(styleGuide.take(PRIMARY_STYLE_GUIDE_LIMIT))
+                append("\n")
+            }
 
             // Persona from config
             if (config.persona.isNotBlank()) {
@@ -175,10 +187,15 @@ object AiProviderClient {
         room: String,
         sender: String,
         message: String,
-        history: List<RoomHistoryMessage>
+        history: List<RoomHistoryMessage>,
+        styleGuide: String = ""
     ): String {
         return buildString {
             append("짧고 자연스럽게 한국어 카톡 답장만 출력해라. 답을 모르면 짧게 모른다고 말해라. 최근 대화와 메모에 근거가 있으면 그걸 우선 써라.\n")
+            if (styleGuide.isNotBlank()) {
+                append(styleGuide.take(COMPACT_STYLE_GUIDE_LIMIT))
+                append("\n")
+            }
             if (config.persona.isNotBlank()) {
                 append("페르소나: ${config.persona.take(COMPACT_PERSONA_LIMIT)}\n")
             }
@@ -206,10 +223,15 @@ object AiProviderClient {
         room: String,
         sender: String,
         message: String,
-        history: List<RoomHistoryMessage>
+        history: List<RoomHistoryMessage>,
+        styleGuide: String = ""
     ): String {
         return buildString {
             append("한국어로 짧게 한 문장만 답해라. 설명하지 마라. 추측하지 말고 페르소나와 최근 맥락을 최대한 유지해라.\n")
+            if (styleGuide.isNotBlank()) {
+                append(styleGuide.take(EMERGENCY_STYLE_GUIDE_LIMIT))
+                append("\n")
+            }
             if (config.persona.isNotBlank()) {
                 append("페르소나: ${config.persona.take(EMERGENCY_PERSONA_LIMIT)}\n")
             }
@@ -236,21 +258,22 @@ object AiProviderClient {
         sender: String,
         message: String,
         history: List<RoomHistoryMessage>,
-        prompt: String
+        prompt: String,
+        styleGuide: String
     ): String {
         val primaryRawResponse = LlmEngine.generate(prompt, maxTokens = 12)
         Log.d(TAG, "Primary raw LLM response length: ${primaryRawResponse.length}")
         if (primaryRawResponse.isNotEmpty()) return primaryRawResponse
 
         Log.w(TAG, "LLM returned empty response on primary prompt, retrying with compact prompt")
-        val compactPrompt = buildCompactPrompt(config, room, sender, message, history)
+        val compactPrompt = buildCompactPrompt(config, room, sender, message, history, styleGuide)
         Log.d(TAG, "Compact prompt length: ${compactPrompt.length} chars")
         val compactRawResponse = LlmEngine.generate(compactPrompt, maxTokens = 24)
         Log.d(TAG, "Retry raw LLM response length: ${compactRawResponse.length}")
         if (compactRawResponse.isNotEmpty()) return compactRawResponse
 
         Log.w(TAG, "LLM returned empty response after compact retry, retrying with emergency prompt")
-        val emergencyPrompt = buildEmergencyPrompt(config, room, sender, message, history)
+        val emergencyPrompt = buildEmergencyPrompt(config, room, sender, message, history, styleGuide)
         Log.d(TAG, "Emergency prompt length: ${emergencyPrompt.length} chars")
         val emergencyRawResponse = LlmEngine.generate(emergencyPrompt, maxTokens = 24)
         Log.d(TAG, "Emergency raw LLM response length: ${emergencyRawResponse.length}")

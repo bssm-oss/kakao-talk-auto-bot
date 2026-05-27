@@ -25,6 +25,7 @@ data class AutoReplyConfig(
     val replyMode: String = "provider",
     val persona: String = "친절하고 간결한 카카오톡 자동응답 도우미",
     val roomMemory: String = "",
+    val roomStyle: String = "",
     val allowedSenders: List<String> = emptyList(),
     val blockedSenders: List<String> = emptyList(),
     val cannedReplies: List<String> = emptyList(),
@@ -65,6 +66,7 @@ object AutoReplyJson {
             replyMode = json.optString("replyMode", "provider"),
             persona = json.optString("persona", defaultConfig(name).persona),
             roomMemory = json.optString("roomMemory", ""),
+            roomStyle = json.optString("roomStyle", ""),
             allowedSenders = json.optJSONArray("allowedSenders").toStringList(),
             blockedSenders = json.optJSONArray("blockedSenders").toStringList(),
             cannedReplies = json.optJSONArray("cannedReplies").toStringList(),
@@ -96,6 +98,7 @@ object AutoReplyJson {
             .put("replyMode", config.replyMode)
             .put("persona", config.persona)
             .put("roomMemory", config.roomMemory)
+            .put("roomStyle", config.roomStyle)
             .put("allowedSenders", JSONArray(config.allowedSenders))
             .put("blockedSenders", JSONArray(config.blockedSenders))
             .put("cannedReplies", JSONArray(config.cannedReplies))

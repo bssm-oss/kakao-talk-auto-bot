@@ -8,16 +8,19 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.NestedScrollView
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class DebugRoomActivity : AppCompatActivity() {
     private lateinit var rootScroll: NestedScrollView
     private lateinit var editRoomName: TextInputEditText
     private lateinit var roomMetaText: TextView
     private lateinit var editMemory: TextInputEditText
+    private lateinit var editRoomStyle: TextInputEditText
+    private lateinit var switchLearnedRoomStyle: SwitchMaterial
+    private lateinit var learnedRoomStylePreview: TextView
+    private lateinit var editLearnedRoomStyle: TextInputEditText
+    private lateinit var resetLearnedRoomStyleButton: MaterialButton
     private lateinit var spinnerReplyMode: Spinner
     private lateinit var spinnerTriggerMode: Spinner
     private lateinit var editTriggerValue: TextInputEditText
@@ -38,6 +41,11 @@ class DebugRoomActivity : AppCompatActivity() {
         editRoomName = findViewById(R.id.edit_room_name)
         roomMetaText = findViewById(R.id.text_room_meta)
         editMemory = findViewById(R.id.edit_memory)
+        editRoomStyle = findViewById(R.id.edit_room_style)
+        switchLearnedRoomStyle = findViewById(R.id.switch_learned_room_style)
+        learnedRoomStylePreview = findViewById(R.id.text_learned_room_style_preview)
+        editLearnedRoomStyle = findViewById(R.id.edit_learned_room_style)
+        resetLearnedRoomStyleButton = findViewById(R.id.btn_reset_learned_room_style)
         spinnerReplyMode = findViewById(R.id.spinner_reply_mode)
         spinnerTriggerMode = findViewById(R.id.spinner_trigger_mode)
         editTriggerValue = findViewById(R.id.edit_trigger_value)
@@ -52,6 +60,8 @@ class DebugRoomActivity : AppCompatActivity() {
         rootScroll.bindFocusScroll(
             editRoomName,
             editMemory,
+            editRoomStyle,
+            editLearnedRoomStyle,
             editTriggerValue,
             editAllowedSenders,
             editBlockedSenders,
@@ -69,6 +79,18 @@ class DebugRoomActivity : AppCompatActivity() {
 
         clearButton.setOnClickListener {
             editMemory.setText("")
+        }
+
+        resetLearnedRoomStyleButton.setOnClickListener {
+            val roomName = editRoomName.text?.toString()?.trim().orEmpty()
+            if (roomName.isBlank()) {
+                Toast.makeText(this, "방 이름을 먼저 입력해주세요.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            StyleProfileStore.resetRoomLearnedStyle(this, roomName)
+            editLearnedRoomStyle.setText("")
+            bindLearnedRoomStyle(roomName)
+            Toast.makeText(this, "학습된 방 말투 수정을 초기화했습니다.", Toast.LENGTH_SHORT).show()
         }
 
         saveButton.setOnClickListener {
@@ -90,6 +112,7 @@ class DebugRoomActivity : AppCompatActivity() {
                 replyEnabled = true,
                 replyMode = if (spinnerReplyMode.selectedItem == "고정 답장") "canned" else "provider",
                 roomMemory = editMemory.text?.toString().orEmpty(),
+                roomStyle = editRoomStyle.text?.toString().orEmpty().trim(),
                 allowedSenders = splitLines(editAllowedSenders.text?.toString().orEmpty()),
                 blockedSenders = splitLines(editBlockedSenders.text?.toString().orEmpty()),
                 cannedReplies = splitLines(editCannedReplies.text?.toString().orEmpty()),
@@ -104,6 +127,12 @@ class DebugRoomActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             BotManager.saveConfig(this, updatedConfig)
+            StyleProfileStore.setRoomLearnedStyleEnabled(this, roomName, switchLearnedRoomStyle.isChecked)
+            StyleProfileStore.saveRoomLearnedStyleOverride(
+                this,
+                roomName,
+                editLearnedRoomStyle.text?.toString().orEmpty()
+            )
             Toast.makeText(this, "${roomName} 메모리를 저장했습니다.", Toast.LENGTH_SHORT).show()
             finish()
         }
@@ -112,6 +141,7 @@ class DebugRoomActivity : AppCompatActivity() {
     private fun bindRoom(roomName: String) {
         val config = BotManager.getConfigByRoomPattern(this, roomName)
         editMemory.setText(config?.roomMemory ?: AppSettings.getRoomMemory(this, roomName))
+        editRoomStyle.setText(config?.roomStyle.orEmpty())
         spinnerReplyMode.setSelection(if (config?.replyMode.equals("canned", true)) 1 else 0)
         spinnerTriggerMode.setSelection(triggerModes.indexOf(readableTriggerMode(config?.trigger?.mode)).coerceAtLeast(0))
         editTriggerValue.setText(config?.trigger?.value.orEmpty())
@@ -119,12 +149,24 @@ class DebugRoomActivity : AppCompatActivity() {
         editBlockedSenders.setText(config?.blockedSenders?.joinToString("\n").orEmpty())
         editCannedReplies.setText(config?.cannedReplies?.joinToString("\n").orEmpty())
 
-        val roomTarget = AppSettings.getRoomTarget(this, roomName)
         val autoMemory = AutoMemoryStore.getSummary(this, roomName)
         roomMetaText.text = if (autoMemory.isBlank()) {
             "메모가 비어 있습니다. AI가 참고할 맥락을 적어주세요."
         } else {
             "최근 대화가 자동으로 요약되어 메모에 반영됩니다."
+        }
+        bindLearnedRoomStyle(roomName)
+    }
+
+    private fun bindLearnedRoomStyle(roomName: String) {
+        val history = RoomStore.recentMessages(this, roomName, limit = 40)
+        val state = StyleProfileStore.getRoomLearnedStyleState(this, roomName, history)
+        switchLearnedRoomStyle.isChecked = state.enabled
+        editLearnedRoomStyle.setText(state.override)
+        learnedRoomStylePreview.text = if (state.generated.isBlank()) {
+            "자동 추출된 방 말투가 아직 없습니다. 대화가 쌓이면 답장 때 자동으로 참고합니다."
+        } else {
+            "자동 추출: ${state.generated}"
         }
     }
 

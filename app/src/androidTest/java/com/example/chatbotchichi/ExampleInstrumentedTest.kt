@@ -2,6 +2,7 @@ package com.example.kakaotalkautobot
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.runBlocking
 
@@ -9,6 +10,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 import org.junit.Assert.*
+import org.junit.Assume.assumeFalse
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -19,7 +21,27 @@ import org.junit.Assert.*
 class ExampleInstrumentedTest {
     private val tag = "ExampleInstrumentedTest"
 
+    private fun assumeLiteRtLmRuntimeSupported() {
+        assumeFalse(
+            "LiteRT-LM local runtime is not supported on Android emulator; run model generation tests on a real ARM64 device.",
+            isUnsupportedEmulatorForLiteRtLm()
+        )
+    }
+
+    private fun isUnsupportedEmulatorForLiteRtLm(): Boolean {
+        val fingerprint = Build.FINGERPRINT.lowercase()
+        val model = Build.MODEL.lowercase()
+        val hardware = Build.HARDWARE.lowercase()
+        val product = Build.PRODUCT.lowercase()
+        return fingerprint.contains("generic") ||
+            model.contains("emulator") ||
+            model.contains("sdk_gphone") ||
+            hardware.contains("ranchu") ||
+            product.contains("sdk_gphone")
+    }
+
     private fun ensureDefaultModelReady(appContext: android.content.Context) {
+        assumeLiteRtLmRuntimeSupported()
         if (LlmModelManager.hasModel(appContext, LlmModelManager.DEFAULT_MODEL)) return
         val download = runBlocking {
             LlmModelManager.downloadModel(appContext, LlmModelManager.DEFAULT_MODEL)
@@ -36,6 +58,7 @@ class ExampleInstrumentedTest {
 
     @Test
     fun testLocalLlmGeneration() {
+        assumeLiteRtLmRuntimeSupported()
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
 
         if (!LlmModelManager.hasModel(appContext, LlmModelManager.TEST_MODEL)) {
@@ -117,6 +140,7 @@ class ExampleInstrumentedTest {
 
     @Test
     fun testLocalLlmDoesNotReturnEmptyForShortReply() {
+        assumeLiteRtLmRuntimeSupported()
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         val config = AutoReplyJson.defaultConfig("도훈").copy(
             persona = "너는 카카오톡 자동응답 도우미다. 짧고 자연스럽게 답해.",
@@ -165,13 +189,6 @@ class ExampleInstrumentedTest {
             roomMemory = ""
         )
         val history = emptyList<RoomHistoryMessage>()
-
-        if (!LlmModelManager.hasModel(appContext, LlmModelManager.TEST_MODEL)) {
-            val download = runBlocking {
-                LlmModelManager.downloadModel(appContext, LlmModelManager.TEST_MODEL)
-            }
-            assertTrue("Default model should download successfully for deadline prompt test", download.isSuccess)
-        }
 
         val startedAt = System.currentTimeMillis()
         val result = AiProviderClient.generate(
@@ -291,8 +308,9 @@ class ExampleInstrumentedTest {
         Log.i(tag, "LLM_ROOM_MEMORY_REPLY=${result.reply}")
         Log.i(tag, "LLM_ROOM_MEMORY_FAILURE=${result.failureReason}")
 
-        assertTrue("Room memory reply should not be blank", result.reply?.isNotBlank() == true)
-        assertTrue("Room memory fact should be reflected in reply", result.reply!!.contains("2층") || result.reply!!.contains("회의실"))
+        val reply = result.reply.orEmpty()
+        assertTrue("Room memory reply should not be blank", reply.isNotBlank())
+        assertTrue("Room memory fact should be reflected in reply", reply.contains("2층") || reply.contains("회의실"))
     }
 
     @Test
@@ -320,8 +338,9 @@ class ExampleInstrumentedTest {
         Log.i(tag, "LLM_HISTORY_REPLY=${result.reply}")
         Log.i(tag, "LLM_HISTORY_FAILURE=${result.failureReason}")
 
-        assertTrue("History-grounded reply should not be blank", result.reply?.isNotBlank() == true)
-        assertTrue("History fact should be reflected in reply", result.reply!!.contains("2층") || result.reply!!.contains("과학실"))
+        val reply = result.reply.orEmpty()
+        assertTrue("History-grounded reply should not be blank", reply.isNotBlank())
+        assertTrue("History fact should be reflected in reply", reply.contains("2층") || reply.contains("과학실"))
     }
 
     @Test
@@ -357,14 +376,16 @@ class ExampleInstrumentedTest {
         Log.i(tag, "LLM_PERSONA_POLITE=${polite.reply}")
         Log.i(tag, "LLM_PERSONA_BLUNT=${blunt.reply}")
 
-        assertTrue("Polite persona reply should not be blank", polite.reply?.isNotBlank() == true)
-        assertTrue("Blunt persona reply should not be blank", blunt.reply?.isNotBlank() == true)
+        val politeReply = polite.reply.orEmpty()
+        val bluntReply = blunt.reply.orEmpty()
+        assertTrue("Polite persona reply should not be blank", politeReply.isNotBlank())
+        assertTrue("Blunt persona reply should not be blank", bluntReply.isNotBlank())
         assertTrue(
             "Polite persona should use a polite ending",
-            polite.reply!!.contains("요") || polite.reply!!.contains("습니다") || polite.reply!!.contains("입니다")
+            politeReply.contains("요") || politeReply.contains("습니다") || politeReply.contains("입니다")
         )
-        assertTrue("Blunt persona should avoid polite ending", !blunt.reply!!.contains("요"))
-        assertTrue("Blunt persona should differ from the polite reply", polite.reply != blunt.reply)
+        assertTrue("Blunt persona should avoid polite ending", !bluntReply.contains("요"))
+        assertTrue("Blunt persona should differ from the polite reply", politeReply != bluntReply)
     }
 
 }
