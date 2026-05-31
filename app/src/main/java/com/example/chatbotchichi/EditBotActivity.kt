@@ -106,8 +106,8 @@ class EditBotActivity : AppCompatActivity() {
     }
 
     private fun updateProviderSummary() {
-        textProviderSummary.text = "응답 엔진은 기기 내 Gemma 4 로컬 모델만 사용합니다. 저장된 예전 OpenAI 설정이 있어도 자동으로 로컬 Gemma로 정리됩니다."
-        textGroundingSummary.text = "답장 생성 시 사용자 예시, 방별 말투, 최근 대화, 방 메모, 자동 메모리를 함께 참고합니다."
+        textProviderSummary.text = "Gemma 4 로컬 모델만 사용합니다."
+        textGroundingSummary.text = "현재 메시지, 사용자 예시, 방별 말투, 최근 대화, 방 메모, 자동 메모리 요약을 함께 참고해 답장합니다."
     }
 
     private fun downloadModel() {

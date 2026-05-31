@@ -2,7 +2,6 @@ package com.example.kakaotalkautobot
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.runBlocking
 
@@ -10,7 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 import org.junit.Assert.*
-import org.junit.Assume.assumeFalse
+import org.junit.Assume.assumeTrue
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -21,27 +20,15 @@ import org.junit.Assume.assumeFalse
 class ExampleInstrumentedTest {
     private val tag = "ExampleInstrumentedTest"
 
-    private fun assumeLiteRtLmRuntimeSupported() {
-        assumeFalse(
-            "LiteRT-LM local runtime is not supported on Android emulator; run model generation tests on a real ARM64 device.",
-            isUnsupportedEmulatorForLiteRtLm()
+    private fun assumeLocalRuntimeSupported() {
+        assumeTrue(
+            "Gemma/LiteRT-LM generation tests require a real ARM64 Android device; emulator runs skip them.",
+            LlmEngine.isRuntimeSupportedOnCurrentDevice()
         )
     }
 
-    private fun isUnsupportedEmulatorForLiteRtLm(): Boolean {
-        val fingerprint = Build.FINGERPRINT.lowercase()
-        val model = Build.MODEL.lowercase()
-        val hardware = Build.HARDWARE.lowercase()
-        val product = Build.PRODUCT.lowercase()
-        return fingerprint.contains("generic") ||
-            model.contains("emulator") ||
-            model.contains("sdk_gphone") ||
-            hardware.contains("ranchu") ||
-            product.contains("sdk_gphone")
-    }
-
     private fun ensureDefaultModelReady(appContext: android.content.Context) {
-        assumeLiteRtLmRuntimeSupported()
+        assumeLocalRuntimeSupported()
         if (LlmModelManager.hasModel(appContext, LlmModelManager.DEFAULT_MODEL)) return
         val download = runBlocking {
             LlmModelManager.downloadModel(appContext, LlmModelManager.DEFAULT_MODEL)
@@ -58,8 +45,8 @@ class ExampleInstrumentedTest {
 
     @Test
     fun testLocalLlmGeneration() {
-        assumeLiteRtLmRuntimeSupported()
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assumeLocalRuntimeSupported()
 
         if (!LlmModelManager.hasModel(appContext, LlmModelManager.TEST_MODEL)) {
             val download = runBlocking {
@@ -140,8 +127,8 @@ class ExampleInstrumentedTest {
 
     @Test
     fun testLocalLlmDoesNotReturnEmptyForShortReply() {
-        assumeLiteRtLmRuntimeSupported()
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assumeLocalRuntimeSupported()
         val config = AutoReplyJson.defaultConfig("도훈").copy(
             persona = "너는 카카오톡 자동응답 도우미다. 짧고 자연스럽게 답해.",
             roomMemory = "자동 메모리 요약\n- 참여자 성향: 도훈(질문이 많음)"
@@ -184,6 +171,7 @@ class ExampleInstrumentedTest {
     @Test
     fun testLocalLlmProjectDeadlinePrompt() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assumeLocalRuntimeSupported()
         val config = AutoReplyJson.defaultConfig("프로젝트방").copy(
             persona = "너는 카카오톡 자동응답 도우미다. 짧고 자연스럽게 한국어로만 답해.",
             roomMemory = ""

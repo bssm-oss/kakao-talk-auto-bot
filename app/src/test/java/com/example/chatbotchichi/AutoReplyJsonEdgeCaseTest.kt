@@ -21,10 +21,28 @@ class AutoReplyJsonEdgeCaseTest {
         assertEquals("프로젝트방", parsed.name)
         assertEquals("프로젝트방", parsed.roomPattern)
         assertEquals("provider", parsed.replyMode)
-        assertEquals("always", parsed.trigger.mode)
+        assertEquals("ai_judge", parsed.trigger.mode)
         assertEquals("llm", parsed.provider.type)
         assertEquals("gemma-4-e2b-it-litertlm", parsed.provider.model)
         assertEquals("local", parsed.provider.authMode)
+    }
+
+    @Test
+    fun parse_usesAiJudge_whenTriggerModeIsBlank() {
+        val parsed = AutoReplyJson.parse(
+            """
+            {
+              "name": "친구방",
+              "trigger": {
+                "mode": "   ",
+                "value": ""
+              }
+            }
+            """.trimIndent(),
+            "fallback"
+        )
+
+        assertEquals("ai_judge", parsed.trigger.mode)
     }
 
     @Test

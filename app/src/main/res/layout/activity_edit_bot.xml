@@ -167,7 +167,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="AI 엔진"
+                    android:text="응답 엔진"
                     android:textColor="@color/colorTextPrimary"
                     android:textSize="18sp"
                     android:textStyle="bold" />
@@ -204,7 +204,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_2"
-                    android:text="현재 메시지, 최근 대화, 방 메모, 자동 메모리 요약을 함께 참고해 답장합니다."
+                    android:text="현재 메시지, 사용자 예시, 방별 말투, 최근 대화, 방 메모, 자동 메모리 요약을 함께 참고해 답장합니다."
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
 

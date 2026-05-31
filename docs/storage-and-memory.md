@@ -8,6 +8,8 @@
 - `StyleProfilePrefs` SharedPreferences : 학습된 사용자/방 말투 사용 여부와 수동 수정값
 - `logs/app.log` : 최근 로그
 
+방별 자동응답 설정 JSON에서 `trigger.mode` 가 없거나 빈 문자열이면 `ai_judge` 로 해석합니다. `always` 는 사용자가 모든 메시지 모드를 명시적으로 저장한 경우에만 유지합니다.
+
 ## 메모리 종류
 
 - **사용자 페르소나**: 전역 설정에서 관리
