@@ -178,13 +178,6 @@ class ExampleInstrumentedTest {
         )
         val history = emptyList<RoomHistoryMessage>()
 
-        if (!LlmModelManager.hasModel(appContext, LlmModelManager.TEST_MODEL)) {
-            val download = runBlocking {
-                LlmModelManager.downloadModel(appContext, LlmModelManager.TEST_MODEL)
-            }
-            assertTrue("Default model should download successfully for deadline prompt test", download.isSuccess)
-        }
-
         val startedAt = System.currentTimeMillis()
         val result = AiProviderClient.generate(
             context = appContext,
@@ -303,8 +296,8 @@ class ExampleInstrumentedTest {
         Log.i(tag, "LLM_ROOM_MEMORY_REPLY=${result.reply}")
         Log.i(tag, "LLM_ROOM_MEMORY_FAILURE=${result.failureReason}")
 
-        assertTrue("Room memory reply should not be blank", result.reply?.isNotBlank() == true)
-        val reply = requireNotNull(result.reply)
+        val reply = result.reply.orEmpty()
+        assertTrue("Room memory reply should not be blank", reply.isNotBlank())
         assertTrue("Room memory fact should be reflected in reply", reply.contains("2층") || reply.contains("회의실"))
     }
 
@@ -333,8 +326,8 @@ class ExampleInstrumentedTest {
         Log.i(tag, "LLM_HISTORY_REPLY=${result.reply}")
         Log.i(tag, "LLM_HISTORY_FAILURE=${result.failureReason}")
 
-        assertTrue("History-grounded reply should not be blank", result.reply?.isNotBlank() == true)
-        val reply = requireNotNull(result.reply)
+        val reply = result.reply.orEmpty()
+        assertTrue("History-grounded reply should not be blank", reply.isNotBlank())
         assertTrue("History fact should be reflected in reply", reply.contains("2층") || reply.contains("과학실"))
     }
 
@@ -371,10 +364,10 @@ class ExampleInstrumentedTest {
         Log.i(tag, "LLM_PERSONA_POLITE=${polite.reply}")
         Log.i(tag, "LLM_PERSONA_BLUNT=${blunt.reply}")
 
-        assertTrue("Polite persona reply should not be blank", polite.reply?.isNotBlank() == true)
-        assertTrue("Blunt persona reply should not be blank", blunt.reply?.isNotBlank() == true)
-        val politeReply = requireNotNull(polite.reply)
-        val bluntReply = requireNotNull(blunt.reply)
+        val politeReply = polite.reply.orEmpty()
+        val bluntReply = blunt.reply.orEmpty()
+        assertTrue("Polite persona reply should not be blank", politeReply.isNotBlank())
+        assertTrue("Blunt persona reply should not be blank", bluntReply.isNotBlank())
         assertTrue(
             "Polite persona should use a polite ending",
             politeReply.contains("요") || politeReply.contains("습니다") || politeReply.contains("입니다")

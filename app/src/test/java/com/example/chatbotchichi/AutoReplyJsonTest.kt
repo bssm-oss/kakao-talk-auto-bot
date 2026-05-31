@@ -23,6 +23,7 @@ class AutoReplyJsonTest {
             roomPattern = "프로젝트 회의방",
             replyMode = "canned",
             roomMemory = "나를 팀장처럼 말하게 해라",
+            roomStyle = "팀 단톡방에서는 별일없습니다!처럼 짧은 존댓말",
             allowedSenders = listOf("민수", "지우"),
             blockedSenders = listOf("광고봇"),
             cannedReplies = listOf("확인했습니다.", "잠시 후 답할게요."),
@@ -36,6 +37,7 @@ class AutoReplyJsonTest {
         assertEquals(original.name, reparsed.name)
         assertEquals(original.roomPattern, reparsed.roomPattern)
         assertEquals(original.replyMode, reparsed.replyMode)
+        assertEquals(original.roomStyle, reparsed.roomStyle)
         assertEquals(original.allowedSenders, reparsed.allowedSenders)
         assertEquals(original.blockedSenders, reparsed.blockedSenders)
         assertEquals(original.cannedReplies, reparsed.cannedReplies)

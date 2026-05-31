@@ -13,5 +13,7 @@ appId: com.example.kakaotalkautobot
 - tapOn: "test-room"
 - assertVisible: "방 메모리 편집"
 - assertVisible: "방 메모리"
+- assertVisible: "수동 방 말투"
+- assertVisible: "학습된 방 말투 사용"
 - pressKey: back
 - assertVisible: "대상 방 관리"

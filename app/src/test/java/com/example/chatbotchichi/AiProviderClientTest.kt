@@ -28,6 +28,34 @@ class AiProviderClientTest {
     }
 
     @Test
+    fun buildPrompt_places_style_guide_before_persona() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            persona = "친구처럼 답장",
+            roomMemory = "오늘 별일 있는지 묻는 방"
+        )
+        val styleGuide = """
+            말투/스타일 지침:
+            사용자 직접 예시:
+            아무것도 없긴해
+            수동 방 스타일:
+            친한친구방은 가볍게 반말
+        """.trimIndent()
+
+        val prompt = AiProviderClient.buildPrompt(
+            config = config,
+            room = "친구방",
+            sender = "민수",
+            message = "오늘 뭐 있어?",
+            history = emptyList(),
+            styleGuide = styleGuide
+        )
+
+        assertTrue(prompt.contains("아무것도 없긴해"))
+        assertTrue(prompt.indexOf("사용자 직접 예시") < prompt.indexOf("페르소나:"))
+        assertTrue(prompt.indexOf("수동 방 스타일") < prompt.indexOf("방 메모/기억:"))
+    }
+
+    @Test
     fun buildPrompt_uses_only_last_eight_history_messages() {
         val config = AutoReplyJson.defaultConfig("테스트방")
         val history = (1..25).map { index ->

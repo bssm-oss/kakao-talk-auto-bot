@@ -12,6 +12,7 @@ object AppSettings {
     private const val KEY_AI_REPLY_ENABLED = "ai_reply_enabled"
     private const val KEY_DISPLAY_NAME = "display_name"
     private const val KEY_PERSONA = "persona"
+    private const val KEY_PERSONA_EXAMPLES = "persona_examples"
     private const val KEY_PROVIDER = "provider"
     private const val KEY_API_KEY_MODE = "api_key_mode"
     private const val KEY_API_KEY = "api_key"
@@ -25,6 +26,7 @@ object AppSettings {
     data class AiConfig(
         val displayName: String,
         val persona: String,
+        val personaExamples: String,
         val provider: String,
         val providerType: String,
         val providerModel: String,
@@ -100,6 +102,7 @@ object AppSettings {
             displayName = prefs.getString(KEY_DISPLAY_NAME, "나") ?: "나",
             persona = prefs.getString(KEY_PERSONA, "친절하고 짧게 핵심만 답장합니다.")
                 ?: "친절하고 짧게 핵심만 답장합니다.",
+            personaExamples = prefs.getString(KEY_PERSONA_EXAMPLES, "") ?: "",
             provider = providerStatus,
             providerType = providerType,
             providerModel = providerModel,
@@ -115,6 +118,7 @@ object AppSettings {
         prefs.edit()
             .putString(KEY_DISPLAY_NAME, config.displayName)
             .putString(KEY_PERSONA, config.persona)
+            .putString(KEY_PERSONA_EXAMPLES, config.personaExamples)
             .putString(KEY_PROVIDER, LOCAL_PROVIDER_TYPE)
             .putString(KEY_PROVIDER_MODEL, LOCAL_PROVIDER_MODEL)
             .putString(KEY_API_KEY_MODE, "불필요")

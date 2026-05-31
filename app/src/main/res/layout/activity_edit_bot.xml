@@ -84,6 +84,67 @@
                         android:inputType="textCapSentences|textMultiLine"
                         android:minLines="3" />
                 </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_3"
+                    android:hint="내 말투 예시">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edit_persona_examples"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="top|start"
+                        android:inputType="textCapSentences|textMultiLine"
+                        android:minLines="3" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_learned_user_style"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_4"
+                    android:checked="true"
+                    android:text="학습된 내 말투 사용"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/text_learned_user_style_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:text="자동 추출된 내 말투가 아직 없습니다."
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_3"
+                    android:hint="학습된 내 말투 수정">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edit_learned_user_style"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="top|start"
+                        android:inputType="textCapSentences|textMultiLine"
+                        android:minLines="2" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_reset_learned_user_style"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_3"
+                    android:text="학습 말투 초기화"
+                    android:textColor="@color/colorTextPrimary"
+                    app:strokeColor="@color/colorBorder" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -143,7 +204,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_2"
-                    android:text="현재 메시지, 최근 대화, 방 메모, 자동 메모리 요약을 함께 참고해 답장합니다."
+                    android:text="현재 메시지, 사용자 예시, 방별 말투, 최근 대화, 방 메모, 자동 메모리 요약을 함께 참고해 답장합니다."
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="13sp" />
 
