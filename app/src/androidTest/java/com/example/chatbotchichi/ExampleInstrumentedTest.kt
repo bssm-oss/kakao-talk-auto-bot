@@ -9,6 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -19,7 +20,15 @@ import org.junit.Assert.*
 class ExampleInstrumentedTest {
     private val tag = "ExampleInstrumentedTest"
 
+    private fun assumeLocalRuntimeSupported() {
+        assumeTrue(
+            "Gemma/LiteRT-LM generation tests require a real ARM64 Android device; emulator runs skip them.",
+            LlmEngine.isRuntimeSupportedOnCurrentDevice()
+        )
+    }
+
     private fun ensureDefaultModelReady(appContext: android.content.Context) {
+        assumeLocalRuntimeSupported()
         if (LlmModelManager.hasModel(appContext, LlmModelManager.DEFAULT_MODEL)) return
         val download = runBlocking {
             LlmModelManager.downloadModel(appContext, LlmModelManager.DEFAULT_MODEL)
@@ -37,6 +46,7 @@ class ExampleInstrumentedTest {
     @Test
     fun testLocalLlmGeneration() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assumeLocalRuntimeSupported()
 
         if (!LlmModelManager.hasModel(appContext, LlmModelManager.TEST_MODEL)) {
             val download = runBlocking {
@@ -118,6 +128,7 @@ class ExampleInstrumentedTest {
     @Test
     fun testLocalLlmDoesNotReturnEmptyForShortReply() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assumeLocalRuntimeSupported()
         val config = AutoReplyJson.defaultConfig("도훈").copy(
             persona = "너는 카카오톡 자동응답 도우미다. 짧고 자연스럽게 답해.",
             roomMemory = "자동 메모리 요약\n- 참여자 성향: 도훈(질문이 많음)"
@@ -160,6 +171,7 @@ class ExampleInstrumentedTest {
     @Test
     fun testLocalLlmProjectDeadlinePrompt() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assumeLocalRuntimeSupported()
         val config = AutoReplyJson.defaultConfig("프로젝트방").copy(
             persona = "너는 카카오톡 자동응답 도우미다. 짧고 자연스럽게 한국어로만 답해.",
             roomMemory = ""
@@ -292,7 +304,8 @@ class ExampleInstrumentedTest {
         Log.i(tag, "LLM_ROOM_MEMORY_FAILURE=${result.failureReason}")
 
         assertTrue("Room memory reply should not be blank", result.reply?.isNotBlank() == true)
-        assertTrue("Room memory fact should be reflected in reply", result.reply!!.contains("2층") || result.reply!!.contains("회의실"))
+        val reply = requireNotNull(result.reply)
+        assertTrue("Room memory fact should be reflected in reply", reply.contains("2층") || reply.contains("회의실"))
     }
 
     @Test
@@ -321,7 +334,8 @@ class ExampleInstrumentedTest {
         Log.i(tag, "LLM_HISTORY_FAILURE=${result.failureReason}")
 
         assertTrue("History-grounded reply should not be blank", result.reply?.isNotBlank() == true)
-        assertTrue("History fact should be reflected in reply", result.reply!!.contains("2층") || result.reply!!.contains("과학실"))
+        val reply = requireNotNull(result.reply)
+        assertTrue("History fact should be reflected in reply", reply.contains("2층") || reply.contains("과학실"))
     }
 
     @Test
@@ -359,12 +373,14 @@ class ExampleInstrumentedTest {
 
         assertTrue("Polite persona reply should not be blank", polite.reply?.isNotBlank() == true)
         assertTrue("Blunt persona reply should not be blank", blunt.reply?.isNotBlank() == true)
+        val politeReply = requireNotNull(polite.reply)
+        val bluntReply = requireNotNull(blunt.reply)
         assertTrue(
             "Polite persona should use a polite ending",
-            polite.reply!!.contains("요") || polite.reply!!.contains("습니다") || polite.reply!!.contains("입니다")
+            politeReply.contains("요") || politeReply.contains("습니다") || politeReply.contains("입니다")
         )
-        assertTrue("Blunt persona should avoid polite ending", !blunt.reply!!.contains("요"))
-        assertTrue("Blunt persona should differ from the polite reply", polite.reply != blunt.reply)
+        assertTrue("Blunt persona should avoid polite ending", !bluntReply.contains("요"))
+        assertTrue("Blunt persona should differ from the polite reply", politeReply != bluntReply)
     }
 
 }

@@ -16,7 +16,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="방 메모 편집"
+            android:text="방 메모리 편집"
             android:textColor="@color/colorTextPrimary"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -73,7 +73,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:hint="메모">
+                    android:hint="방 메모리">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/edit_memory"

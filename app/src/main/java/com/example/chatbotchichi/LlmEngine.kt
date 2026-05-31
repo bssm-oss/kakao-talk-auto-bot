@@ -22,6 +22,8 @@ object LlmEngine {
     private var lastError: String? = null
     fun getLastError(): String? = lastError
 
+    fun isRuntimeSupportedOnCurrentDevice(): Boolean = !isUnsupportedEmulator()
+
     init {
         try {
             System.loadLibrary("litertlm_jni")
