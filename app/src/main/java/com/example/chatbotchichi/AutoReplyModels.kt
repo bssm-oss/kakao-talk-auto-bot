@@ -36,6 +36,7 @@ data class AutoReplyConfig(
 object AutoReplyJson {
     private const val LOCAL_PROVIDER_TYPE = "llm"
     private const val LOCAL_PROVIDER_MODEL = "gemma-4-e2b-it-litertlm"
+    private const val DEFAULT_TRIGGER_MODE = "ai_judge"
     private val LEGACY_LOCAL_PROVIDER_TYPES = setOf("", "local", "local-gguf", "local-litertlm", LOCAL_PROVIDER_TYPE)
     private val LEGACY_LOCAL_PROVIDER_MODELS = setOf("", "local", "local-gguf", "local-litertlm", "gemma4", "gemma-4", LOCAL_PROVIDER_MODEL)
 
@@ -68,10 +69,7 @@ object AutoReplyJson {
             allowedSenders = json.optJSONArray("allowedSenders").toStringList(),
             blockedSenders = json.optJSONArray("blockedSenders").toStringList(),
             cannedReplies = json.optJSONArray("cannedReplies").toStringList(),
-            trigger = TriggerConfig(
-                mode = triggerJson.optString("mode", "always"),
-                value = triggerJson.optString("value", "")
-            ),
+            trigger = parseTrigger(triggerJson),
             provider = normalizeProvider(
                 ProviderConfig(
                     type = providerJson.optString("type", LOCAL_PROVIDER_TYPE),
@@ -118,6 +116,16 @@ object AutoReplyJson {
             json.put("importHistory", config.importHistory)
         }
         return json.toString(2)
+    }
+
+    private fun parseTrigger(triggerJson: JSONObject): TriggerConfig {
+        val mode = triggerJson.optString("mode", DEFAULT_TRIGGER_MODE)
+            .trim()
+            .ifBlank { DEFAULT_TRIGGER_MODE }
+        return TriggerConfig(
+            mode = mode,
+            value = triggerJson.optString("value", "")
+        )
     }
 
     private fun JSONArray?.toStringList(): List<String> {
