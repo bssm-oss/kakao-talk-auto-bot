@@ -327,9 +327,7 @@ class MainActivity : AppCompatActivity() {
         val enabledCount = allRooms.count { it.isEnabled }
         roomSummaryText.text = "응답 대상 ${enabledCount}개 · 전체 저장 ${allRooms.size}개"
 
-        val allRoomsEnabled = getSharedPreferences("AppSettingsPrefs", MODE_PRIVATE)
-            .getBoolean("all_rooms_enabled", false)
-        roomHistorySummaryText.text = if (allRoomsEnabled) {
+        roomHistorySummaryText.text = if (AppSettings.isAllRoomsEnabled(this)) {
             "모든 채팅방에서 AI 답장이 활성화되어 있습니다."
         } else {
             "특정 방만 선택한 경우에만 답장합니다."

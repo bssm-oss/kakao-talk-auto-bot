@@ -47,20 +47,18 @@ object AiProviderClient {
             return GenerationResult(reply = fastReply)
         }
 
-        // Ensure LLM is loaded
-        if (!ensureLlmLoaded(context)) {
-            return GenerationResult(failureReason = "LLM 모델이 로드되지 않았습니다. 모델 다운로드를 기다려주세요.")
-        }
-
         // Check trigger conditions first (non-AI logic still applies)
         val judgeMode = config.trigger.mode.equals("ai_judge", true) || config.trigger.mode.equals("smart", true)
         Log.d(TAG, "generate called: room=$room, sender=$sender, msg=$message, judgeMode=$judgeMode, triggerMode=${config.trigger.mode}")
 
         // Low signal quick check - skip for very short meaningless messages
-        if (isLowSignalMessage(normalizedMessage) && !hasRecentContext(history, 3)) {
-            if (judgeMode) {
-                return GenerationResult(skippedReason = "의미 없는 짧은 메시지입니다.")
-            }
+        if (shouldSkipLowSignalBeforeModelLoad(config, normalizedMessage, history)) {
+            return GenerationResult(skippedReason = "의미 없는 짧은 메시지입니다.")
+        }
+
+        // Ensure LLM is loaded only after deterministic skip paths are resolved.
+        if (!ensureLlmLoaded(context)) {
+            return GenerationResult(failureReason = "LLM 모델이 로드되지 않았습니다. 모델 다운로드를 기다려주세요.")
         }
 
         // Build the prompt and generate
@@ -312,6 +310,15 @@ object AiProviderClient {
         if (lowered in lowSignalSet) return true
         if (Regex("^[ㅋㅎㅠㅜ!?~. ]+$").matches(lowered)) return true
         return false
+    }
+
+    internal fun shouldSkipLowSignalBeforeModelLoad(
+        config: AutoReplyConfig,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): Boolean {
+        val judgeMode = config.trigger.mode.equals("ai_judge", true) || config.trigger.mode.equals("smart", true)
+        return judgeMode && isLowSignalMessage(message) && !hasRecentContext(history, 3)
     }
 
     internal fun hasRecentContext(history: List<RoomHistoryMessage>, minCount: Int): Boolean {

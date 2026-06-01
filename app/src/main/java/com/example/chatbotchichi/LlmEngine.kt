@@ -9,6 +9,7 @@ import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.LogSeverity
+import com.google.ai.edge.litertlm.SamplerConfig
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.collect
 
@@ -20,6 +21,7 @@ object LlmEngine {
     val isLoaded: Boolean get() = _isLoaded
     private var engine: Engine? = null
     private var lastError: String? = null
+    private var loadedConfig: LlmConfig = LlmConfig()
     fun getLastError(): String? = lastError
 
     fun isRuntimeSupportedOnCurrentDevice(): Boolean = !isUnsupportedEmulator()
@@ -64,10 +66,10 @@ object LlmEngine {
                 Log.w(TAG, "Model file not found: ${modelFile.absolutePath}")
                 return false
             }
-            val modelInfo = LlmModelManager.getModelInfo(context, source)
+            val modelInfo = LlmModelManager.getModelInfo(context, source, verifyChecksum = true)
             if (!modelInfo.matchesExpectedSource) {
-                lastError = "Model file does not match expected source '${source.name}': ${modelInfo.sizeMb}MB"
-                Log.w(TAG, "Model file does not match expected source '${source.name}': ${modelInfo.sizeMb}MB")
+                lastError = "Model file does not match expected source '${source.name}': ${modelInfo.validationMessage}"
+                Log.w(TAG, "Model file does not match expected source '${source.name}': ${modelInfo.validationMessage}")
                 return false
             }
 
@@ -85,6 +87,7 @@ object LlmEngine {
                 val result = engine != null
                 _isLoaded = result
                 if (result) {
+                    loadedConfig = config
                     lastError = null
                     Log.i(TAG, "Model loaded successfully")
                 } else {
@@ -112,16 +115,36 @@ object LlmEngine {
             return try {
                 var output = ""
                 val conversationConfig = ConversationConfig(
-                    systemInstruction = Contents.of("너는 짧고 자연스럽게 한국어로 답하는 도우미다. 답장 내용만 출력해라.")
+                    systemInstruction = Contents.of("너는 짧고 자연스럽게 한국어로 답하는 도우미다. 답장 내용만 출력해라."),
+                    samplerConfig = SamplerConfig(
+                        topK = loadedConfig.topK,
+                        topP = loadedConfig.topP.toDouble(),
+                        temperature = loadedConfig.temperature.toDouble()
+                    )
                 )
                 currentEngine.createConversation(conversationConfig).use { conversation ->
+                    var reachedBudget = false
                     runBlocking {
-                        conversation.sendMessageAsync(prompt).collect { chunk ->
-                            output += chunk.toString()
+                        try {
+                            conversation.sendMessageAsync(prompt).collect { chunk ->
+                                if (!reachedBudget) {
+                                    output += chunk.toString()
+                                    if (ReplyOutputBudget.exceedsOutputBudget(output, maxTokens)) {
+                                        output = ReplyOutputBudget.trimToMaxOutputTokens(output, maxTokens)
+                                        reachedBudget = true
+                                        conversation.cancelProcess()
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (!reachedBudget) {
+                                throw e
+                            }
+                            Log.d(TAG, "Generation stopped after reaching maxTokens=$maxTokens")
                         }
                     }
                 }
-                output
+                ReplyOutputBudget.trimToMaxOutputTokens(output, maxTokens)
             } catch (e: Exception) {
                 lastError = "LiteRT-LM generation failed: ${e.message}"
                 Log.e(TAG, "LiteRT-LM generation failed", e)
@@ -140,6 +163,7 @@ object LlmEngine {
                 }
                 engine = null
                 _isLoaded = false
+                loadedConfig = LlmConfig()
                 lastError = null
                 Log.i(TAG, "Model freed")
             }
@@ -156,5 +180,24 @@ object LlmEngine {
             model.contains("sdk_gphone") ||
             hardware.contains("ranchu") ||
             product.contains("sdk_gphone")
+    }
+}
+
+internal object ReplyOutputBudget {
+    fun trimToMaxOutputTokens(text: String, maxTokens: Int): String {
+        val charLimit = approximateOutputCharLimit(maxTokens)
+        return if (text.length <= charLimit) {
+            text
+        } else {
+            text.take(charLimit).trimEnd()
+        }
+    }
+
+    fun exceedsOutputBudget(text: String, maxTokens: Int): Boolean {
+        return text.length >= approximateOutputCharLimit(maxTokens)
+    }
+
+    private fun approximateOutputCharLimit(maxTokens: Int): Int {
+        return (maxTokens.coerceAtLeast(1) * 6).coerceAtLeast(24)
     }
 }

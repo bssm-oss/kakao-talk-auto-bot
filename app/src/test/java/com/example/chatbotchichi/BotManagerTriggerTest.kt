@@ -1,6 +1,7 @@
 package com.example.kakaotalkautobot
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -46,5 +47,31 @@ class BotManagerTriggerTest {
 
         assertTrue(BotManager.triggerMatches(config, "바로 답해줘", isGroupChat = false))
         assertFalse(BotManager.triggerMatches(config, "바로 답해줘", isGroupChat = true))
+    }
+
+    @Test
+    fun roomMatches_escapesRegexCharactersAroundWildcard() {
+        assertTrue(BotManager.roomMatches("팀방+[A]*", "팀방+[A]공지"))
+        assertFalse(BotManager.roomMatches("팀방+[A]*", "팀방X공지"))
+    }
+
+    @Test
+    fun mergeRoomMemory_prefersRealRoomMemoryAndDropsDefaultPlaceholder() {
+        val merged = BotManager.mergeRoomMemory(
+            baseMemory = AutoReplyJson.defaultConfig("기본 자동응답").roomMemory,
+            roomMemory = "친구방에서는 가볍게 반말로 답장"
+        )
+
+        assertEquals("친구방에서는 가볍게 반말로 답장", merged)
+    }
+
+    @Test
+    fun mergeRoomMemory_keepsManualBaseAndRoomMemory() {
+        val merged = BotManager.mergeRoomMemory(
+            baseMemory = "기본 금지어: 욕설 금지",
+            roomMemory = "팀방에서는 존댓말"
+        )
+
+        assertEquals("기본 금지어: 욕설 금지\n\n팀방에서는 존댓말", merged)
     }
 }

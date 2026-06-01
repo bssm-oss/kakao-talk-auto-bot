@@ -69,6 +69,10 @@ class EditBotActivity : AppCompatActivity() {
         updateProviderSummary()
 
         btnDownloadModel.setOnClickListener {
+            if (!LlmEngine.isRuntimeSupportedOnCurrentDevice()) {
+                Toast.makeText(this, "에뮬레이터에서는 로컬 모델 실행을 지원하지 않습니다. ARM64 실기기에서 설정해 주세요.", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
             if (LlmModelManager.hasModel(this, LlmModelManager.DEFAULT_MODEL)) {
                 Toast.makeText(this, "이미 모델이 설치되어 있습니다.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -90,28 +94,42 @@ class EditBotActivity : AppCompatActivity() {
 
     private fun updateModelStatus() {
         val info = LlmModelManager.getModelInfo(this, LlmModelManager.DEFAULT_MODEL)
-        if (info.matchesExpectedSource) {
-            textModelStatus.text = "✅ Gemma 4 준비됨 (${info.sizeMb}MB)"
+        if (!LlmEngine.isRuntimeSupportedOnCurrentDevice()) {
+            textModelStatus.text = "⚠️ 에뮬레이터에서는 Gemma/LiteRT-LM 실행이 지원되지 않습니다. ARM64 실기기에서 사용해 주세요."
+            textModelStatus.setTextColor(getColor(R.color.colorWarning))
+            btnDownloadModel.text = "실기기에서 다운로드 가능"
+            btnDownloadModel.isEnabled = false
+        } else if (info.matchesExpectedSource) {
+            val checksum = if (info.checksumVerified) " · 해시 검증됨" else " · 해시 검증 대기"
+            textModelStatus.text = "✅ Gemma 4 준비됨 (${info.sizeMb}MB$checksum)"
             textModelStatus.setTextColor(getColor(R.color.colorSuccess))
             btnDownloadModel.text = "모델 재다운로드"
+            btnDownloadModel.isEnabled = true
         } else if (info.exists) {
-            textModelStatus.text = "⚠️ Gemma 4가 아닌 모델이 감지됨 (${info.sizeMb}MB) · 기본 모델 다운로드 필요"
+            textModelStatus.text = "⚠️ 모델 검증 실패 (${info.sizeMb}MB) · ${info.validationMessage} · 기본 모델 다운로드 필요"
             textModelStatus.setTextColor(getColor(R.color.colorWarning))
             btnDownloadModel.text = "Gemma 4 다운로드 (~2.58GB)"
+            btnDownloadModel.isEnabled = true
         } else {
             textModelStatus.text = "⚠️ Gemma 4 모델이 필요합니다"
             textModelStatus.setTextColor(getColor(R.color.colorDanger))
             btnDownloadModel.text = "Gemma 4 다운로드 (~2.58GB)"
+            btnDownloadModel.isEnabled = true
         }
     }
 
     private fun updateProviderSummary() {
-        textProviderSummary.text = "Gemma 4 로컬 모델만 사용합니다."
+        textProviderSummary.text = "Gemma 4 로컬 모델만 사용합니다. 모델 실행은 ARM64 실기기 기준입니다."
         textGroundingSummary.text = "현재 메시지, 사용자 예시, 방별 말투, 최근 대화, 방 메모, 자동 메모리 요약을 함께 참고해 답장합니다."
     }
 
     private fun downloadModel() {
         lifecycleScope.launch {
+            if (!LlmEngine.isRuntimeSupportedOnCurrentDevice()) {
+                Toast.makeText(this@EditBotActivity, "에뮬레이터에서는 다운로드를 막았습니다. 실기기에서 진행해 주세요.", Toast.LENGTH_LONG).show()
+                updateModelStatus()
+                return@launch
+            }
             btnDownloadModel.isEnabled = false
             progressModelDownload.visibility = View.VISIBLE
             textDownloadProgress.visibility = View.VISIBLE

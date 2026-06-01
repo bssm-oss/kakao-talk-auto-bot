@@ -195,6 +195,21 @@ class AiProviderClientTest {
     }
 
     @Test
+    fun shouldSkipLowSignalBeforeModelLoad_skipsAiJudgeNoiseWithoutContext() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            trigger = TriggerConfig(mode = "ai_judge", value = "")
+        )
+
+        val shouldSkip = AiProviderClient.shouldSkipLowSignalBeforeModelLoad(
+            config = config,
+            message = "ㅋㅋ",
+            history = emptyList()
+        )
+
+        assertTrue(shouldSkip)
+    }
+
+    @Test
     fun findFastContextReply_returns_recent_time_fact() {
         val history = listOf(
             RoomHistoryMessage("철수", "오늘 회의 몇 시야?", true, 1L),
