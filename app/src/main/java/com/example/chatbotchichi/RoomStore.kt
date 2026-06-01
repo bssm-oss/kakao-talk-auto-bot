@@ -1,6 +1,7 @@
 package com.example.kakaotalkautobot
 
 import android.content.Context
+import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -13,6 +14,7 @@ data class RoomHistoryMessage(
 )
 
 object RoomStore {
+    private const val TAG = "RoomStore"
     private const val DIR_NAME = "room_state"
     private const val MAX_MESSAGES = 80
 
@@ -43,27 +45,13 @@ object RoomStore {
     fun recentMessages(context: Context, room: String, limit: Int = 20): List<RoomHistoryMessage> {
         val file = roomFile(context, room)
         if (!file.exists()) return emptyList()
-        val json = JSONObject(file.readText())
-        val messages = json.optJSONArray("messages") ?: JSONArray()
-        val start = maxOf(0, messages.length() - limit)
-        val items = mutableListOf<RoomHistoryMessage>()
-        for (index in start until messages.length()) {
-            val item = messages.optJSONObject(index) ?: continue
-            items.add(
-                RoomHistoryMessage(
-                    sender = item.optString("sender", "알수없음"),
-                    message = item.optString("message", ""),
-                    incoming = item.optBoolean("incoming", true),
-                    timestamp = item.optLong("timestamp", 0L)
-                )
-            )
-        }
-        return items
+        val json = readRoomJson(file, room, recoverCorruptFile = true) ?: return emptyList()
+        return json.toHistoryMessages(limit)
     }
 
     private fun updateRoom(context: Context, room: String, block: (JSONObject) -> Unit) {
         val file = roomFile(context, room)
-        val json = if (file.exists()) JSONObject(file.readText()) else JSONObject().put("room", room)
+        val json = readRoomJson(file, room, recoverCorruptFile = true) ?: JSONObject().put("room", room)
         block(json)
         file.writeText(json.toString())
         AutoMemoryStore.refresh(context, room, json.toHistoryMessages())
@@ -109,6 +97,11 @@ object RoomStore {
             .toList()
     }
 
+    internal fun parseHistoryJsonText(raw: String, limit: Int = 20): List<RoomHistoryMessage> {
+        return runCatching { JSONObject(raw).toHistoryMessages(limit) }
+            .getOrDefault(emptyList())
+    }
+
     private fun roomFile(context: Context, room: String): File {
         val dir = File(context.filesDir, DIR_NAME)
         if (!dir.exists()) dir.mkdirs()
@@ -117,10 +110,30 @@ object RoomStore {
         return File(dir, "$safeName.json")
     }
 
-    private fun JSONObject.toHistoryMessages(): List<RoomHistoryMessage> {
+    private fun readRoomJson(file: File, room: String, recoverCorruptFile: Boolean): JSONObject? {
+        if (!file.exists()) return JSONObject().put("room", room)
+        return runCatching { JSONObject(file.readText()) }
+            .onFailure { error ->
+                Log.w(TAG, "Room state is corrupted, resetting ${file.name}", error)
+                if (recoverCorruptFile) {
+                    quarantineCorruptFile(file)
+                }
+            }
+            .getOrNull()
+    }
+
+    private fun quarantineCorruptFile(file: File) {
+        val quarantine = File(file.parentFile, "${file.name}.corrupt-${System.currentTimeMillis()}")
+        if (!file.renameTo(quarantine)) {
+            file.delete()
+        }
+    }
+
+    private fun JSONObject.toHistoryMessages(limit: Int = MAX_MESSAGES): List<RoomHistoryMessage> {
         val messages = optJSONArray("messages") ?: return emptyList()
+        val start = maxOf(0, messages.length() - limit)
         return buildList {
-            for (index in 0 until messages.length()) {
+            for (index in start until messages.length()) {
                 val item = messages.optJSONObject(index) ?: continue
                 add(
                     RoomHistoryMessage(

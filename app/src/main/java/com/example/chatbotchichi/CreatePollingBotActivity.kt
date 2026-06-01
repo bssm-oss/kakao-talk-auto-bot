@@ -128,12 +128,10 @@ class CreatePollingBotActivity : AppCompatActivity() {
     }
 
     private fun isAllRoomsEnabled(): Boolean {
-        val prefs = getSharedPreferences("AppSettingsPrefs", MODE_PRIVATE)
-        return prefs.getBoolean("all_rooms_enabled", false)
+        return AppSettings.isAllRoomsEnabled(this)
     }
 
     private fun setAllRoomsEnabled(enabled: Boolean) {
-        val prefs = getSharedPreferences("AppSettingsPrefs", MODE_PRIVATE)
-        prefs.edit().putBoolean("all_rooms_enabled", enabled).apply()
+        AppSettings.setAllRoomsEnabled(this, enabled)
     }
 }

@@ -53,11 +53,9 @@ object BotManager {
             .firstOrNull()
             ?: run {
                 // If no specific room config found, check "all rooms" setting
-                val allRoomsEnabled = context.getSharedPreferences("AppSettingsPrefs", Context.MODE_PRIVATE)
-                    .getBoolean("all_rooms_enabled", false)
-                if (allRoomsEnabled) {
+                if (AppSettings.isAllRoomsEnabled(context)) {
                     getConfig(context, "기본 자동응답")
-                        ?.let { applyGlobalAiSettings(context, it) }
+                        ?.let { applyGlobalAiSettings(context, it, room) }
                 } else {
                     null
                 }
@@ -122,13 +120,13 @@ object BotManager {
         }
     }
 
-    private fun roomMatches(pattern: String, room: String): Boolean {
+    internal fun roomMatches(pattern: String, room: String): Boolean {
         val normalizedPattern = pattern.trim()
         if (normalizedPattern.isBlank()) return true
         if (normalizedPattern.contains("*")) {
             val regex = normalizedPattern
-                .replace(".", "\\.")
-                .replace("*", ".*")
+                .split("*")
+                .joinToString(".*") { Regex.escape(it) }
                 .toRegex(setOf(RegexOption.IGNORE_CASE))
             return regex.matches(room)
         }
@@ -171,9 +169,11 @@ object BotManager {
         }
     }
 
-    private fun applyGlobalAiSettings(context: Context, config: AutoReplyConfig): AutoReplyConfig {
+    private fun applyGlobalAiSettings(context: Context, config: AutoReplyConfig, room: String): AutoReplyConfig {
         val ai = AppSettings.getAiConfig(context)
-        val autoPersonaHint = AutoMemoryStore.getPersonaHint(context, config.roomPattern, ai.displayName.ifBlank { "나" })
+        val normalizedRoom = room.trim().ifBlank { config.roomPattern }
+        val autoPersonaHint = AutoMemoryStore.getPersonaHint(context, normalizedRoom, ai.displayName.ifBlank { "나" })
+        val mergedRoomMemory = mergeRoomMemory(config.roomMemory, AppSettings.getRoomMemory(context, normalizedRoom))
         val trigger = resolveTrigger(ai, config)
         val toneGuide = when (ai.replyMode) {
             "간결하게" -> "한두 문장으로 짧고 자연스럽게 답해라."
@@ -197,6 +197,8 @@ object BotManager {
         }
         return config.copy(
             persona = persona,
+            roomPattern = normalizedRoom,
+            roomMemory = mergedRoomMemory,
             trigger = trigger,
             provider = config.provider.copy(
                 type = "llm",
@@ -206,6 +208,24 @@ object BotManager {
                 authMode = "local"
             )
         )
+    }
+
+    internal fun mergeRoomMemory(baseMemory: String, roomMemory: String): String {
+        val base = baseMemory.trim().takeUnless { isDefaultRoomMemoryPlaceholder(it) }.orEmpty()
+        val room = roomMemory.trim()
+        return buildString {
+            if (base.isNotBlank()) {
+                append(base)
+            }
+            if (room.isNotBlank()) {
+                if (isNotEmpty()) append("\n\n")
+                append(room)
+            }
+        }.trim()
+    }
+
+    private fun isDefaultRoomMemoryPlaceholder(memory: String): Boolean {
+        return memory == AutoReplyJson.defaultConfig("기본 자동응답").roomMemory
     }
 
     private fun resolveTrigger(ai: AppSettings.AiConfig, config: AutoReplyConfig): TriggerConfig {

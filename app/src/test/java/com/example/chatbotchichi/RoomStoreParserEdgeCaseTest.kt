@@ -1,6 +1,7 @@
 package com.example.kakaotalkautobot
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RoomStoreParserEdgeCaseTest {
@@ -38,5 +39,32 @@ class RoomStoreParserEdgeCaseTest {
         assertEquals("회의는 3시에 시작", parsed[0].message)
         assertEquals("지우", parsed[1].sender)
         assertEquals("자료를 올렸어요", parsed[1].message)
+    }
+
+    @Test
+    fun parseHistoryJsonText_returnsEmptyListForCorruptJson() {
+        val parsed = RoomStore.parseHistoryJsonText("{not-json", limit = 20)
+
+        assertTrue(parsed.isEmpty())
+    }
+
+    @Test
+    fun parseHistoryJsonText_respectsLimit() {
+        val parsed = RoomStore.parseHistoryJsonText(
+            raw = """
+                {
+                  "messages": [
+                    {"sender":"A","message":"1","incoming":true,"timestamp":1},
+                    {"sender":"B","message":"2","incoming":true,"timestamp":2},
+                    {"sender":"C","message":"3","incoming":false,"timestamp":3}
+                  ]
+                }
+            """.trimIndent(),
+            limit = 2
+        )
+
+        assertEquals(2, parsed.size)
+        assertEquals("B", parsed.first().sender)
+        assertEquals("3", parsed.last().message)
     }
 }

@@ -22,6 +22,7 @@ object AppSettings {
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_ROOM_TARGETS = "room_targets"
     private const val KEY_ROOM_MEMORIES = "room_memories"
+    private const val KEY_ALL_ROOMS_ENABLED = "all_rooms_enabled"
 
     data class AiConfig(
         val displayName: String,
@@ -69,6 +70,16 @@ object AppSettings {
 
     fun setGlobalEnabled(context: Context, enabled: Boolean) {
         setAiReplyEnabled(context, enabled)
+    }
+
+    fun isAllRoomsEnabled(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_ALL_ROOMS_ENABLED, false)
+    }
+
+    fun setAllRoomsEnabled(context: Context, enabled: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_ALL_ROOMS_ENABLED, enabled).apply()
     }
 
     fun getThemeMode(context: Context): ThemeMode {
