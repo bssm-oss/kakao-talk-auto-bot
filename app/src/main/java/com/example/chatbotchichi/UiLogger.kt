@@ -15,7 +15,9 @@ object UiLogger {
         message: String,
         roomName: String? = null,
         speaker: String? = null,
-        serverMessage: String? = null
+        serverMessage: String? = null,
+        eventReason: String? = null,
+        trackStats: Boolean = true
     ) {
         if (!allowedLabels.contains(label)) return
         val normalizedMessage = when {
@@ -26,6 +28,9 @@ object UiLogger {
         val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val line = "[$time][$label] $normalizedMessage"
         LogStore.append(context, line)
+        if (trackStats) {
+            ReplyStatsStore.record(context, label, eventReason ?: serverMessage)
+        }
         val intent = Intent("com.example.kakaotalkautobot.LOG_UPDATE")
         intent.putExtra("log", line)
         intent.setPackage(context.packageName)

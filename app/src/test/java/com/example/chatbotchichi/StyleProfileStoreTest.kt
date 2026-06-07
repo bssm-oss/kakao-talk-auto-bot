@@ -59,4 +59,20 @@ class StyleProfileStoreTest {
         assertTrue(friendStyle.contains("친한 친구방"))
         assertTrue(teamStyle.contains("학교/팀방"))
     }
+
+    @Test
+    fun styleProfiles_includeConfidenceFromSampleCount() {
+        val low = StyleProfileStore.buildRoomStyleProfile(
+            listOf(RoomHistoryMessage("민수", "ㅇㅋ", true, 1L))
+        )
+        val high = StyleProfileStore.buildRoomStyleProfile(
+            (1..12).map { index ->
+                RoomHistoryMessage("팀원$index", "확인했습니다", true, index.toLong())
+            }
+        )
+
+        assertTrue(low.confidence < high.confidence)
+        assertTrue(high.confidence >= 80)
+        assertTrue(high.sampleCount == 12)
+    }
 }

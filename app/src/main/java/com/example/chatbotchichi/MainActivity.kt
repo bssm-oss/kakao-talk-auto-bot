@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var deviceNameText: TextView
     private lateinit var statusIndicator: View
     private lateinit var sessionSummaryText: TextView
+    private lateinit var replyStatsSummaryText: TextView
     private lateinit var identitySummaryText: TextView
     private lateinit var providerSummaryText: TextView
     private lateinit var behaviorSummaryText: TextView
@@ -42,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var roomAdapter: RoomTargetAdapter
     private lateinit var replySwitch: SwitchMaterial
+    private lateinit var redactLogsSwitch: SwitchMaterial
     private lateinit var themeToggleGroup: MaterialButtonToggleGroup
     private lateinit var permissionButton: MaterialButton
     private lateinit var editConfigButton: MaterialButton
@@ -71,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         deviceNameText = findViewById(R.id.device_name_text)
         statusIndicator = findViewById(R.id.status_indicator)
         sessionSummaryText = findViewById(R.id.text_session_summary)
+        replyStatsSummaryText = findViewById(R.id.text_reply_stats_summary)
         identitySummaryText = findViewById(R.id.text_identity_summary)
         providerSummaryText = findViewById(R.id.text_provider_summary)
         behaviorSummaryText = findViewById(R.id.text_behavior_summary)
@@ -81,6 +84,7 @@ class MainActivity : AppCompatActivity() {
         copyLogsButton = findViewById(R.id.btn_copy_logs)
         recyclerView = findViewById(R.id.recycler_rooms)
         replySwitch = findViewById(R.id.switch_ai_replies)
+        redactLogsSwitch = findViewById(R.id.switch_redact_logs)
         themeToggleGroup = findViewById(R.id.theme_toggle_group)
         permissionButton = findViewById(R.id.permission_button)
         editConfigButton = findViewById(R.id.btn_edit_config)
@@ -93,6 +97,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         copyLogsButton.setOnClickListener { copyAllLogsToClipboard() }
+        redactLogsSwitch.isChecked = AppSettings.shouldRedactLogCopies(this)
+        redactLogsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            AppSettings.setRedactLogCopies(this, isChecked)
+        }
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         roomAdapter = RoomTargetAdapter(
@@ -193,6 +201,7 @@ class MainActivity : AppCompatActivity() {
             applyStatusUi("권한 필요 (알림 접근 허용)", StatusState.DISCONNECTED)
             updateRoomSummary()
             updateSessionSummary()
+            updateReplyStatsSummary()
             return
         }
 
@@ -200,6 +209,7 @@ class MainActivity : AppCompatActivity() {
             applyStatusUi("AI 답장 OFF · 메시지 수집 중", StatusState.CAPTURE_ONLY)
             updateRoomSummary()
             updateSessionSummary()
+            updateReplyStatsSummary()
             return
         }
 
@@ -211,6 +221,7 @@ class MainActivity : AppCompatActivity() {
         }
         updateRoomSummary()
         updateSessionSummary()
+        updateReplyStatsSummary()
     }
 
     private fun requestRebindIfNeeded() {
@@ -254,6 +265,7 @@ class MainActivity : AppCompatActivity() {
         logLines.add(line)
         trimLogLines()
         renderLogPreview()
+        updateReplyStatsSummary()
     }
 
     private fun trimLogLines() {
@@ -292,9 +304,24 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val clipboard = getSystemService(ClipboardManager::class.java)
-        val clip = ClipData.newPlainText("자동답장 로그", allLogs)
-        clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, "로그가 복사되었습니다.", Toast.LENGTH_SHORT).show()
+        val redacted = AppSettings.shouldRedactLogCopies(this)
+        val copyText = if (redacted) LogPrivacy.redact(allLogs) else allLogs
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("로그 복사")
+            .setMessage(
+                if (redacted) {
+                    "방 이름, 발화자, 메시지 내용을 가린 로그를 복사합니다."
+                } else {
+                    "원본 로그에는 방 이름, 발화자, 메시지 내용이 포함될 수 있습니다."
+                }
+            )
+            .setPositiveButton("복사") { _, _ ->
+                val clip = ClipData.newPlainText("자동답장 로그", copyText)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "로그가 복사되었습니다.", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("취소", null)
+            .show()
     }
 
     private fun updateConfigSummary() {
@@ -320,6 +347,7 @@ class MainActivity : AppCompatActivity() {
         roomEmptyText.visibility = if (rooms.isEmpty()) View.VISIBLE else View.GONE
         updateRoomSummary()
         updateSessionSummary()
+        updateReplyStatsSummary()
     }
 
     private fun updateRoomSummary() {
@@ -338,6 +366,10 @@ class MainActivity : AppCompatActivity() {
         val knownRooms = SessionManager.getRegisteredRooms(this)
         val configuredRooms = BotManager.getBots(this).count { it.name != "기본 자동응답" }
         sessionSummaryText.text = "대상 방 ${configuredRooms}개 · 최근 감지 방 ${knownRooms.size}개"
+    }
+
+    private fun updateReplyStatsSummary() {
+        replyStatsSummaryText.text = ReplyStatsStore.snapshot(this).summary()
     }
 
     private fun syncReplySwitch(enabled: Boolean) {

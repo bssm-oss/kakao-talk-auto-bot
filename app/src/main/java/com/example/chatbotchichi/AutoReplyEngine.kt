@@ -76,7 +76,9 @@ object AutoReplyEngine {
                                 "[$room] $reason",
                                 roomName = room,
                                 speaker = "AI",
-                                serverMessage = reason
+                                serverMessage = reason,
+                                eventReason = "send_failed_after_generation",
+                                trackStats = false
                             )
                         }
                     }
@@ -86,7 +88,8 @@ object AutoReplyEngine {
                         "[$room] ${resolution.skippedReason}",
                         roomName = room,
                         speaker = "AI",
-                        serverMessage = resolution.skippedReason
+                        serverMessage = resolution.skippedReason,
+                        eventReason = resolution.skippedReason
                     )
                     else -> {
                         val reason = resolution.failureReason ?: "응답 조건을 충족하지 못했습니다."
@@ -96,7 +99,8 @@ object AutoReplyEngine {
                             "[$room] $reason",
                             roomName = room,
                             speaker = "AI",
-                            serverMessage = reason
+                            serverMessage = reason,
+                            eventReason = reason
                         )
                     }
                 }

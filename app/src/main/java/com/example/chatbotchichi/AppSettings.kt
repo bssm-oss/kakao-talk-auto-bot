@@ -23,6 +23,7 @@ object AppSettings {
     private const val KEY_ROOM_TARGETS = "room_targets"
     private const val KEY_ROOM_MEMORIES = "room_memories"
     private const val KEY_ALL_ROOMS_ENABLED = "all_rooms_enabled"
+    private const val KEY_REDACT_LOG_COPIES = "redact_log_copies"
 
     data class AiConfig(
         val displayName: String,
@@ -80,6 +81,16 @@ object AppSettings {
     fun setAllRoomsEnabled(context: Context, enabled: Boolean) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putBoolean(KEY_ALL_ROOMS_ENABLED, enabled).apply()
+    }
+
+    fun shouldRedactLogCopies(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_REDACT_LOG_COPIES, true)
+    }
+
+    fun setRedactLogCopies(context: Context, enabled: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_REDACT_LOG_COPIES, enabled).apply()
     }
 
     fun getThemeMode(context: Context): ThemeMode {

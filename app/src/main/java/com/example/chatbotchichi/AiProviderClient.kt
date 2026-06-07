@@ -69,21 +69,27 @@ object AiProviderClient {
             Log.d(TAG, "Prompt length: ${prompt.length} chars, judgeMode=$judgeMode")
             Log.d(TAG, "Config: persona=${config.persona.take(30)}, roomMemory=${config.roomMemory.take(30)}, replyMode=${config.replyMode}")
 
-            val rawResponse = generateWithFallbackPrompts(config, room, sender, normalizedMessage, history, prompt, styleGuide)
+            val candidates = generateCandidateReplies(config, room, sender, normalizedMessage, history, prompt, styleGuide)
+            val bestCandidate = ReplyQualityEvaluator.selectBest(candidates)
+            val rawResponse = bestCandidate?.raw.orEmpty()
 
-            if (rawResponse.isNotEmpty()) {
+            if (bestCandidate != null) {
+                Log.d(
+                    TAG,
+                    "Selected LLM reply source=${bestCandidate.source}, score=${bestCandidate.score}, reasons=${bestCandidate.reasons}"
+                )
                 Log.d(TAG, "Raw LLM response preview: '${rawResponse.take(100)}'")
             } else {
-                Log.w(TAG, "LLM returned empty response after retry - model may not be generating properly")
+                Log.w(TAG, "LLM candidates were empty or below quality threshold")
             }
 
-            val reply = cleanResponse(rawResponse)
+            val reply = bestCandidate?.reply.orEmpty()
             Log.d(TAG, "Cleaned reply: '$reply'")
 
             if (reply.isNotBlank()) {
                 GenerationResult(reply = reply)
             } else {
-                GenerationResult(failureReason = "AI가 빈 응답을 생성했습니다. (raw=${rawResponse.length}chars)")
+                GenerationResult(failureReason = "AI가 전송 가능한 품질의 응답을 만들지 못했습니다. (candidates=${candidates.size})")
             }
         } catch (e: Exception) {
             Log.e(TAG, "LLM generation failed", e)
@@ -250,7 +256,7 @@ object AiProviderClient {
         }
     }
 
-    private fun generateWithFallbackPrompts(
+    internal fun generateCandidateReplies(
         config: AutoReplyConfig,
         room: String,
         sender: String,
@@ -258,24 +264,47 @@ object AiProviderClient {
         history: List<RoomHistoryMessage>,
         prompt: String,
         styleGuide: String
-    ): String {
+    ): List<ReplyQualityEvaluator.Candidate> {
+        val candidates = mutableListOf<ReplyQualityEvaluator.Candidate>()
         val primaryRawResponse = LlmEngine.generate(prompt, maxTokens = 12)
         Log.d(TAG, "Primary raw LLM response length: ${primaryRawResponse.length}")
-        if (primaryRawResponse.isNotEmpty()) return primaryRawResponse
+        candidates += evaluateCandidate("primary", primaryRawResponse, config, message, history)
 
-        Log.w(TAG, "LLM returned empty response on primary prompt, retrying with compact prompt")
+        Log.d(TAG, "Generating compact candidate for internal comparison")
         val compactPrompt = buildCompactPrompt(config, room, sender, message, history, styleGuide)
         Log.d(TAG, "Compact prompt length: ${compactPrompt.length} chars")
         val compactRawResponse = LlmEngine.generate(compactPrompt, maxTokens = 24)
         Log.d(TAG, "Retry raw LLM response length: ${compactRawResponse.length}")
-        if (compactRawResponse.isNotEmpty()) return compactRawResponse
+        candidates += evaluateCandidate("compact", compactRawResponse, config, message, history)
 
-        Log.w(TAG, "LLM returned empty response after compact retry, retrying with emergency prompt")
+        if (candidates.any { it.score >= 80 }) {
+            return candidates
+        }
+
+        Log.d(TAG, "Generating emergency candidate because quality is still weak")
         val emergencyPrompt = buildEmergencyPrompt(config, room, sender, message, history, styleGuide)
         Log.d(TAG, "Emergency prompt length: ${emergencyPrompt.length} chars")
         val emergencyRawResponse = LlmEngine.generate(emergencyPrompt, maxTokens = 24)
         Log.d(TAG, "Emergency raw LLM response length: ${emergencyRawResponse.length}")
-        return emergencyRawResponse
+        candidates += evaluateCandidate("emergency", emergencyRawResponse, config, message, history)
+        return candidates
+    }
+
+    private fun evaluateCandidate(
+        source: String,
+        raw: String,
+        config: AutoReplyConfig,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): ReplyQualityEvaluator.Candidate {
+        return ReplyQualityEvaluator.evaluate(
+            source = source,
+            raw = raw,
+            reply = cleanResponse(raw),
+            config = config,
+            message = message,
+            history = history
+        )
     }
 
     internal fun cleanResponse(raw: String): String {
@@ -289,7 +318,11 @@ object AiProviderClient {
         text = text.replace(Regex("^<\\|im_end\\|>"), "")
 
         // Remove common AI filler phrases
-        text = text.replace(Regex("^(답장:|답변:|메시지:)\\s*"), "")
+        text = text.replace(Regex("^(답장:|답변:|메시지:|assistant:)\\s*", RegexOption.IGNORE_CASE), "")
+        text = text.lineSequence()
+            .map { it.trim() }
+            .firstOrNull { it.isNotBlank() }
+            .orEmpty()
 
         // Take only first line/sentence if too long
         if (text.length > 200) {
