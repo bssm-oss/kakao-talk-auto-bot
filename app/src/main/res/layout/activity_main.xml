@@ -90,6 +90,15 @@
                     android:textSize="13sp"
                     tools:text="대상 방 3개 · 최근 감지 방 8개" />
 
+                <TextView
+                    android:id="@+id/text_reply_stats_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:text="수신 0 · 전송 0 · 스킵 0 · 실패 0"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="13sp" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -370,6 +379,16 @@
                         android:textColor="@color/colorTextPrimary"
                         app:strokeColor="@color/colorBorder" />
                 </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_redact_logs"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_3"
+                    android:checked="true"
+                    android:text="로그 복사 시 방/발화자/메시지 가리기"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textSize="13sp" />
 
                 <TextView
                     android:id="@+id/log_text"

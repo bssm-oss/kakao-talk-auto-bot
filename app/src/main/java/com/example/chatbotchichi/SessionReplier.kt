@@ -33,7 +33,8 @@ class SessionReplier(
             line,
             roomName = targetRoom,
             speaker = "시스템",
-            serverMessage = serverMessage
+            serverMessage = serverMessage,
+            eventReason = reason ?: if (success) "sent" else "unknown"
         )
     }
 

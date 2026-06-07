@@ -15,10 +15,22 @@ object StyleProfileStore {
     data class LearnedStyleState(
         val enabled: Boolean,
         val override: String,
-        val generated: String
+        val generated: String,
+        val confidence: Int = 0,
+        val sampleCount: Int = 0
     ) {
         val effective: String
             get() = if (!enabled) "" else override.trim().ifBlank { generated.trim() }
+
+        val confidenceLabel: String
+            get() = when {
+                !enabled -> "꺼짐"
+                override.isNotBlank() -> "수동 수정"
+                confidence >= 80 -> "높음"
+                confidence >= 55 -> "보통"
+                confidence > 0 -> "낮음"
+                else -> "없음"
+            }
     }
 
     data class StyleGuideParts(
@@ -61,10 +73,13 @@ object StyleProfileStore {
         importedText: String = ""
     ): LearnedStyleState {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val generatedProfile = buildUserStyleProfile(displayName, history, importedText)
         return LearnedStyleState(
             enabled = prefs.getBoolean(KEY_USER_LEARNED_ENABLED, true),
             override = prefs.getString(KEY_USER_LEARNED_OVERRIDE, "").orEmpty(),
-            generated = buildUserStyleFromMessages(displayName, history, importedText)
+            generated = generatedProfile.description,
+            confidence = generatedProfile.confidence,
+            sampleCount = generatedProfile.sampleCount
         )
     }
 
@@ -100,10 +115,13 @@ object StyleProfileStore {
     ): LearnedStyleState {
         val normalizedRoom = room.trim()
         val profile = getRoomProfile(context, normalizedRoom)
+        val generatedProfile = buildRoomStyleProfile(history)
         return LearnedStyleState(
             enabled = profile.optBoolean("enabled", true),
             override = profile.optString("override", ""),
-            generated = buildRoomStyleFromMessages(history)
+            generated = generatedProfile.description,
+            confidence = generatedProfile.confidence,
+            sampleCount = generatedProfile.sampleCount
         )
     }
 
@@ -177,8 +195,16 @@ object StyleProfileStore {
         history: List<RoomHistoryMessage>,
         importedText: String = ""
     ): String {
+        return buildUserStyleProfile(displayName, history, importedText).description
+    }
+
+    internal fun buildUserStyleProfile(
+        displayName: String,
+        history: List<RoomHistoryMessage>,
+        importedText: String = ""
+    ): StyleProfile {
         val normalizedDisplayName = displayName.trim()
-        if (normalizedDisplayName.isBlank()) return ""
+        if (normalizedDisplayName.isBlank()) return StyleProfile.EMPTY
 
         val importedOwnMessages = extractOwnMessagesFromText(normalizedDisplayName, importedText)
         val observedOwnMessages = history
@@ -198,11 +224,15 @@ object StyleProfileStore {
     }
 
     internal fun buildRoomStyleFromMessages(history: List<RoomHistoryMessage>): String {
+        return buildRoomStyleProfile(history).description
+    }
+
+    internal fun buildRoomStyleProfile(history: List<RoomHistoryMessage>): StyleProfile {
         val messages = history
             .map { sanitizeExample(it.message) }
             .filter { it.isNotBlank() }
             .takeLast(24)
-        if (messages.isEmpty()) return ""
+        if (messages.isEmpty()) return StyleProfile.EMPTY
 
         val formalCount = messages.count { isFormal(it) }
         val laughCount = messages.count { it.contains("ㅋ") || it.contains("ㅎ") }
@@ -228,11 +258,15 @@ object StyleProfileStore {
         }
         val examples = messages.takeLast(3).joinToString(" / ") { "\"${it.take(36)}\"" }
 
-        return "방 전체 말투 기준: $roomTone, $density, $punctuation. 최근 예시: $examples"
+        return StyleProfile(
+            description = "방 전체 말투 기준: $roomTone, $density, $punctuation. 최근 예시: $examples",
+            confidence = confidenceFor(messages.size),
+            sampleCount = messages.size
+        )
     }
 
-    private fun describeStyle(label: String, messages: List<String>): String {
-        if (messages.isEmpty()) return ""
+    private fun describeStyle(label: String, messages: List<String>): StyleProfile {
+        if (messages.isEmpty()) return StyleProfile.EMPTY
 
         val formalCount = messages.count { isFormal(it) }
         val questionCount = messages.count { it.endsWith("?") || it.endsWith("？") }
@@ -256,7 +290,32 @@ object StyleProfileStore {
         }
         val examples = messages.takeLast(3).joinToString(" / ") { "\"${it.take(36)}\"" }
 
-        return "$label 기준: $tone, $density, $interaction. 최근 예시: $examples"
+        return StyleProfile(
+            description = "$label 기준: $tone, $density, $interaction. 최근 예시: $examples",
+            confidence = confidenceFor(messages.size),
+            sampleCount = messages.size
+        )
+    }
+
+    private fun confidenceFor(sampleCount: Int): Int {
+        return when {
+            sampleCount >= 12 -> 92
+            sampleCount >= 8 -> 78
+            sampleCount >= 5 -> 62
+            sampleCount >= 3 -> 42
+            sampleCount > 0 -> 24
+            else -> 0
+        }
+    }
+
+    data class StyleProfile(
+        val description: String,
+        val confidence: Int,
+        val sampleCount: Int
+    ) {
+        companion object {
+            val EMPTY = StyleProfile("", 0, 0)
+        }
     }
 
     private fun extractOwnMessagesFromText(displayName: String, rawText: String): List<String> {
