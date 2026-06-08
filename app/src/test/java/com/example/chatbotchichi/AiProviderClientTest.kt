@@ -251,4 +251,38 @@ class AiProviderClientTest {
         assertEquals("4월 30일까지로 알고 있어.", reply)
     }
 
+    @Test
+    fun buildDeterministicCandidates_adds_roomMemoryDeadlineCandidate() {
+        val config = AutoReplyJson.defaultConfig("프로젝트방").copy(
+            roomMemory = "최종 제출 마감은 6월 12일 18시입니다.",
+            roomStyle = "팀 단톡. 존댓말로 짧게 답장"
+        )
+
+        val candidates = AiProviderClient.buildDeterministicCandidates(
+            config = config,
+            message = "최종 제출 언제까지야?",
+            history = emptyList()
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+        assertEquals("deadline_fact", best?.source)
+        assertEquals("6월 12일 18시까지로 알고 있어.", best?.reply)
+        assertTrue(best?.reasons?.contains("grounded_fact") == true)
+    }
+
+    @Test
+    fun findUnknownFactGuardReply_usesFormalToneForSchoolRoom() {
+        val config = AutoReplyJson.defaultConfig("학교방").copy(
+            roomStyle = "학교 단톡. 존댓말. 모르는 일정은 추측하지 않음"
+        )
+
+        val reply = AiProviderClient.findUnknownFactGuardReply(
+            config = config,
+            message = "내일 발표 몇 시야?",
+            history = emptyList()
+        )
+
+        assertEquals("아직 확인된 내용은 못 찾았습니다.", reply)
+    }
+
 }

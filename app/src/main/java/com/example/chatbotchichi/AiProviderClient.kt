@@ -37,16 +37,6 @@ object AiProviderClient {
             return GenerationResult(skippedReason = "빈 메시지에는 답장하지 않습니다.")
         }
 
-        findFastContextReply(normalizedMessage, history)?.let { fastReply ->
-            Log.d(TAG, "Using fast context reply shortcut: '$fastReply'")
-            return GenerationResult(reply = fastReply)
-        }
-
-        findFastDeadlineReply(normalizedMessage, history)?.let { fastReply ->
-            Log.d(TAG, "Using fast deadline reply shortcut: '$fastReply'")
-            return GenerationResult(reply = fastReply)
-        }
-
         // Check trigger conditions first (non-AI logic still applies)
         val judgeMode = config.trigger.mode.equals("ai_judge", true) || config.trigger.mode.equals("smart", true)
         Log.d(TAG, "generate called: room=$room, sender=$sender, msg=$message, judgeMode=$judgeMode, triggerMode=${config.trigger.mode}")
@@ -56,8 +46,29 @@ object AiProviderClient {
             return GenerationResult(skippedReason = "의미 없는 짧은 메시지입니다.")
         }
 
+        val deterministicCandidates = buildDeterministicCandidates(config, normalizedMessage, history)
+        val groundedDeterministic = ReplyQualityEvaluator.selectBest(deterministicCandidates)
+            ?.takeIf { candidate ->
+                candidate.score >= 90 && candidate.reasons.contains("grounded_fact")
+            }
+        if (groundedDeterministic != null) {
+            Log.d(
+                TAG,
+                "Using grounded deterministic reply source=${groundedDeterministic.source}, score=${groundedDeterministic.score}"
+            )
+            return GenerationResult(reply = groundedDeterministic.reply)
+        }
+
         // Ensure LLM is loaded only after deterministic skip paths are resolved.
         if (!ensureLlmLoaded(context)) {
+            val fallbackCandidate = ReplyQualityEvaluator.selectBest(deterministicCandidates)
+            if (fallbackCandidate != null) {
+                Log.d(
+                    TAG,
+                    "Using deterministic fallback without loaded model source=${fallbackCandidate.source}, score=${fallbackCandidate.score}"
+                )
+                return GenerationResult(reply = fallbackCandidate.reply)
+            }
             return GenerationResult(failureReason = "LLM 모델이 로드되지 않았습니다. 모델 다운로드를 기다려주세요.")
         }
 
@@ -69,7 +80,7 @@ object AiProviderClient {
             Log.d(TAG, "Prompt length: ${prompt.length} chars, judgeMode=$judgeMode")
             Log.d(TAG, "Config: persona=${config.persona.take(30)}, roomMemory=${config.roomMemory.take(30)}, replyMode=${config.replyMode}")
 
-            val candidates = generateCandidateReplies(config, room, sender, normalizedMessage, history, prompt, styleGuide)
+            val candidates = deterministicCandidates + generateCandidateReplies(config, room, sender, normalizedMessage, history, prompt, styleGuide)
             val bestCandidate = ReplyQualityEvaluator.selectBest(candidates)
             val rawResponse = bestCandidate?.raw.orEmpty()
 
@@ -290,6 +301,41 @@ object AiProviderClient {
         return candidates
     }
 
+    internal fun buildDeterministicCandidates(
+        config: AutoReplyConfig,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): List<ReplyQualityEvaluator.Candidate> {
+        return listOfNotNull(
+            findFastContextReply(message, history)?.let { reply ->
+                evaluateDeterministicCandidate("context_fact", reply, config, message, history)
+            },
+            findFastDeadlineReply(message, config, history)?.let { reply ->
+                evaluateDeterministicCandidate("deadline_fact", reply, config, message, history)
+            },
+            findUnknownFactGuardReply(config, message, history)?.let { reply ->
+                evaluateDeterministicCandidate("unknown_guard", reply, config, message, history)
+            }
+        )
+    }
+
+    private fun evaluateDeterministicCandidate(
+        source: String,
+        reply: String,
+        config: AutoReplyConfig,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): ReplyQualityEvaluator.Candidate {
+        return ReplyQualityEvaluator.evaluate(
+            source = source,
+            raw = reply,
+            reply = reply,
+            config = config,
+            message = message,
+            history = history
+        )
+    }
+
     private fun evaluateCandidate(
         source: String,
         raw: String,
@@ -406,17 +452,65 @@ object AiProviderClient {
         message: String,
         history: List<RoomHistoryMessage>
     ): String? {
+        return findFastDeadlineReply(message, AutoReplyJson.defaultConfig(""), history)
+    }
+
+    internal fun findFastDeadlineReply(
+        message: String,
+        config: AutoReplyConfig,
+        history: List<RoomHistoryMessage>
+    ): String? {
         val normalized = message.trim()
         if (!(normalized.contains("언제까지") || normalized.contains("마감") || normalized.contains("데드라인"))) {
             return null
         }
 
-        val combinedHistory = history.asReversed().joinToString("\n") { it.message }
-        val explicitDeadline = Regex("(\\d{1,2})\\s*월\\s*(\\d{1,2})\\s*일").find(combinedHistory)
+        val combinedFacts = buildString {
+            if (config.roomMemory.isNotBlank()) appendLine(config.roomMemory)
+            history.asReversed().forEach { appendLine(it.message) }
+        }
+        val explicitDeadline = Regex("(\\d{1,2})\\s*월\\s*(\\d{1,2})\\s*일(?:\\s*\\d{1,2}\\s*시)?").find(combinedFacts)
         if (explicitDeadline != null) {
             return "${explicitDeadline.value}까지로 알고 있어."
         }
 
         return "아직 일정이 확정된 건 못 찾았어. 정리되면 바로 공유할게."
+    }
+
+    internal fun findUnknownFactGuardReply(
+        config: AutoReplyConfig,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): String? {
+        val normalized = message.trim()
+        if (!asksSpecificFact(normalized)) return null
+        val hasGrounding = hasUsableRoomMemory(config.roomMemory) || history.any { it.message.length >= 10 }
+        if (hasGrounding) return null
+        return if (prefersFormalTone(config)) {
+            "아직 확인된 내용은 못 찾았습니다."
+        } else {
+            "아직 확인된 건 못 찾았어."
+        }
+    }
+
+    private fun asksSpecificFact(message: String): Boolean {
+        return listOf("언제", "몇 시", "몇시", "마감", "일정", "제출", "발표", "어디", "누구").any {
+            message.contains(it)
+        }
+    }
+
+    private fun hasUsableRoomMemory(roomMemory: String): Boolean {
+        val normalized = roomMemory.trim()
+        if (normalized.length < 8) return false
+        return !normalized.contains("이 방의 맥락, 금지어, 말투를 간단히 적어두세요")
+    }
+
+    private fun prefersFormalTone(config: AutoReplyConfig): Boolean {
+        val style = "${config.roomStyle}\n${config.persona}"
+        return style.contains("존댓말") ||
+            style.contains("학교") ||
+            style.contains("팀") ||
+            style.contains("습니다") ||
+            style.contains("정중")
     }
 }
