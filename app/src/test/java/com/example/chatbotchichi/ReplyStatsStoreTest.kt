@@ -78,6 +78,14 @@ class ReplyStatsStoreTest {
     }
 
     @Test
+    fun normalizeReason_preservesAlreadyStandardSkipReasons() {
+        assertEquals("global reply off", ReplyStatsStore.normalizeReason("global reply off"))
+        assertEquals("room reply off", ReplyStatsStore.normalizeReason("room reply off"))
+        assertEquals("condition not met", ReplyStatsStore.normalizeReason("condition not met"))
+        assertEquals("blank message", ReplyStatsStore.normalizeReason("blank message"))
+    }
+
+    @Test
     fun normalizeReason_collapsesAiGenerationAndQualityFailures() {
         assertEquals(
             "ai quality rejected",
@@ -193,6 +201,44 @@ class ReplyStatsStoreTest {
     }
 
     @Test
+    fun detailSummary_addsActionHintForRecentSkipWhenThereIsNoFailure() {
+        val detail = ReplyStatsStore.Snapshot(
+            incoming = 5,
+            sent = 0,
+            skipped = 4,
+            failed = 0,
+            failureReasons = emptyMap(),
+            skipReasons = mapOf(
+                "global reply off" to 1,
+                "low signal" to 3
+            ),
+            lastSkipReason = "low signal",
+            lastSkipAtMillis = 1000L
+        ).detailSummary()
+
+        assertTrue(detail.contains("최근 스킵: low signal"))
+        assertTrue(detail.contains("확인 필요: AI 판단 모드의 낮은 신호 스킵 기준과 최근 대화 맥락"))
+    }
+
+    @Test
+    fun detailSummary_usesTopSkipActionHintWhenRecentSkipIsMissing() {
+        val detail = ReplyStatsStore.Snapshot(
+            incoming = 4,
+            sent = 0,
+            skipped = 4,
+            failed = 0,
+            failureReasons = emptyMap(),
+            skipReasons = mapOf(
+                "room reply off" to 3,
+                "condition not met" to 1
+            )
+        ).detailSummary()
+
+        assertTrue(detail.contains("스킵: room reply off 3회"))
+        assertTrue(detail.contains("확인 필요: 대상 방별 답장 활성화 스위치"))
+    }
+
+    @Test
     fun failureActionHint_coversModelAndAiFailureReasons() {
         assertEquals(
             "Gemma 모델 다운로드와 해시 검증 상태",
@@ -205,6 +251,22 @@ class ReplyStatsStoreTest {
         assertEquals(
             "LiteRT-LM 생성 예외와 모델 런타임 상태",
             ReplyStatsStore.failureActionHint("AI 응답 생성 중 오류: LiteRtLmJniException")
+        )
+    }
+
+    @Test
+    fun actionHint_coversSkipReasons() {
+        assertEquals(
+            "상단 전체 AI 답장 스위치 상태",
+            ReplyStatsStore.actionHint("AI 답장 OFF · 메시지 수집 중")
+        )
+        assertEquals(
+            "방 트리거와 발화자 조건",
+            ReplyStatsStore.actionHint("응답 조건을 충족하지 않았습니다.")
+        )
+        assertEquals(
+            "알림 텍스트 파싱 결과",
+            ReplyStatsStore.actionHint("빈 메시지에는 답장하지 않습니다.")
         )
     }
 

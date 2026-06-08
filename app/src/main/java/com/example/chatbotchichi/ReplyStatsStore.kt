@@ -69,11 +69,17 @@ object ReplyStatsStore {
         }
 
         private fun failureActionSummary(): String {
-            val reason = lastFailureReason
+            val failureReason = lastFailureReason
                 ?.takeIf { it.isNotBlank() }
                 ?: failureReasons.maxByOrNull { it.value }?.key
+            if (!failureReason.isNullOrBlank()) {
+                return actionHint(failureReason)?.let { "확인 필요: $it" }.orEmpty()
+            }
+            val skipReason = lastSkipReason
+                ?.takeIf { it.isNotBlank() }
+                ?: skipReasons.maxByOrNull { it.value }?.key
                 ?: return ""
-            return failureActionHint(reason)?.let { "확인 필요: $it" }.orEmpty()
+            return actionHint(skipReason)?.let { "확인 필요: $it" }.orEmpty()
         }
 
         private fun recentTimelineSummary(): String {
@@ -171,6 +177,7 @@ object ReplyStatsStore {
             lowered.contains(SessionReplier.REASON_PENDING_INTENT_SEND_FAILED.lowercase()) -> SessionReplier.REASON_PENDING_INTENT_SEND_FAILED
             lowered.contains(SessionReplier.REASON_EXCEPTION.lowercase()) -> SessionReplier.REASON_EXCEPTION
             lowered.contains("send_failed_after_generation") -> "send_failed_after_generation"
+            lowered in STANDARD_SKIP_REASONS -> lowered
             normalized.contains("AI 답장 OFF") -> "global reply off"
             normalized.contains("방별 답장이 OFF") -> "room reply off"
             normalized.contains("응답 설정이 없는 방") -> "no room config"
@@ -194,6 +201,17 @@ object ReplyStatsStore {
             .take(80)
     }
 
+    private val STANDARD_SKIP_REASONS = setOf(
+        "global reply off",
+        "room reply off",
+        "no room config",
+        "low signal",
+        "condition not met",
+        "reply off",
+        "blank message",
+        "model not loaded"
+    )
+
     private fun readReasonMap(root: JSONObject, key: String): Map<String, Int> {
         val reasons = root.optJSONObject(key) ?: JSONObject()
         return buildMap {
@@ -206,6 +224,22 @@ object ReplyStatsStore {
     }
 
     internal fun failureActionHint(reason: String?): String? {
+        return actionHint(reason)?.takeIf {
+            normalizeReason(reason) in setOf(
+                SessionReplier.REASON_NO_SESSION,
+                SessionReplier.REASON_NO_REMOTE_INPUT,
+                SessionReplier.REASON_PENDING_INTENT_NULL,
+                SessionReplier.REASON_PENDING_INTENT_SEND_FAILED,
+                SessionReplier.REASON_EXCEPTION,
+                "model not loaded",
+                "ai quality rejected",
+                "ai generation exception",
+                "canned reply empty"
+            )
+        }
+    }
+
+    internal fun actionHint(reason: String?): String? {
         val normalized = normalizeReason(reason)
         return when (normalized) {
             SessionReplier.REASON_NO_SESSION -> "카카오톡 알림 수신 후 세션 캐시 생성 여부"
@@ -217,6 +251,13 @@ object ReplyStatsStore {
             "ai quality rejected" -> "후보 lane 점수와 품질 게이트 실패 이유"
             "ai generation exception" -> "LiteRT-LM 생성 예외와 모델 런타임 상태"
             "canned reply empty" -> "고정 답장 목록과 템플릿 설정"
+            "global reply off" -> "상단 전체 AI 답장 스위치 상태"
+            "room reply off" -> "대상 방별 답장 활성화 스위치"
+            "no room config" -> "대상 방 설정 생성 여부"
+            "low signal" -> "AI 판단 모드의 낮은 신호 스킵 기준과 최근 대화 맥락"
+            "condition not met" -> "방 트리거와 발화자 조건"
+            "reply off" -> "전역/방별 답장 스위치"
+            "blank message" -> "알림 텍스트 파싱 결과"
             else -> null
         }
     }
