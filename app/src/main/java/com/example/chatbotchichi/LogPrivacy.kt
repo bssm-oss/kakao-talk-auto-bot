@@ -4,6 +4,9 @@ object LogPrivacy {
     private val incomingPattern = Regex("^(\\[[^\\]\\n]+]\\[[A-Z_]+])\\s*\\[[^\\]\\n]{1,80}]\\s*([^:\\n]{1,80}):\\s*(.*)$")
     private val roomOnlyPattern = Regex("^(\\[[^\\]\\n]+]\\[[A-Z_]+]\\s*(?:❌\\s*|⏭\\s*)?)\\[[^\\]\\n]{1,80}]\\s*(.*)$")
     private val reasonPattern = Regex("(\\(reason=[^)]+\\)|reason=[^\\s)]+|send_failed_after_generation:[^\\s)]+)")
+    private val emailPattern = Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
+    private val urlPattern = Regex("https?://[^\\s)]+", RegexOption.IGNORE_CASE)
+    private val phonePattern = Regex("\\b(?:\\+?82[-\\s]?)?0?1[016789][-\\s]?\\d{3,4}[-\\s]?\\d{4}\\b")
 
     fun redact(logs: String): String {
         return logs.lineSequence()
@@ -29,14 +32,21 @@ object LogPrivacy {
             return "${match.groupValues[1]}[<방 숨김>] $safeDetail"
         }
 
-        return line
+        return redactSensitiveTokens(line)
     }
 
     private fun reasonSuffix(text: String): String {
         val reasons = reasonPattern.findAll(text)
-            .map { it.value }
+            .map { redactSensitiveTokens(it.value) }
             .distinct()
             .toList()
         return if (reasons.isEmpty()) "" else " ${reasons.joinToString(" ")}"
+    }
+
+    private fun redactSensitiveTokens(text: String): String {
+        return text
+            .replace(urlPattern, "<URL 숨김>")
+            .replace(emailPattern, "<이메일 숨김>")
+            .replace(phonePattern, "<전화번호 숨김>")
     }
 }

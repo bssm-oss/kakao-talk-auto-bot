@@ -41,4 +41,30 @@ class LogPrivacyTest {
         assertTrue(redacted.contains("<방 숨김>"))
         assertTrue(redacted.contains("<내용 숨김>"))
     }
+
+    @Test
+    fun redact_hidesSensitiveTokensInUnstructuredLines() {
+        val raw = "[12:00:00][DEBUG] 연락처 010-1234-5678, 메일 test@example.com, 링크 https://example.com/a"
+
+        val redacted = LogPrivacy.redact(raw)
+
+        assertFalse(redacted.contains("010-1234-5678"))
+        assertFalse(redacted.contains("test@example.com"))
+        assertFalse(redacted.contains("https://example.com/a"))
+        assertTrue(redacted.contains("<전화번호 숨김>"))
+        assertTrue(redacted.contains("<이메일 숨김>"))
+        assertTrue(redacted.contains("<URL 숨김>"))
+    }
+
+    @Test
+    fun redact_hidesSensitiveTokensInsideFailureReason() {
+        val raw = "[12:00:00][OUT_FAIL] ❌ [친구방] 답장 실패 (reason=exception:test@example.com)"
+
+        val redacted = LogPrivacy.redact(raw)
+
+        assertFalse(redacted.contains("친구방"))
+        assertFalse(redacted.contains("test@example.com"))
+        assertTrue(redacted.contains("<방 숨김>"))
+        assertTrue(redacted.contains("reason=exception:<이메일 숨김>"))
+    }
 }
