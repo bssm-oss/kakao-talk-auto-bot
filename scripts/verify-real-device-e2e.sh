@@ -43,14 +43,22 @@ manual_kakao_remoteinput_failure_reason() {
   fi
 }
 
+manual_kakao_in_log_confirmed() {
+  bool_or "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED}"
+}
+
+manual_kakao_out_log_confirmed() {
+  bool_or "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED}"
+}
+
 manual_kakao_complete() {
   local notification_access
   local in_log
   local out_log
   local reply_visible
   notification_access="$(bool_env "${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}")"
-  in_log="$(bool_or "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED}")"
-  out_log="$(bool_or "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED}")"
+  in_log="$(manual_kakao_in_log_confirmed)"
+  out_log="$(manual_kakao_out_log_confirmed)"
   reply_visible="$(bool_env "${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}")"
 
   if [[ "${notification_access}" == "true" &&
@@ -77,9 +85,9 @@ manual_kakao_pending_reason() {
     echo "missing_test_room"
   elif [[ -z "${MANUAL_KAKAO_TEST_SENDER:-}" ]]; then
     echo "missing_test_sender"
-  elif [[ "$(bool_env "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}")" != "true" ]]; then
+  elif [[ "$(manual_kakao_in_log_confirmed)" != "true" ]]; then
     echo "in_log_unconfirmed"
-  elif [[ "$(bool_env "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}")" != "true" ]]; then
+  elif [[ "$(manual_kakao_out_log_confirmed)" != "true" ]]; then
     echo "out_log_unconfirmed"
   elif [[ "$(bool_env "${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}")" != "true" ]]; then
     echo "reply_not_visible"
@@ -94,8 +102,8 @@ manual_kakao_e2e_required=true
 manual_kakao_notification_access_confirmed=$(bool_env "${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}")
 manual_kakao_test_room=${MANUAL_KAKAO_TEST_ROOM:-}
 manual_kakao_test_sender=${MANUAL_KAKAO_TEST_SENDER:-}
-manual_kakao_in_log_confirmed=$(bool_or "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED}")
-manual_kakao_out_log_confirmed=$(bool_or "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED}")
+manual_kakao_in_log_confirmed=$(manual_kakao_in_log_confirmed)
+manual_kakao_out_log_confirmed=$(manual_kakao_out_log_confirmed)
 manual_kakao_reply_visible_in_kakaotalk=$(bool_env "${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}")
 manual_kakao_remoteinput_failure_reason=$(manual_kakao_remoteinput_failure_reason)
 manual_kakao_auto_in_log_detected=${AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED}
@@ -133,19 +141,73 @@ detect_manual_kakao_logs() {
   if grep -F -q "][IN] [${MANUAL_KAKAO_TEST_ROOM}] ${MANUAL_KAKAO_TEST_SENDER}:" "${APP_LOG_FILE}"; then
     AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED="true"
   fi
-  if grep -F -q "][OUT] [${MANUAL_KAKAO_TEST_ROOM}]" "${APP_LOG_FILE}"; then
-    AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED="true"
-  fi
 
-  local out_fail_line
-  out_fail_line="$(grep -F "][OUT_FAIL]" "${APP_LOG_FILE}" | grep -F "[${MANUAL_KAKAO_TEST_ROOM}]" | tail -1 || true)"
-  if [[ -n "${out_fail_line}" ]]; then
+  local latest_send_line
+  latest_send_line="$(
+    grep -E '\]\[(OUT|OUT_FAIL)\]' "${APP_LOG_FILE}" 2>/dev/null |
+      grep -F "[${MANUAL_KAKAO_TEST_ROOM}]" |
+      tail -1 || true
+  )"
+  if [[ "${latest_send_line}" == *"][OUT_FAIL]"* ]]; then
     AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED="true"
-    AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON="$(sed -n 's/.*(reason=\([^)]*\)).*/\1/p' <<<"${out_fail_line}" | tail -1)"
+    AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON="$(sed -n 's/.*(reason=\([^)]*\)).*/\1/p' <<<"${latest_send_line}" | tail -1)"
     if [[ -z "${AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON}" ]]; then
       AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON="out_fail_detected"
     fi
+  elif [[ "${latest_send_line}" == *"][OUT]"* ]]; then
+    AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED="true"
   fi
+}
+
+assert_equals() {
+  local expected="$1"
+  local actual="$2"
+  local label="$3"
+  if [[ "${expected}" != "${actual}" ]]; then
+    echo "self-test failed: ${label}: expected ${expected}, got ${actual}" >&2
+    exit 1
+  fi
+}
+
+run_log_detection_self_test() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "${tmp_dir}"' RETURN
+
+  MANUAL_KAKAO_TEST_ROOM="TestRoom"
+  MANUAL_KAKAO_TEST_SENDER="TestSender"
+  MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED=true
+  MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK=true
+  MANUAL_KAKAO_IN_LOG_CONFIRMED=false
+  MANUAL_KAKAO_OUT_LOG_CONFIRMED=false
+  MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON=""
+  APP_LOG_FILE="${tmp_dir}/app.log"
+
+  cat > "${APP_LOG_FILE}" <<'EOF'
+[2026-06-08 15:00:00][IN] [TestRoom] TestSender: ping?
+[2026-06-08 15:00:01][OUT_FAIL] [TestRoom] ok (reason=no remoteInput)
+[2026-06-08 15:00:02][OUT] [TestRoom] ok
+EOF
+  detect_manual_kakao_logs
+  assert_equals "true" "${AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED}" "latest success in log detects IN"
+  assert_equals "true" "${AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED}" "latest success in log detects OUT"
+  assert_equals "" "${AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON}" "older OUT_FAIL does not block later OUT"
+  assert_equals "true" "$(manual_kakao_complete)" "automatic IN/OUT evidence completes with visible reply"
+  assert_equals "none" "$(manual_kakao_pending_reason)" "automatic IN/OUT evidence clears pending reason"
+
+  cat > "${APP_LOG_FILE}" <<'EOF'
+[2026-06-08 15:00:00][IN] [TestRoom] TestSender: ping?
+[2026-06-08 15:00:01][OUT] [TestRoom] ok
+[2026-06-08 15:00:02][OUT_FAIL] [TestRoom] ok (reason=pendingIntent send failed)
+EOF
+  detect_manual_kakao_logs
+  assert_equals "true" "${AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED}" "latest failure in log detects IN"
+  assert_equals "true" "${AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED}" "latest failure in log detects OUT attempt"
+  assert_equals "pendingIntent send failed" "${AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON}" "latest OUT_FAIL reason is captured"
+  assert_equals "false" "$(manual_kakao_complete)" "latest OUT_FAIL blocks completion"
+  assert_equals "remoteinput_failed" "$(manual_kakao_pending_reason)" "latest OUT_FAIL sets pending reason"
+
+  echo "log_detection_self_test=pass"
 }
 
 is_emulator_device() {
@@ -177,6 +239,11 @@ write_blocker_summary() {
 
 if [[ "${1:-}" == "--print-manual-template" ]]; then
   print_manual_kakao_template
+  exit 0
+fi
+
+if [[ "${1:-}" == "--self-test-log-detection" ]]; then
+  run_log_detection_self_test
   exit 0
 fi
 
