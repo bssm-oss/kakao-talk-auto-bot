@@ -142,7 +142,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:text="학습 말투 초기화"
+                    android:text="수정 초기화"
                     android:textColor="@color/colorTextPrimary"
                     app:strokeColor="@color/colorBorder" />
             </LinearLayout>
