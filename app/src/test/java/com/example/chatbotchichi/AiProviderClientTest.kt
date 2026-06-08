@@ -28,6 +28,7 @@ class AiProviderClientTest {
         assertTrue(prompt.contains("안녕!"))
         assertTrue(prompt.contains("홍길동"))
         assertTrue(prompt.contains("반갑습니다"))
+        assertTrue(prompt.contains("도우미식 꼬리"))
     }
 
     @Test
@@ -282,6 +283,7 @@ class AiProviderClientTest {
         assertTrue(prompt.contains("수동 방 말투"))
         assertTrue(prompt.contains("아무것도 없긴해"))
         assertTrue(prompt.contains("챗봇처럼 설명하지 말고"))
+        assertTrue(prompt.contains("마무리는 쓰지 마라"))
         assertTrue(prompt.contains("[나/나] 아무것도 없긴해"))
     }
 
@@ -311,6 +313,7 @@ class AiProviderClientTest {
         assertTrue(prompt.contains("수동 방 말투가 있으면 학습된 말투보다 우선"))
         assertTrue(prompt.contains("별일없습니다!"))
         assertTrue(prompt.contains("[나/나] 별일없습니다!"))
+        assertTrue(prompt.contains("자동응답기 꼬리"))
         assertTrue(prompt.contains("내 답장:"))
     }
 
@@ -333,6 +336,7 @@ class AiProviderClientTest {
         assertEquals(24, spec.maxTokens)
         assertTrue(spec.prompt.contains("한국어로 짧게 한 문장만 답해라"))
         assertTrue(spec.prompt.contains("사용자 직접 예시와 수동 방 말투가 있으면 학습된 말투보다 우선"))
+        assertTrue(spec.prompt.contains("도우미식 꼬리"))
         assertTrue(spec.prompt.contains("[선생님] 내일 발표 몇 시야?"))
     }
 

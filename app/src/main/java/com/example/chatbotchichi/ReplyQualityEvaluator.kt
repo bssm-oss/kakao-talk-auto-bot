@@ -46,6 +46,10 @@ object ReplyQualityEvaluator {
             score -= 24
             reasons.add("service_apology_boilerplate")
         }
+        if (looksLikeHelperFollowUpBoilerplate(normalized)) {
+            score -= 22
+            reasons.add("helper_followup_boilerplate")
+        }
         if (looksSelfReferentialBusinessTone(normalized)) {
             score -= 18
             reasons.add("self_referential_business_tone")
@@ -191,6 +195,26 @@ object ReplyQualityEvaluator {
             "필요한사항"
         ).any { normalized.contains(normalizeForExampleMatch(it)) }
         return apology || servicePhrase
+    }
+
+    internal fun looksLikeHelperFollowUpBoilerplate(reply: String): Boolean {
+        val normalized = normalizeForExampleMatch(reply)
+        val helperTail = listOf(
+            "필요하면말해",
+            "필요하면알려",
+            "궁금하면말해",
+            "편하게말해",
+            "언제든말해",
+            "더알려줘",
+            "추가로알려줘",
+            "도움필요",
+            "도와줄게",
+            "응원할게",
+            "파이팅"
+        ).any { normalized.contains(normalizeForExampleMatch(it)) }
+        if (!helperTail) return false
+        val sentenceLikeBreaks = reply.count { it == '.' || it == '!' || it == '?' || it == '。' || it == '？' || it == '！' }
+        return reply.length >= 18 || sentenceLikeBreaks >= 2
     }
 
     internal fun looksSelfReferentialBusinessTone(reply: String): Boolean {

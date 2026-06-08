@@ -182,6 +182,7 @@ object AiProviderClient {
             append("6. 오직 답장 내용만 출력해라. 설명이나 부가 문구를 넣지 마라.\n")
             append("7. 말투는 사용자 직접 예시, 수동 방 스타일, 학습된 사용자/방 스타일을 우선 적용해라.\n")
             append("8. 사실은 현재 메시지보다 먼저 방 메모와 최근 대화에서 근거를 찾고, 모르면 추측하지 마라.\n")
+            append("9. '필요하면 알려줘', '언제든 말해', '파이팅' 같은 도우미식 꼬리를 붙이지 마라.\n")
 
             if (styleGuide.isNotBlank()) {
                 append(styleGuide.take(PRIMARY_STYLE_GUIDE_LIMIT))
@@ -230,6 +231,7 @@ object AiProviderClient {
     ): String {
         return buildString {
             append("짧고 자연스럽게 한국어 카톡 답장만 출력해라. 답을 모르면 짧게 모른다고 말해라. 최근 대화와 메모에 근거가 있으면 그걸 우선 써라.\n")
+            append("'필요하면 알려줘', '언제든 말해', '파이팅' 같은 도우미식 꼬리는 붙이지 마라.\n")
             append("사용자 직접 예시와 수동 방 말투가 있으면 학습된 말투보다 우선한다.\n")
             if (styleGuide.isNotBlank()) {
                 append(styleGuide.take(COMPACT_STYLE_GUIDE_LIMIT))
@@ -270,6 +272,7 @@ object AiProviderClient {
             append("사용자 직접 예시와 수동 방 말투가 있으면 그것을 최우선으로 흉내내라.\n")
             append("모르는 사실은 지어내지 말고 짧게 모른다고 하거나 확인 질문을 해라.\n")
             append("챗봇처럼 설명하지 말고 한 문장으로 끝내라.\n")
+            append("'필요하면 알려줘', '언제든 말해', '파이팅' 같은 마무리는 쓰지 마라.\n")
             if (styleGuide.isNotBlank()) {
                 append(styleGuide.take(STYLE_GUIDE_LIMIT))
                 append("\n")
@@ -311,6 +314,7 @@ object AiProviderClient {
             append("수동 방 말투가 있으면 학습된 말투보다 우선한다.\n")
             append("방 메모나 최근 대화에 없는 사실은 만들지 말고, 모르면 짧게 모른다고 답한다.\n")
             append("카톡에서 보낼 한 문장만 출력하고 설명, 후보, 따옴표, AI 티를 내는 말은 쓰지 않는다.\n")
+            append("'필요하면 알려줘', '언제든 말해', '파이팅' 같은 자동응답기 꼬리는 쓰지 않는다.\n")
             if (styleGuide.isNotBlank()) {
                 append(styleGuide.take(HUMAN_STYLE_GUIDE_LIMIT))
                 append("\n")
@@ -349,6 +353,7 @@ object AiProviderClient {
     ): String {
         return buildString {
             append("한국어로 짧게 한 문장만 답해라. 설명하지 마라. 추측하지 말고 페르소나와 최근 맥락을 최대한 유지해라.\n")
+            append("'필요하면 알려줘', '언제든 말해', '파이팅' 같은 도우미식 꼬리는 붙이지 마라.\n")
             append("사용자 직접 예시와 수동 방 말투가 있으면 학습된 말투보다 우선한다.\n")
             if (styleGuide.isNotBlank()) {
                 append(styleGuide.take(EMERGENCY_STYLE_GUIDE_LIMIT))
