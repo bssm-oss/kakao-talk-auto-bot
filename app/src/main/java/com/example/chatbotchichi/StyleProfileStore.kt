@@ -39,7 +39,11 @@ object StyleProfileStore {
         val learnedUserStyle: String = "",
         val learnedRoomStyle: String = "",
         val learnedUserConfidenceLabel: String = "",
-        val learnedRoomConfidenceLabel: String = ""
+        val learnedRoomConfidenceLabel: String = "",
+        val learnedUserConfidence: Int = 0,
+        val learnedRoomConfidence: Int = 0,
+        val learnedUserSampleCount: Int = 0,
+        val learnedRoomSampleCount: Int = 0
     )
 
     fun buildPromptStyleGuide(
@@ -65,7 +69,11 @@ object StyleProfileStore {
                 learnedUserStyle = learnedUserState.effective,
                 learnedRoomStyle = learnedRoomState.effective,
                 learnedUserConfidenceLabel = learnedUserState.confidenceLabel,
-                learnedRoomConfidenceLabel = learnedRoomState.confidenceLabel
+                learnedRoomConfidenceLabel = learnedRoomState.confidenceLabel,
+                learnedUserConfidence = learnedUserState.confidence,
+                learnedRoomConfidence = learnedRoomState.confidence,
+                learnedUserSampleCount = learnedUserState.sampleCount,
+                learnedRoomSampleCount = learnedRoomState.sampleCount
             )
         )
     }
@@ -183,21 +191,44 @@ object StyleProfileStore {
                 append("\n")
             }
             if (learnedUserStyle.isNotBlank()) {
-                append("학습된 사용자 말투${promptConfidenceSuffix(parts.learnedUserConfidenceLabel)}:\n")
+                append(
+                    "학습된 사용자 말투${
+                        promptConfidenceSuffix(
+                            parts.learnedUserConfidenceLabel,
+                            parts.learnedUserConfidence,
+                            parts.learnedUserSampleCount
+                        )
+                    }:\n"
+                )
                 append(learnedUserStyle)
                 append("\n")
             }
             if (learnedRoomStyle.isNotBlank()) {
-                append("학습된 방 말투${promptConfidenceSuffix(parts.learnedRoomConfidenceLabel)}:\n")
+                append(
+                    "학습된 방 말투${
+                        promptConfidenceSuffix(
+                            parts.learnedRoomConfidenceLabel,
+                            parts.learnedRoomConfidence,
+                            parts.learnedRoomSampleCount
+                        )
+                    }:\n"
+                )
                 append(learnedRoomStyle)
                 append("\n")
             }
         }.trim()
     }
 
-    private fun promptConfidenceSuffix(label: String): String {
+    private fun promptConfidenceSuffix(label: String, confidence: Int, sampleCount: Int): String {
         val normalized = label.trim()
-        return if (normalized.isBlank()) "" else "(신뢰도 $normalized)"
+        if (normalized.isBlank()) return ""
+
+        val details = buildList {
+            add("신뢰도 $normalized")
+            if (confidence > 0) add("${confidence.coerceIn(0, 100)}점")
+            if (sampleCount > 0) add("샘플 ${sampleCount}개")
+        }
+        return "(${details.joinToString(", ")})"
     }
 
     internal fun buildUserStyleFromMessages(

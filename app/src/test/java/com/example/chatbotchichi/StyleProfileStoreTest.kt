@@ -13,17 +13,39 @@ class StyleProfileStoreTest {
                 learnedUserStyle = "내 발화 기준: 반말과 캐주얼한 표현을 자주 씀",
                 learnedRoomStyle = "방 전체 말투 기준: 친한 친구방처럼 가벼움",
                 learnedUserConfidenceLabel = "낮음",
-                learnedRoomConfidenceLabel = "높음"
+                learnedRoomConfidenceLabel = "높음",
+                learnedUserConfidence = 24,
+                learnedRoomConfidence = 92,
+                learnedUserSampleCount = 2,
+                learnedRoomSampleCount = 12
             )
         )
 
         assertTrue(guide.contains("우선순위"))
         assertTrue(guide.contains("신뢰도가 낮으면"))
-        assertTrue(guide.contains("학습된 사용자 말투(신뢰도 낮음)"))
-        assertTrue(guide.contains("학습된 방 말투(신뢰도 높음)"))
+        assertTrue(guide.contains("학습된 사용자 말투(신뢰도 낮음, 24점, 샘플 2개)"))
+        assertTrue(guide.contains("학습된 방 말투(신뢰도 높음, 92점, 샘플 12개)"))
         assertTrue(guide.indexOf("사용자 직접 예시") < guide.indexOf("수동 방 스타일"))
         assertTrue(guide.indexOf("수동 방 스타일") < guide.indexOf("학습된 사용자 말투"))
         assertTrue(guide.indexOf("학습된 사용자 말투") < guide.indexOf("학습된 방 말투"))
+    }
+
+    @Test
+    fun composePromptStyleGuide_marksLowConfidenceAsSecondaryHint() {
+        val guide = StyleProfileStore.composePromptStyleGuide(
+            StyleProfileStore.StyleGuideParts(
+                personaExamples = "아무것도 없긴해",
+                manualRoomStyle = "친한 친구방은 반말 우선",
+                learnedRoomStyle = "방 전체 말투 기준: 학교/팀방처럼 존댓말과 격식이 중심",
+                learnedRoomConfidenceLabel = "낮음",
+                learnedRoomConfidence = 24,
+                learnedRoomSampleCount = 1
+            )
+        )
+
+        assertTrue(guide.contains("학습 말투 신뢰도가 낮으면 확정 규칙처럼 따르지 말고"))
+        assertTrue(guide.contains("학습된 방 말투(신뢰도 낮음, 24점, 샘플 1개)"))
+        assertTrue(guide.indexOf("수동 방 스타일") < guide.indexOf("학습된 방 말투"))
     }
 
     @Test
