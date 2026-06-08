@@ -71,6 +71,7 @@ maestro test .maestro
 - 트리거 섹션이 없거나 빈 값인 레거시 설정이 모든 메시지 모드로 승격되지 않는 JSON 파싱 가드
 - 알림 수집과 답장 시도 분리 가드 로직
 - OFF 상태 또는 방별 답장 비활성화일 때도 메시지 수집은 유지되고 답장만 막히는 가드 로직
+- 전송 실패와 스킵 reason 이 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `reply off`, `low signal`, `model not loaded` 같은 표준 카테고리로 집계되는 통계 가드
 - primary/style_rewrite/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
 - 친구방, 팀방, 학교방, 낮은 신호, 모르는 사실, 방 메모리 사실 확인을 포함한 기본 응답 품질 시나리오
 - 애매한 지시에는 아는 척하지 않고 짧게 확인 질문을 하는 응답 품질 시나리오
@@ -188,6 +189,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] `모든 메시지` 모드에서는 조건을 통과한 모든 수신 메시지에 답장함
 - [ ] PendingIntent RemoteInput 전송 성공 로그와 실제 카카오톡 대화창 답장 표시가 일치함
 - [ ] 전송 실패 시 `OUT_FAIL` 로그에 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed` 같은 원인이 남고 앱이 죽지 않음
+- [ ] 전송 실패와 스킵 통계 요약에 상위 원인별 횟수가 표준 카테고리로 표시됨
 - [ ] AI 답장 생성 후 `replyToRoomDetailed` 이 실패하면 엔진 레벨에서도 같은 전송 원인을 포함한 `OUT_FAIL` 이 남음
 - [ ] `outputs/real-device-e2e/*-summary.txt` 의 `manual_kakao_in_log_confirmed`, `manual_kakao_out_log_confirmed`, `manual_kakao_reply_visible_in_kakaotalk` 가 실제 확인 결과로 채워짐
 - [ ] OFF 상태 전환 직후 수신 메시지는 저장되지만 답장은 나가지 않음

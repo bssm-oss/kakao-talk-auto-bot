@@ -391,7 +391,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateReplyStatsSummary() {
-        replyStatsSummaryText.text = ReplyStatsStore.snapshot(this).summary()
+        val snapshot = ReplyStatsStore.snapshot(this)
+        replyStatsSummaryText.text = "${snapshot.summary()}\n${snapshot.detailSummary()}"
     }
 
     private fun syncReplySwitch(enabled: Boolean) {
