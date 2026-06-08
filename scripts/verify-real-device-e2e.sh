@@ -205,5 +205,10 @@ if [[ "${MODEL_SHA}" != "${EXPECTED_MODEL_SHA}" ]]; then
   exit 1
 fi
 
-echo "status=model_checks_passed" | tee -a "${SUMMARY_FILE}"
-echo "Device model checks passed. Complete the manual KakaoTalk notification/reply steps before calling E2E complete."
+if [[ "$(manual_kakao_complete)" == "true" ]]; then
+  echo "status=complete" | tee -a "${SUMMARY_FILE}"
+  echo "Real-device model checks and manual KakaoTalk E2E evidence are complete."
+else
+  echo "status=manual_kakao_pending" | tee -a "${SUMMARY_FILE}"
+  echo "Device model checks passed, but manual KakaoTalk notification/reply evidence is still pending."
+fi
