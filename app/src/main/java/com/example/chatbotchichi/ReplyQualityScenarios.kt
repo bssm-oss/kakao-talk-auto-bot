@@ -63,6 +63,22 @@ object ReplyQualityScenarios {
                 expectedTraits = setOf("casual", "short")
             ),
             Scenario(
+                id = "friend_no_echo",
+                room = "친구방",
+                sender = "민수",
+                message = "오늘 뭐함",
+                config = AutoReplyJson.defaultConfig("친구방").copy(
+                    roomStyle = "친한 친구방. 가볍게 반말. 상대 말을 따라 쓰지 말고 예시처럼 답장. 예시: 아무것도 없긴해",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("민수", "오늘 뭐함", true, 1L),
+                    RoomHistoryMessage("나", "아무것도 없긴해", false, 2L)
+                ),
+                expectedTraits = setOf("casual", "short", "no_echo", "manual_example"),
+                minimumScore = 60
+            ),
+            Scenario(
                 id = "team_formal",
                 room = "팀단톡",
                 sender = "팀장",
@@ -234,6 +250,7 @@ object ReplyQualityScenarios {
     fun baselineReplies(): List<ScenarioExample> {
         return listOf(
             ScenarioExample("friend_light", "아무것도 없긴해"),
+            ScenarioExample("friend_no_echo", "아무것도 없긴해"),
             ScenarioExample("team_formal", "별일없습니다!"),
             ScenarioExample("school_formal_notice", "별일 없습니다."),
             ScenarioExample("low_signal_skip", ""),
@@ -381,6 +398,17 @@ object ReplyQualityScenarios {
             )
             if ("manual_example_match" in candidate.reasons) score += 25
             if (candidate.reasons.any { it.startsWith("manual_room_style_mismatch") }) score -= 20
+        }
+        if ("no_echo" in scenario.expectedTraits) {
+            val candidate = ReplyQualityEvaluator.evaluate(
+                source = "quality_scenario",
+                raw = normalized,
+                reply = normalized,
+                config = scenario.config,
+                message = scenario.message,
+                history = scenario.history
+            )
+            if ("short_prompt_echo" in candidate.reasons || "prompt_echo" in candidate.reasons) score -= 40 else score += 20
         }
         if (ReplyQualityEvaluator.containsAiMetaText(normalized)) score -= 30
         if (normalized.length > 120) score -= 20
