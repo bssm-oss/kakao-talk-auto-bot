@@ -235,6 +235,49 @@ class StyleProfileStoreTest {
     }
 
     @Test
+    fun learnedStylePreviewText_showsManualOverrideEvenWithoutGeneratedStyle() {
+        val state = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "친구방에서는 아무것도 없긴해처럼 짧게 반말",
+            generated = "",
+            confidence = 0,
+            sampleCount = 0
+        )
+
+        val preview = StyleProfileStore.learnedStylePreviewText(
+            subject = "내 말투",
+            state = state,
+            emptyMessage = "자동 추출된 내 말투가 아직 없습니다."
+        )
+
+        assertTrue(preview.contains("수동 수정 적용 중"))
+        assertTrue(preview.contains("친구방에서는 아무것도 없긴해처럼 짧게 반말"))
+        assertTrue(preview.contains("수동 수정값이 우선"))
+        assertTrue(!preview.contains("자동 추출된 내 말투가 아직 없습니다."))
+    }
+
+    @Test
+    fun learnedStylePreviewText_prefersManualOverrideOverGeneratedStyle() {
+        val state = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "팀방에서는 별일없습니다!처럼 짧게",
+            generated = "방 전체 말투 기준: 친한 친구방처럼 가벼움",
+            confidence = 92,
+            sampleCount = 12
+        )
+
+        val preview = StyleProfileStore.learnedStylePreviewText(
+            subject = "방 말투",
+            state = state,
+            emptyMessage = "자동 추출된 방 말투가 아직 없습니다."
+        )
+
+        assertTrue(preview.contains("수동 수정 적용 중"))
+        assertTrue(preview.contains("팀방에서는 별일없습니다!처럼 짧게"))
+        assertTrue(!preview.contains("방 전체 말투 기준: 친한 친구방처럼 가벼움"))
+    }
+
+    @Test
     fun learnedStylePreviewText_explainsDisabledStateWhenGeneratedStyleExists() {
         val state = StyleProfileStore.LearnedStyleState(
             enabled = false,

@@ -78,11 +78,12 @@ object StyleProfileStore {
         emptyMessage: String
     ): String {
         val normalizedSubject = subject.trim().ifBlank { "말투" }
-        return if (state.generated.isBlank()) {
-            "$emptyMessage ${state.resetGuidance}"
-        } else {
-            "자동 추출 (${state.confidenceSummary}): ${state.generated}\n${state.resetGuidance}"
-        }.replace("학습 말투", "학습된 $normalizedSubject")
+        val body = when {
+            state.hasManualOverride -> "수동 수정 적용 중 (${state.confidenceSummary}): ${state.override.trim()}\n${state.resetGuidance}"
+            state.generated.isBlank() -> "$emptyMessage ${state.resetGuidance}"
+            else -> "자동 추출 (${state.confidenceSummary}): ${state.generated}\n${state.resetGuidance}"
+        }
+        return body.replace("학습 말투", "학습된 $normalizedSubject")
     }
 
     fun buildPromptStyleGuide(
