@@ -28,7 +28,7 @@ ARM64 실기기에서 Gemma 기본 모델과 실제 런타임 경로를 확인�
 scripts/verify-real-device-e2e.sh
 ```
 
-이 스크립트는 한 대의 ARM64 실기기 연결을 요구하고, debug APK와 androidTest APK 설치, Gemma 계측 테스트 실행, 모델 파일 크기/SHA-256 확인, 로그캣 저장까지 수행합니다. 요약 파일에는 기기 브랜드/모델/Android 버전, 알림 리스너 권한 상태(`notification_listener_enabled`), 모델 파일 증거, 로그캣 경로가 함께 남습니다. 카카오톡 알림 수신과 실제 자동 답장 표시는 계정/알림 권한이 필요한 수동 E2E 단계로 남기며, 스크립트가 생성하는 `outputs/real-device-e2e/*-summary.txt` 에 `manual_kakao_*` 증거 필드를 남깁니다. 연결 기기가 없거나, 여러 대가 붙었거나, 에뮬레이터/비 ARM64 기기라서 중단되어도 `status=blocked` 와 `blocker_reason` 이 요약 파일에 남습니다.
+이 스크립트는 한 대의 ARM64 실기기 연결을 요구하고, debug APK와 androidTest APK 설치, Gemma 계측 테스트 실행, 모델 파일 크기/SHA-256 확인, 로그캣 저장까지 수행합니다. 요약 파일에는 기기 브랜드/모델/Android 버전, 알림 리스너 권한 상태(`notification_listener_enabled`), 계측 테스트 상태(`instrumentation_status`), 모델 파일 증거, 모델 로드 로그 감지(`model_load_log_detected`), 생성 응답 로그 감지(`model_generation_log_detected`), 생성/후보 로그 카운트, 로그캣 경로가 함께 남습니다. 카카오톡 알림 수신과 실제 자동 답장 표시는 계정/알림 권한이 필요한 수동 E2E 단계로 남기며, 스크립트가 생성하는 `outputs/real-device-e2e/*-summary.txt` 에 `manual_kakao_*` 증거 필드를 남깁니다. 연결 기기가 없거나, 여러 대가 붙었거나, 에뮬레이터/비 ARM64 기기라서 중단되어도 `status=blocked` 와 `blocker_reason` 이 요약 파일에 남습니다.
 
 실기기 없이 수동 증거 필드 형식만 확인하려면 다음을 실행합니다.
 
@@ -181,11 +181,14 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 
 - [ ] `adb devices -l` 에서 ARM64 Android 실기기 연결 확인
 - [ ] `outputs/real-device-e2e/*-summary.txt` 에 기기 브랜드/모델/Android 버전이 기록됨
+- [ ] `outputs/real-device-e2e/*-summary.txt` 에 `instrumentation_status=0` 과 `instrumentation_class=com.example.kakaotalkautobot.ExampleInstrumentedTest` 가 기록됨
 - [ ] 앱 내 Gemma 4 E2B LiteRT-LM 다운로드 완료
 - [ ] 모델 파일 크기가 기본 모델 기대치와 일치함
 - [ ] 모델 파일 SHA-256 검증 또는 검증 완료 sidecar가 확인됨
 - [ ] 모델 readiness UI가 준비됨으로 표시됨
 - [ ] `LlmEngine.loadModel()` 성공 로그 확인
+- [ ] `outputs/real-device-e2e/*-summary.txt` 에 `model_load_log_detected=true` 로 기록됨
+- [ ] `outputs/real-device-e2e/*-summary.txt` 에 `model_generation_log_detected=true` 와 1개 이상의 `model_generation_reply_log_count` 가 기록됨
 - [ ] 짧은 인사 프롬프트가 빈 응답 없이 생성됨
 - [ ] 방 메모리의 구체 사실을 물었을 때 그 사실을 포함해 답함
 - [ ] 최근 대화의 구체 사실을 물었을 때 그 사실을 포함해 답함

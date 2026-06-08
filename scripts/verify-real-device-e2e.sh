@@ -60,6 +60,20 @@ manual_kakao_steps=1) enable notification access, 2) send KakaoTalk message from
 EOF
 }
 
+contains_log() {
+  local pattern="$1"
+  if grep -E -q "${pattern}" "${LOGCAT_FILE}" 2>/dev/null; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
+count_log() {
+  local pattern="$1"
+  grep -E -c "${pattern}" "${LOGCAT_FILE}" 2>/dev/null || true
+}
+
 write_blocker_summary() {
   local reason="$1"
   shift || true
@@ -174,15 +188,26 @@ set -e
 
 "${ADB_BIN}" -s "${SERIAL}" logcat -d > "${LOGCAT_FILE}"
 
+MODEL_LOAD_LOG_DETECTED="$(contains_log "LlmEngine.*Model loaded successfully|AiProviderClient.*LLM loaded successfully|Model loaded: n_vocab")"
+MODEL_GENERATION_LOG_DETECTED="$(contains_log "ExampleInstrumentedTest.*LLM_.*REPLY=|AiProviderClient.*Selected LLM reply source=|AiProviderClient.*raw LLM response length")"
+MODEL_GENERATION_REPLY_LOG_COUNT="$(count_log "ExampleInstrumentedTest.*LLM_.*REPLY=")"
+MODEL_CANDIDATE_LOG_COUNT="$(count_log "AiProviderClient.*Candidate source=|AiProviderClient.*Selected LLM reply source=")"
+
 MODEL_SIZE="$("${ADB_BIN}" -s "${SERIAL}" shell run-as "${PACKAGE_NAME}" stat -c %s "${MODEL_PATH}" 2>/dev/null | tr -d '\r' || true)"
 MODEL_SHA="$("${ADB_BIN}" -s "${SERIAL}" shell run-as "${PACKAGE_NAME}" sha256sum "${MODEL_PATH}" 2>/dev/null | awk '{ print $1 }' | tr -d '\r' || true)"
 
 {
+  echo "instrumentation_status=${TEST_STATUS}"
+  echo "instrumentation_class=${PACKAGE_NAME}.ExampleInstrumentedTest"
   echo "model_path=${MODEL_PATH}"
   echo "model_size=${MODEL_SIZE}"
   echo "expected_model_size=${EXPECTED_MODEL_SIZE}"
   echo "model_sha256=${MODEL_SHA}"
   echo "expected_model_sha256=${EXPECTED_MODEL_SHA}"
+  echo "model_load_log_detected=${MODEL_LOAD_LOG_DETECTED}"
+  echo "model_generation_log_detected=${MODEL_GENERATION_LOG_DETECTED}"
+  echo "model_generation_reply_log_count=${MODEL_GENERATION_REPLY_LOG_COUNT}"
+  echo "model_candidate_log_count=${MODEL_CANDIDATE_LOG_COUNT}"
   echo "logcat_file=${LOGCAT_FILE}"
   print_manual_kakao_template
 } | tee -a "${SUMMARY_FILE}"
