@@ -94,6 +94,23 @@ object ReplyQualityScenarios {
                 expectedTraits = setOf("formal", "short")
             ),
             Scenario(
+                id = "team_known_fact_no_generic_ack",
+                room = "팀단톡",
+                sender = "팀장",
+                message = "오늘 회의 몇 시인가요?",
+                config = AutoReplyJson.defaultConfig("팀단톡").copy(
+                    roomMemory = "오늘 회의는 15시.",
+                    roomStyle = "팀 단톡. 존댓말. 메모에 답이 있으면 확인했습니다로 넘기지 말고 바로 답장",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("팀장", "오늘 회의 몇 시인가요?", true, 1L),
+                    RoomHistoryMessage("나", "15시입니다.", false, 2L)
+                ),
+                expectedTraits = setOf("formal", "short", "grounded_fact", "no_generic_ack"),
+                minimumScore = 60
+            ),
+            Scenario(
                 id = "school_formal_notice",
                 room = "학교방",
                 sender = "선생님",
@@ -252,6 +269,7 @@ object ReplyQualityScenarios {
             ScenarioExample("friend_light", "아무것도 없긴해"),
             ScenarioExample("friend_no_echo", "아무것도 없긴해"),
             ScenarioExample("team_formal", "별일없습니다!"),
+            ScenarioExample("team_known_fact_no_generic_ack", "15시입니다."),
             ScenarioExample("school_formal_notice", "별일 없습니다."),
             ScenarioExample("low_signal_skip", ""),
             ScenarioExample("low_signal_with_context_ack", "응 알겠어"),
@@ -386,29 +404,24 @@ object ReplyQualityScenarios {
         if ("formal" in scenario.expectedTraits && (normalized.contains("습니다") || normalized.contains("요") || normalized.contains("입니다"))) score += 20
         if ("clarify" in scenario.expectedTraits && listOf("뭐", "어떤", "문서", "발표", "그거").any { normalized.contains(it) }) score += 25
         if ("unknown_guard" in scenario.expectedTraits && listOf("몰라", "확인", "못 찾", "모르").any { normalized.contains(it) }) score += 25
-        if ("grounded_fact" in scenario.expectedTraits && listOf("6월 12일", "18시", "12일").any { normalized.contains(it) }) score += 25
+        val candidate = ReplyQualityEvaluator.evaluate(
+            source = "quality_scenario",
+            raw = normalized,
+            reply = normalized,
+            config = scenario.config,
+            message = scenario.message,
+            history = scenario.history
+        )
+        if ("grounded_fact" in scenario.expectedTraits && "grounded_fact" in candidate.reasons) score += 25
         if ("manual_example" in scenario.expectedTraits) {
-            val candidate = ReplyQualityEvaluator.evaluate(
-                source = "quality_scenario",
-                raw = normalized,
-                reply = normalized,
-                config = scenario.config,
-                message = scenario.message,
-                history = scenario.history
-            )
             if ("manual_example_match" in candidate.reasons) score += 25
             if (candidate.reasons.any { it.startsWith("manual_room_style_mismatch") }) score -= 20
         }
         if ("no_echo" in scenario.expectedTraits) {
-            val candidate = ReplyQualityEvaluator.evaluate(
-                source = "quality_scenario",
-                raw = normalized,
-                reply = normalized,
-                config = scenario.config,
-                message = scenario.message,
-                history = scenario.history
-            )
             if ("short_prompt_echo" in candidate.reasons || "prompt_echo" in candidate.reasons) score -= 40 else score += 20
+        }
+        if ("no_generic_ack" in scenario.expectedTraits) {
+            if ("generic_ack_instead_of_known_fact" in candidate.reasons) score -= 40 else score += 20
         }
         if (ReplyQualityEvaluator.containsAiMetaText(normalized)) score -= 30
         if (normalized.length > 120) score -= 20

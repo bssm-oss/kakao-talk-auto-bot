@@ -62,6 +62,10 @@ object ReplyQualityEvaluator {
             score -= 18
             reasons.add("unguarded_guess")
         }
+        if (evadesKnownFactQuestion(normalized, config, message, history)) {
+            score -= 36
+            reasons.add("generic_ack_instead_of_known_fact")
+        }
         val styleMismatch = manualStyleMismatchReason(normalized, config.roomStyle)
         if (styleMismatch != null) {
             score -= 24
@@ -174,6 +178,57 @@ object ReplyQualityEvaluator {
         return listOf("아마", "대충", "같아", "것 같", "듯", "추측").any { reply.contains(it) }
     }
 
+    private fun evadesKnownFactQuestion(
+        reply: String,
+        config: AutoReplyConfig,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): Boolean {
+        return asksForConcreteFact(message) &&
+            hasAvailableFact(config, history) &&
+            !hasRelevantKnownFact(reply, config.roomMemory, history) &&
+            looksLikeGenericAck(reply)
+    }
+
+    private fun asksForConcreteFact(message: String): Boolean {
+        return listOf(
+            "몇 시",
+            "몇시",
+            "언제",
+            "어디",
+            "누구",
+            "마감",
+            "제출",
+            "일정",
+            "날짜",
+            "시간"
+        ).any { message.contains(it) }
+    }
+
+    private fun hasAvailableFact(config: AutoReplyConfig, history: List<RoomHistoryMessage>): Boolean {
+        return tokens(config.roomMemory).any { it.any(Char::isDigit) || it.length >= 3 } ||
+            history.any { message ->
+                tokens(message.message).any { it.any(Char::isDigit) || it.length >= 3 }
+            }
+    }
+
+    private fun looksLikeGenericAck(reply: String): Boolean {
+        val normalized = normalizeForExampleMatch(reply)
+        val genericAckPhrases = listOf(
+            "네",
+            "확인했습니다",
+            "확인했어요",
+            "알겠습니다",
+            "알겠어요",
+            "확인해볼게요",
+            "확인해보겠습니다",
+            "넵",
+            "응알겠어",
+            "오케이"
+        )
+        return genericAckPhrases.any { phrase -> normalized.contains(normalizeForExampleMatch(phrase)) }
+    }
+
     private fun lacksGrounding(config: AutoReplyConfig, history: List<RoomHistoryMessage>): Boolean {
         return config.roomMemory.isBlank() && history.none { it.message.length >= 10 }
     }
@@ -246,7 +301,14 @@ object ReplyQualityEvaluator {
         history: List<RoomHistoryMessage>
     ): Boolean {
         val facts = tokens(roomMemory) + history.flatMap { tokens(it.message) }
-        return tokens(reply).any { token -> token.length >= 2 && token in facts }
+        val factTokens = facts.filter { it.length >= 2 }
+        return tokens(reply).any { token ->
+            token.length >= 2 && factTokens.any { fact ->
+                token == fact ||
+                    token.contains(fact) ||
+                    (fact.any(Char::isDigit) && fact.contains(token))
+            }
+        }
     }
 
     private fun tokens(text: String): Set<String> {
