@@ -11,11 +11,16 @@ class StyleProfileStoreTest {
                 personaExamples = "아무것도 없긴해",
                 manualRoomStyle = "친구방에서는 가볍게 반말",
                 learnedUserStyle = "내 발화 기준: 반말과 캐주얼한 표현을 자주 씀",
-                learnedRoomStyle = "방 전체 말투 기준: 친한 친구방처럼 가벼움"
+                learnedRoomStyle = "방 전체 말투 기준: 친한 친구방처럼 가벼움",
+                learnedUserConfidenceLabel = "낮음",
+                learnedRoomConfidenceLabel = "높음"
             )
         )
 
         assertTrue(guide.contains("우선순위"))
+        assertTrue(guide.contains("신뢰도가 낮으면"))
+        assertTrue(guide.contains("학습된 사용자 말투(신뢰도 낮음)"))
+        assertTrue(guide.contains("학습된 방 말투(신뢰도 높음)"))
         assertTrue(guide.indexOf("사용자 직접 예시") < guide.indexOf("수동 방 스타일"))
         assertTrue(guide.indexOf("수동 방 스타일") < guide.indexOf("학습된 사용자 말투"))
         assertTrue(guide.indexOf("학습된 사용자 말투") < guide.indexOf("학습된 방 말투"))

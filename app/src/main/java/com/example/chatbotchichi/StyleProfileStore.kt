@@ -37,7 +37,9 @@ object StyleProfileStore {
         val personaExamples: String = "",
         val manualRoomStyle: String = "",
         val learnedUserStyle: String = "",
-        val learnedRoomStyle: String = ""
+        val learnedRoomStyle: String = "",
+        val learnedUserConfidenceLabel: String = "",
+        val learnedRoomConfidenceLabel: String = ""
     )
 
     fun buildPromptStyleGuide(
@@ -48,20 +50,22 @@ object StyleProfileStore {
         history: List<RoomHistoryMessage>
     ): String {
         val displayName = aiConfig.displayName.ifBlank { "나" }
-        val learnedUserStyle = getUserLearnedStyleState(
+        val learnedUserState = getUserLearnedStyleState(
             context = context,
             displayName = displayName,
             history = history,
             importedText = config.roomMemory
-        ).effective
-        val learnedRoomStyle = getRoomLearnedStyleState(context, room, history).effective
+        )
+        val learnedRoomState = getRoomLearnedStyleState(context, room, history)
 
         return composePromptStyleGuide(
             StyleGuideParts(
                 personaExamples = aiConfig.personaExamples,
                 manualRoomStyle = config.roomStyle,
-                learnedUserStyle = learnedUserStyle,
-                learnedRoomStyle = learnedRoomStyle
+                learnedUserStyle = learnedUserState.effective,
+                learnedRoomStyle = learnedRoomState.effective,
+                learnedUserConfidenceLabel = learnedUserState.confidenceLabel,
+                learnedRoomConfidenceLabel = learnedRoomState.confidenceLabel
             )
         )
     }
@@ -167,6 +171,7 @@ object StyleProfileStore {
             append("말투/스타일 지침:\n")
             append("- 우선순위: 사용자 직접 예시 > 수동 방 스타일 > 가져온 내 발화 스타일 > 앱에서 관측한 내 발화 스타일 > 자동 방 스타일 > 최근 대화 사실.\n")
             append("- 답장할지 여부는 트리거 모드를 따르되, 답장을 만들 때는 위 우선순위의 말투를 먼저 따른다.\n")
+            append("- 학습 말투 신뢰도가 낮으면 확정 규칙처럼 따르지 말고 수동 예시와 현재 방 맥락을 우선한다.\n")
             if (userExamples.isNotBlank()) {
                 append("사용자 직접 예시:\n")
                 append(userExamples)
@@ -178,16 +183,21 @@ object StyleProfileStore {
                 append("\n")
             }
             if (learnedUserStyle.isNotBlank()) {
-                append("학습된 사용자 말투:\n")
+                append("학습된 사용자 말투${promptConfidenceSuffix(parts.learnedUserConfidenceLabel)}:\n")
                 append(learnedUserStyle)
                 append("\n")
             }
             if (learnedRoomStyle.isNotBlank()) {
-                append("학습된 방 말투:\n")
+                append("학습된 방 말투${promptConfidenceSuffix(parts.learnedRoomConfidenceLabel)}:\n")
                 append(learnedRoomStyle)
                 append("\n")
             }
         }.trim()
+    }
+
+    private fun promptConfidenceSuffix(label: String): String {
+        val normalized = label.trim()
+        return if (normalized.isBlank()) "" else "(신뢰도 $normalized)"
     }
 
     internal fun buildUserStyleFromMessages(
