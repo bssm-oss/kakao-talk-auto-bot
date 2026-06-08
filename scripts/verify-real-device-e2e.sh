@@ -11,6 +11,9 @@ EXPECTED_MODEL_SIZE="2588147712"
 EXPECTED_MODEL_SHA="181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c"
 OUT_DIR="${ROOT_DIR}/outputs/real-device-e2e"
 STAMP="$(date +%Y%m%d-%H%M%S)"
+LOGCAT_FILE="${OUT_DIR}/${STAMP}-logcat.txt"
+SUMMARY_FILE="${OUT_DIR}/${STAMP}-summary.txt"
+ADB_DEVICES_FILE="${OUT_DIR}/${STAMP}-adb-devices.txt"
 
 bool_env() {
   case "${1:-false}" in
@@ -57,20 +60,43 @@ manual_kakao_steps=1) enable notification access, 2) send KakaoTalk message from
 EOF
 }
 
+write_blocker_summary() {
+  local reason="$1"
+  shift || true
+  mkdir -p "${OUT_DIR}"
+  {
+    echo "status=blocked"
+    echo "blocker_reason=${reason}"
+    echo "started_at=${STAMP}"
+    echo "adb_path=${ADB_BIN}"
+    for item in "$@"; do
+      echo "${item}"
+    done
+    print_manual_kakao_template
+  } | tee "${SUMMARY_FILE}" >&2
+}
+
 if [[ "${1:-}" == "--print-manual-template" ]]; then
   print_manual_kakao_template
   exit 0
 fi
 
 if [[ ! -x "${ADB_BIN}" ]]; then
+  write_blocker_summary "adb_not_found"
   echo "adb not found: ${ADB_BIN}" >&2
   echo "Set ADB=/path/to/adb or install Android platform-tools." >&2
   exit 1
 fi
 
+mkdir -p "${OUT_DIR}"
+"${ADB_BIN}" devices -l > "${ADB_DEVICES_FILE}"
 mapfile -t DEVICES < <("${ADB_BIN}" devices | awk 'NR > 1 && $2 == "device" { print $1 }')
 if [[ "${#DEVICES[@]}" -ne 1 ]]; then
-  "${ADB_BIN}" devices -l
+  cat "${ADB_DEVICES_FILE}"
+  write_blocker_summary \
+    "expected_exactly_one_device" \
+    "device_count=${#DEVICES[@]}" \
+    "adb_devices_file=${ADB_DEVICES_FILE}"
   echo "Expected exactly one attached Android device." >&2
   exit 1
 fi
@@ -78,6 +104,11 @@ fi
 SERIAL="${DEVICES[0]}"
 ABI="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.product.cpu.abi | tr -d '\r')"
 if [[ "${ABI}" != arm64* ]]; then
+  write_blocker_summary \
+    "non_arm64_device" \
+    "serial=${SERIAL}" \
+    "abi=${ABI}" \
+    "adb_devices_file=${ADB_DEVICES_FILE}"
   echo "Expected an ARM64 real device, got abi=${ABI}." >&2
   exit 1
 fi
@@ -88,17 +119,24 @@ DEVICE_MODEL="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.product.model | tr 
 ANDROID_RELEASE="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.build.version.release | tr -d '\r')"
 ANDROID_SDK="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.build.version.sdk | tr -d '\r')"
 if [[ "${FINGERPRINT}" == *generic* || "${FINGERPRINT}" == *sdk_gphone* ]]; then
+  write_blocker_summary \
+    "emulator_detected" \
+    "serial=${SERIAL}" \
+    "abi=${ABI}" \
+    "fingerprint=${FINGERPRINT}" \
+    "device_brand=${DEVICE_BRAND}" \
+    "device_model=${DEVICE_MODEL}" \
+    "android_release=${ANDROID_RELEASE}" \
+    "android_sdk=${ANDROID_SDK}" \
+    "adb_devices_file=${ADB_DEVICES_FILE}"
   echo "This looks like an emulator, not a real device: ${FINGERPRINT}" >&2
   exit 1
 fi
 
-mkdir -p "${OUT_DIR}"
-LOGCAT_FILE="${OUT_DIR}/${STAMP}-logcat.txt"
-SUMMARY_FILE="${OUT_DIR}/${STAMP}-summary.txt"
-
 cd "${ROOT_DIR}"
 
 {
+  echo "status=started"
   echo "serial=${SERIAL}"
   echo "abi=${ABI}"
   echo "fingerprint=${FINGERPRINT}"
@@ -150,18 +188,22 @@ MODEL_SHA="$("${ADB_BIN}" -s "${SERIAL}" shell run-as "${PACKAGE_NAME}" sha256su
 } | tee -a "${SUMMARY_FILE}"
 
 if [[ "${TEST_STATUS}" -ne 0 ]]; then
+  echo "status=instrumentation_failed" | tee -a "${SUMMARY_FILE}" >&2
   echo "Instrumentation failed. See ${SUMMARY_FILE} and ${LOGCAT_FILE}." >&2
   exit "${TEST_STATUS}"
 fi
 
 if [[ "${MODEL_SIZE}" != "${EXPECTED_MODEL_SIZE}" ]]; then
+  echo "status=model_size_mismatch" | tee -a "${SUMMARY_FILE}" >&2
   echo "Model size mismatch. See ${SUMMARY_FILE}." >&2
   exit 1
 fi
 
 if [[ "${MODEL_SHA}" != "${EXPECTED_MODEL_SHA}" ]]; then
+  echo "status=model_sha_mismatch" | tee -a "${SUMMARY_FILE}" >&2
   echo "Model SHA-256 mismatch. See ${SUMMARY_FILE}." >&2
   exit 1
 fi
 
+echo "status=model_checks_passed" | tee -a "${SUMMARY_FILE}"
 echo "Device model checks passed. Complete the manual KakaoTalk notification/reply steps before calling E2E complete."
