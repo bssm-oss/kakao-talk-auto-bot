@@ -90,13 +90,36 @@ object ReplyQualityEvaluator {
         candidates: List<Candidate>,
         sourcePriors: Map<String, Int> = emptyMap()
     ): Candidate? {
-        return candidates
+        return dedupeCandidates(candidates)
             .filter { it.reply.isNotBlank() && it.score >= 45 }
             .maxWithOrNull(
                 compareBy<Candidate> { it.score + sourcePriors.getOrDefault(it.source, 0) }
                     .thenBy { it.score }
                     .thenBy { -it.reply.length }
             )
+    }
+
+    fun dedupeCandidates(candidates: List<Candidate>): List<Candidate> {
+        if (candidates.size <= 1) return candidates
+        val bestByReply = candidates
+            .filter { it.reply.isNotBlank() }
+            .groupBy { normalizeForExampleMatch(it.reply) }
+            .filterKeys { it.isNotBlank() }
+            .mapValues { (_, duplicates) ->
+                duplicates.maxWithOrNull(compareBy<Candidate> { it.score }.thenBy { -it.reply.length })
+            }
+        return candidates.map { candidate ->
+            val key = normalizeForExampleMatch(candidate.reply)
+            val winner = bestByReply[key]
+            if (key.isBlank() || winner === candidate || winner == null) {
+                candidate
+            } else {
+                candidate.copy(
+                    score = 0,
+                    reasons = (candidate.reasons + "duplicate_reply").distinct()
+                )
+            }
+        }
     }
 
     internal fun containsAiMetaText(reply: String): Boolean {

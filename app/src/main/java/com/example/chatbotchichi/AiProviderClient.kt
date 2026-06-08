@@ -101,9 +101,10 @@ object AiProviderClient {
             val candidateStats = ReplyCandidateStatsStore.snapshot(context)
             val sourcePriors = candidateStats.selectionPriors()
             val candidates = deterministicCandidates + generateCandidateReplies(config, room, sender, normalizedMessage, history, prompt, styleGuide)
-            logCandidateSummary(candidates)
-            val bestCandidate = ReplyQualityEvaluator.selectBest(candidates, sourcePriors)
-            ReplyCandidateStatsStore.recordBatch(context, candidates, bestCandidate?.source)
+            val selectionCandidates = ReplyQualityEvaluator.dedupeCandidates(candidates)
+            logCandidateSummary(selectionCandidates)
+            val bestCandidate = ReplyQualityEvaluator.selectBest(selectionCandidates, sourcePriors)
+            ReplyCandidateStatsStore.recordBatch(context, selectionCandidates, bestCandidate?.source)
             val rawResponse = bestCandidate?.raw.orEmpty()
 
             if (bestCandidate != null) {
