@@ -167,6 +167,60 @@ class AiProviderClientTest {
     }
 
     @Test
+    fun buildInitialCandidateSpecs_preparesPrimaryAndCompactLanes() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            persona = "친구처럼 짧게 답해",
+            roomMemory = "오늘 별일 있는지 묻는 방"
+        )
+        val history = listOf(
+            RoomHistoryMessage("민수", "오늘 뭐 있어?", true, 1L)
+        )
+        val primaryPrompt = AiProviderClient.buildPrompt(
+            config = config,
+            room = "친구방",
+            sender = "민수",
+            message = "오늘 뭐 있어?",
+            history = history
+        )
+
+        val specs = AiProviderClient.buildInitialCandidateSpecs(
+            config = config,
+            room = "친구방",
+            sender = "민수",
+            message = "오늘 뭐 있어?",
+            history = history,
+            primaryPrompt = primaryPrompt,
+            styleGuide = "사용자 직접 예시: 아무것도 없긴해"
+        )
+
+        assertEquals(listOf("primary", "compact"), specs.map { it.source })
+        assertEquals(listOf(12, 24), specs.map { it.maxTokens })
+        assertTrue(specs.first().prompt.contains("이전 대화 맥락"))
+        assertTrue(specs.last().prompt.contains("최근 대화"))
+    }
+
+    @Test
+    fun buildEmergencyCandidateSpec_usesSeparateFallbackLane() {
+        val config = AutoReplyJson.defaultConfig("학교방").copy(
+            roomStyle = "학교 단톡. 존댓말로 짧게"
+        )
+
+        val spec = AiProviderClient.buildEmergencyCandidateSpec(
+            config = config,
+            room = "학교방",
+            sender = "선생님",
+            message = "내일 발표 몇 시야?",
+            history = emptyList(),
+            styleGuide = "수동 방 스타일: 존댓말"
+        )
+
+        assertEquals("emergency", spec.source)
+        assertEquals(24, spec.maxTokens)
+        assertTrue(spec.prompt.contains("한국어로 짧게 한 문장만 답해라"))
+        assertTrue(spec.prompt.contains("[선생님] 내일 발표 몇 시야?"))
+    }
+
+    @Test
     fun isLowSignalMessage_detects_meaningless_messages() {
         assertTrue(AiProviderClient.isLowSignalMessage("ㅇㅋ"))
         assertTrue(AiProviderClient.isLowSignalMessage("ㅋㅋ"))
