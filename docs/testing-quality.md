@@ -75,7 +75,7 @@ maestro test .maestro
 - 알림 수집과 답장 시도 분리 가드 로직
 - OFF 상태 또는 방별 답장 비활성화일 때도 메시지 수집은 유지되고 답장만 막히는 가드 로직
 - 전송 실패와 스킵 reason 이 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `reply off`, `low signal`, `model not loaded` 같은 표준 카테고리로 집계되는 통계 가드
-- primary/style_rewrite/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
+- primary/style_rewrite/human_style/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
 - 친구방, 팀방, 학교방, 낮은 신호, 모르는 사실, 방 메모리 사실 확인을 포함한 기본 응답 품질 시나리오
 - 애매한 지시에는 아는 척하지 않고 짧게 확인 질문을 하는 응답 품질 시나리오
 - 기본 응답 품질 시나리오의 Markdown 리포트 생성과 비-LLM 엔진 baseline 경로 검증
@@ -155,8 +155,8 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 모르는 사실은 추측하지 않고 모른다고 짧게 답함
 - [ ] AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 지나치게 긴 후보가 최종 답장으로 선택되지 않음
 - [ ] 사용자 직접 예시와 가까운 답장은 `manual_example_match` 로 보상됨
-- [ ] primary/style_rewrite/compact candidate lane 이 같은 품질 게이트에서 비교되고, emergency lane 은 초기 후보가 약할 때만 추가됨
-- [ ] primary/style_rewrite/compact/emergency 후보 평가 결과와 선택 이유가 로그로 남음
+- [ ] primary/style_rewrite/human_style/compact candidate lane 이 같은 품질 게이트에서 비교되고, emergency lane 은 초기 후보가 약할 때만 추가됨
+- [ ] primary/style_rewrite/human_style/compact/emergency 후보 평가 결과와 선택 이유가 로그로 남음
 - [ ] 규칙 기반 후보와 Gemma 후보가 같은 품질 게이트에서 평가됨
 
 ### 에뮬레이터 검증
@@ -182,7 +182,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 방 메모리의 구체 사실을 물었을 때 그 사실을 포함해 답함
 - [ ] 최근 대화의 구체 사실을 물었을 때 그 사실을 포함해 답함
 - [ ] 페르소나/말투 설정이 다른 두 방에서 서로 다른 답장 스타일로 반영됨
-- [ ] 긴 프롬프트 실패 시 primary, style_rewrite, compact, emergency 재시도가 빈 응답을 줄이는지 확인
+- [ ] 긴 프롬프트 실패 시 primary, style_rewrite, human_style, compact, emergency 후보 비교가 빈 응답을 줄이는지 확인
 - [ ] 생성 시간이 실사용 가능한 범위인지 기록
 
 ### 실제 카카오톡 end-to-end
@@ -246,8 +246,8 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 
 - 긴 프롬프트에서 로컬 모델이 **0글자 응답**을 반환하는 사례가 확인되었습니다.
 - 로그캣 기준 근본 원인은 Gemma 4 LiteRT-LM이 긴 프롬프트에서 `LiteRtLmJniException (Status Code: 13, Failed to invoke the compiled model)` 를 내고 빈 문자열을 반환하던 경로였습니다.
-- 현재는 기본 컨텍스트 예산을 키우고, 1차 긴 프롬프트 실패 시 더 작은 history/persona budget을 쓰는 **compact prompt** 로 재시도합니다.
-- compact prompt도 실패하면 더 작은 예산의 **emergency prompt** 로 한 번 더 재시도하되, 최소 페르소나/방 메모/최근 대화는 유지합니다.
+- 현재는 기본 컨텍스트 예산을 키우고, primary/style_rewrite/human_style/compact 후보를 같은 품질 게이트에서 비교합니다. human_style 후보는 사용자 직접 예시와 수동 방 말투를 더 강하게 따라 실제 사용자처럼 보낼 한 문장을 만들기 위한 경로입니다.
+- 초기 후보가 모두 약하면 더 작은 예산의 **emergency prompt** 로 한 번 더 재시도하되, 최소 페르소나/방 메모/최근 대화는 유지합니다.
 - 이 완화는 "모델 호출 실패가 그대로 빈 응답으로 보이는" 경로를 줄이기 위한 안정성 보강입니다.
 
 ## 최근 빠른 단축 경로 검증

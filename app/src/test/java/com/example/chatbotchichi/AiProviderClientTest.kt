@@ -167,7 +167,7 @@ class AiProviderClientTest {
     }
 
     @Test
-    fun buildInitialCandidateSpecs_preparesPrimaryStyleRewriteAndCompactLanes() {
+    fun buildInitialCandidateSpecs_preparesPrimaryHumanStyleRewriteAndCompactLanes() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             persona = "친구처럼 짧게 답해",
             roomStyle = "친한 친구방. 예시: 아무것도 없긴해",
@@ -194,11 +194,14 @@ class AiProviderClientTest {
             styleGuide = "사용자 직접 예시: 아무것도 없긴해"
         )
 
-        assertEquals(listOf("primary", "style_rewrite", "compact"), specs.map { it.source })
-        assertEquals(listOf(12, 18, 24), specs.map { it.maxTokens })
+        assertEquals(listOf("primary", "style_rewrite", "human_style", "compact"), specs.map { it.source })
+        assertEquals(listOf(12, 18, 18, 24), specs.map { it.maxTokens })
         assertTrue(specs.first().prompt.contains("이전 대화 맥락"))
         assertTrue(specs[1].prompt.contains("내가 보낼 답장"))
         assertTrue(specs[1].prompt.contains("아무것도 없긴해"))
+        assertTrue(specs[2].prompt.contains("실제 사용자처럼 답장"))
+        assertTrue(specs[2].prompt.contains("사용자 직접 예시"))
+        assertTrue(specs[2].prompt.contains("수동 방 말투가 있으면 학습된 말투보다 우선"))
         assertTrue(specs.last().prompt.contains("최근 대화"))
     }
 
@@ -228,6 +231,35 @@ class AiProviderClientTest {
         assertTrue(prompt.contains("아무것도 없긴해"))
         assertTrue(prompt.contains("챗봇처럼 설명하지 말고"))
         assertTrue(prompt.contains("[나/나] 아무것도 없긴해"))
+    }
+
+    @Test
+    fun buildHumanStylePrompt_prioritizesDirectExamplesAndManualRoomStyle() {
+        val config = AutoReplyJson.defaultConfig("팀단톡").copy(
+            persona = "평소처럼 짧게",
+            roomStyle = "팀 단톡. 존댓말. 별일 없으면 예시처럼 별일없습니다!",
+            roomMemory = "오늘은 특이사항 공유 여부를 묻는 방"
+        )
+        val history = listOf(
+            RoomHistoryMessage("팀장", "오늘 공유할 특이사항 있나요?", true, 1L),
+            RoomHistoryMessage("나", "별일없습니다!", false, 2L)
+        )
+
+        val prompt = AiProviderClient.buildHumanStylePrompt(
+            config = config,
+            room = "팀단톡",
+            sender = "팀장",
+            message = "오늘 공유할 거 있나요?",
+            history = history,
+            styleGuide = "사용자 직접 예시:\n별일없습니다!\n학습된 방 말투: 공손하게 길게 설명"
+        )
+
+        assertTrue(prompt.contains("자동응답기가 아니라"))
+        assertTrue(prompt.contains("사용자 직접 예시가 있으면"))
+        assertTrue(prompt.contains("수동 방 말투가 있으면 학습된 말투보다 우선"))
+        assertTrue(prompt.contains("별일없습니다!"))
+        assertTrue(prompt.contains("[나/나] 별일없습니다!"))
+        assertTrue(prompt.contains("내 답장:"))
     }
 
     @Test

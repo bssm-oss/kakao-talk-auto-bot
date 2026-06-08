@@ -17,6 +17,10 @@ object AiProviderClient {
     private const val STYLE_PERSONA_LIMIT = 160
     private const val STYLE_ROOM_MEMORY_LIMIT = 220
     private const val STYLE_GUIDE_LIMIT = 520
+    private const val HUMAN_STYLE_HISTORY_LIMIT = 8
+    private const val HUMAN_STYLE_PERSONA_LIMIT = 140
+    private const val HUMAN_STYLE_ROOM_MEMORY_LIMIT = 200
+    private const val HUMAN_STYLE_GUIDE_LIMIT = 720
     private const val COMPACT_HISTORY_LIMIT = 4
     private const val COMPACT_PERSONA_LIMIT = 100
     private const val COMPACT_ROOM_MEMORY_LIMIT = 160
@@ -288,6 +292,48 @@ object AiProviderClient {
         }
     }
 
+    internal fun buildHumanStylePrompt(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String,
+        history: List<RoomHistoryMessage>,
+        styleGuide: String = ""
+    ): String {
+        return buildString {
+            append("너는 자동응답기가 아니라 이 방의 실제 사용자처럼 답장한다.\n")
+            append("사용자 직접 예시가 있으면 단어 선택, 길이, 반말/존댓말, 느낌을 최우선으로 맞춘다.\n")
+            append("수동 방 말투가 있으면 학습된 말투보다 우선한다.\n")
+            append("방 메모나 최근 대화에 없는 사실은 만들지 말고, 모르면 짧게 모른다고 답한다.\n")
+            append("카톡에서 보낼 한 문장만 출력하고 설명, 후보, 따옴표, AI 티를 내는 말은 쓰지 않는다.\n")
+            if (styleGuide.isNotBlank()) {
+                append(styleGuide.take(HUMAN_STYLE_GUIDE_LIMIT))
+                append("\n")
+            }
+            if (config.persona.isNotBlank()) {
+                append("페르소나: ${config.persona.take(HUMAN_STYLE_PERSONA_LIMIT)}\n")
+            }
+            if (config.roomStyle.isNotBlank()) {
+                append("수동 방 말투: ${config.roomStyle.take(HUMAN_STYLE_GUIDE_LIMIT)}\n")
+            }
+            if (config.roomMemory.isNotBlank()) {
+                append("방 메모: ${config.roomMemory.take(HUMAN_STYLE_ROOM_MEMORY_LIMIT)}\n")
+            }
+            val recentHistory = history.takeLast(HUMAN_STYLE_HISTORY_LIMIT)
+            if (recentHistory.isNotEmpty()) {
+                append("최근 대화:\n")
+                recentHistory.forEach { msg ->
+                    val role = if (msg.incoming) "상대" else "나"
+                    append("[$role/${msg.sender}] ${msg.message}\n")
+                }
+            }
+            append("방: $room\n")
+            append("상대: $sender\n")
+            append("받은 말: $message\n")
+            append("내 답장:\n")
+        }
+    }
+
     internal fun buildEmergencyPrompt(
         config: AutoReplyConfig,
         room: String,
@@ -363,6 +409,11 @@ object AiProviderClient {
             LlmCandidateSpec(
                 source = "style_rewrite",
                 prompt = buildStyleRewritePrompt(config, room, sender, message, history, styleGuide),
+                maxTokens = 18
+            ),
+            LlmCandidateSpec(
+                source = "human_style",
+                prompt = buildHumanStylePrompt(config, room, sender, message, history, styleGuide),
                 maxTokens = 18
             ),
             LlmCandidateSpec(

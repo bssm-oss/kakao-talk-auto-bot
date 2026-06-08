@@ -9,7 +9,7 @@
 5. 테스트/CI가 깨지면 기능 추가보다 복구를 우선한다.
 6. 답장 로직은 무조건 응답이 아니라 선택적 응답 원칙을 따른다.
 7. AI 경로는 로컬 LiteRT-LM 전용 기준으로 다루고, 저장된 레거시 OpenAI 설정은 읽을 때 로컬 Gemma로 정규화된다는 점을 유지한다.
-8. 로컬 Gemma 응답은 단일 원문을 그대로 보내지 않고 `primary`, `style_rewrite`, `compact`, 필요 시 `emergency` 후보를 같은 품질 게이트에서 비교한다.
+8. 로컬 Gemma 응답은 단일 원문을 그대로 보내지 않고 `primary`, `style_rewrite`, `human_style`, `compact`, 필요 시 `emergency` 후보를 같은 품질 게이트에서 비교한다.
 9. UI/플로우 변경 시 `docs/user-flow.md` 와 Maestro 흐름을 같이 갱신한다.
 10. CI/릴리즈 변경 시 `.github/workflows/*`, `docs/ci-release.md`, `docs/testing-quality.md` 를 같이 갱신한다.
 11. signed release APK 게시 방식이나 로컬 AI 전환 상태가 바뀌면 상태 문서도 함께 갱신한다.
