@@ -170,8 +170,16 @@ object ReplyStatsStore {
             normalized.contains("AI 응답 생성 중 오류") || lowered.contains("generation") && lowered.contains("exception") -> "ai generation exception"
             normalized.contains("고정 답장 목록") || normalized.contains("고정 답장 템플릿") -> "canned reply empty"
             normalized.contains("빈 메시지") -> "blank message"
-            else -> normalized.take(80)
+            else -> sanitizeUnknownReason(normalized)
         }
+    }
+
+    private fun sanitizeUnknownReason(reason: String): String {
+        return LogPrivacy.redactSensitiveTokens(reason)
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .ifBlank { "unknown" }
+            .take(80)
     }
 
     private fun readReasonMap(root: JSONObject, key: String): Map<String, Int> {

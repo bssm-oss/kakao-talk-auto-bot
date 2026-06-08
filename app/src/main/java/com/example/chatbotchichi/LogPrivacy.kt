@@ -56,7 +56,7 @@ object LogPrivacy {
         return if (reasons.isEmpty()) "" else " ${reasons.joinToString(" ")}"
     }
 
-    private fun redactSensitiveTokens(text: String): String {
+    internal fun redactSensitiveTokens(text: String): String {
         return text
             .replace(urlPattern, "<URL 숨김>")
             .replace(emailPattern, "<이메일 숨김>")
