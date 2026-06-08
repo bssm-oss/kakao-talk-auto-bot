@@ -38,7 +38,7 @@ Gemma 4 LiteRT-LM 경로는 현재 **실제 ARM64 Android 기기 검증이 필�
 - human_style prompt는 "자동응답기"가 아니라 실제 사용자가 보낼 한 문장처럼 단어 선택, 길이, 반말/존댓말 느낌을 더 강하게 맞춥니다.
 - compact prompt는 실패 대비 경로이지만 여전히 **최소 페르소나 + 방 메모 + 최근 대화 4개**를 남깁니다.
 - emergency prompt도 0-grounding 으로 떨어지지 않고 **최소 페르소나 + 짧은 방 메모 + 최근 대화 2개**를 유지합니다.
-- primary/style_rewrite/human_style/compact/emergency prompt 모두 스타일 지침을 유지합니다. 모델이 길게 실패할 때도 최소한 사용자 예시와 방 말투 일부가 남도록 예산을 나눕니다.
+- primary/style_rewrite/human_style/compact/emergency prompt 모두 스타일 지침을 유지하고, fallback lane 에서도 사용자 직접 예시와 수동 방 말투가 학습된 말투보다 우선한다는 규칙을 다시 명시합니다. 모델이 길게 실패할 때도 최소한 사용자 예시와 방 말투 일부가 남도록 예산을 나눕니다.
 - primary/style_rewrite/human_style/compact 는 내부 candidate lane 으로 함께 예약하고 같은 품질 게이트에서 비교합니다. emergency lane 은 초기 후보가 모두 약할 때만 추가합니다.
 - 앱은 Gemma가 만든 첫 응답을 곧바로 전송하지 않고, 규칙 기반 후보와 primary/style_rewrite/human_style/compact 후보를 함께 만든 뒤 길이, AI 메타 문구, 프롬프트 반복, 추측성 표현, 수동 방 말투 일치, 방 메모리 근거를 점수화해 가장 자연스러운 후보를 고릅니다.
 - 수동 방 말투가 친한/반말 방이면 과한 존댓말 후보를 감점하고, 학교/팀/존댓말 방이면 반말 후보를 감점합니다. 이 감점은 모델 후보와 규칙 후보 모두 같은 기준으로 적용됩니다.

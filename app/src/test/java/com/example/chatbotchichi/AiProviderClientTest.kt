@@ -202,6 +202,7 @@ class AiProviderClientTest {
         assertTrue(specs[2].prompt.contains("실제 사용자처럼 답장"))
         assertTrue(specs[2].prompt.contains("사용자 직접 예시"))
         assertTrue(specs[2].prompt.contains("수동 방 말투가 있으면 학습된 말투보다 우선"))
+        assertTrue(specs.last().prompt.contains("사용자 직접 예시와 수동 방 말투가 있으면 학습된 말투보다 우선"))
         assertTrue(specs.last().prompt.contains("최근 대화"))
     }
 
@@ -280,6 +281,7 @@ class AiProviderClientTest {
         assertEquals("emergency", spec.source)
         assertEquals(24, spec.maxTokens)
         assertTrue(spec.prompt.contains("한국어로 짧게 한 문장만 답해라"))
+        assertTrue(spec.prompt.contains("사용자 직접 예시와 수동 방 말투가 있으면 학습된 말투보다 우선"))
         assertTrue(spec.prompt.contains("[선생님] 내일 발표 몇 시야?"))
     }
 
