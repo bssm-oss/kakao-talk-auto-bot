@@ -31,4 +31,21 @@ class ReplyStatsStoreTest {
 
         assertTrue(summary.contains("최다 스킵: 의미 없는 짧은 메시지입니다. 2회"))
     }
+
+    @Test
+    fun summary_surfacesSpecificRemoteInputFailureReason() {
+        val summary = ReplyStatsStore.Snapshot(
+            incoming = 5,
+            sent = 1,
+            skipped = 0,
+            failed = 3,
+            failureReasons = mapOf(
+                SessionReplier.REASON_NO_SESSION to 1,
+                SessionReplier.REASON_PENDING_INTENT_SEND_FAILED to 2
+            ),
+            skipReasons = emptyMap()
+        ).summary()
+
+        assertTrue(summary.contains("최다 실패: pendingIntent send failed 2회"))
+    }
 }

@@ -56,4 +56,6 @@
 
 메인 화면에서 최근 로그를 즉시 삭제할 수 있습니다. 로그 삭제는 로컬 로그 파일만 지우며, 방 메모리와 답장 통계는 유지합니다.
 
-메인 화면의 응답 통계는 실패 원인을 우선 표시하고, 실패가 없으면 최다 스킵 원인을 표시합니다. 세션 없음, RemoteInput 없음, PendingIntent 실패, 전역 AI 답장 OFF, 방별 답장 OFF, 응답 설정 없는 방, 의미 없는 짧은 메시지 같은 이유를 분리해 실제 기기에서 어디가 자주 막히는지 볼 수 있게 합니다.
+메인 화면의 응답 통계는 실패 원인을 우선 표시하고, 실패가 없으면 최다 스킵 원인을 표시합니다. `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `reply exception`, 전역 AI 답장 OFF, 방별 답장 OFF, 응답 설정 없는 방, 의미 없는 짧은 메시지 같은 이유를 분리해 실제 기기에서 어디가 자주 막히는지 볼 수 있게 합니다.
+
+`replyToRoomDetailed` 는 Boolean 대신 `SendResult(sent, reason)` 을 반환합니다. 기존 `replyToRoom` Boolean API는 유지하지만, 엔진 보조 로그와 통계는 상세 reason을 사용해 AI 생성 성공 후 카카오톡 전송 단계에서 막힌 원인을 추적합니다.

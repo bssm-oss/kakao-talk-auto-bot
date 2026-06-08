@@ -155,8 +155,8 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] `AI가 판단` 모드에서 낮은 신호 메시지에는 불필요하게 끼어들지 않음
 - [ ] `모든 메시지` 모드에서는 조건을 통과한 모든 수신 메시지에 답장함
 - [ ] PendingIntent RemoteInput 전송 성공 로그와 실제 카카오톡 대화창 답장 표시가 일치함
-- [ ] 전송 실패 시 `OUT_FAIL` 로그에 원인이 남고 앱이 죽지 않음
-- [ ] AI 답장 생성 후 `replyToRoom` 이 실패하면 엔진 레벨에서도 `OUT_FAIL` 이 남음
+- [ ] 전송 실패 시 `OUT_FAIL` 로그에 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed` 같은 원인이 남고 앱이 죽지 않음
+- [ ] AI 답장 생성 후 `replyToRoomDetailed` 이 실패하면 엔진 레벨에서도 같은 전송 원인을 포함한 `OUT_FAIL` 이 남음
 - [ ] OFF 상태 전환 직후 수신 메시지는 저장되지만 답장은 나가지 않음
 - [ ] OFF 상태 전환 직후 수신 메시지는 `OUT_SKIP` 에 OFF 원인이 남음
 

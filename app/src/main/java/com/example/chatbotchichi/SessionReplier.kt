@@ -11,6 +11,19 @@ class SessionReplier(
     val room: String, // 세션 조회를 위한 키 (방 이름)
     val isDebug: Boolean = false // 디버그 모드 여부
 ) {
+    data class SendResult(
+        val sent: Boolean,
+        val reason: String? = null
+    )
+
+    companion object {
+        const val REASON_NO_SESSION = "no session"
+        const val REASON_NO_REMOTE_INPUT = "no remoteInput"
+        const val REASON_PENDING_INTENT_NULL = "pendingIntent null"
+        const val REASON_PENDING_INTENT_SEND_FAILED = "pendingIntent send failed"
+        const val REASON_EXCEPTION = "reply exception"
+    }
+
     private val TAG = "BotEngine-Replier"
     private fun logOutgoing(targetRoom: String, message: String, success: Boolean, reason: String? = null) {
         val label = if (success) "OUT" else "OUT_FAIL"
@@ -39,13 +52,17 @@ class SessionReplier(
     }
 
     fun reply(message: String): Boolean {
-        return replyToRoom(this.room, message)
+        return replyToRoomDetailed(this.room, message).sent
     }
 
     /**
      * 특정 방으로 메시지 전송 (스크립트에서 사용)
      */
     fun replyToRoom(targetRoom: String, message: String): Boolean {
+        return replyToRoomDetailed(targetRoom, message).sent
+    }
+
+    fun replyToRoomDetailed(targetRoom: String, message: String): SendResult {
         // 1. 세션 매니저에서 캐싱된 실전 Action 조회 (우선 순위 높음)
         val session = SessionManager.getSession(targetRoom)
         
@@ -62,50 +79,52 @@ class SessionReplier(
                 }
                 
                 if (!remoteInputs.isNullOrEmpty()) {
-                    for (remoteInput in remoteInputs) {
-                        if (remoteInput.resultKey != null) {
-                            val intent = Intent()
-                            val bundle = Bundle()
-                            bundle.putCharSequence(remoteInput.resultKey, message)
-                            RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
-                            val clip = intent.clipData
-                            if (clip != null) {
-                                val clipLine = "clipData items=${clip.itemCount} label=${clip.description?.label}"
-                                Log.d(TAG, clipLine)
-                            } else {
-                                Log.d(TAG, "clipData=null")
-                            }
-                            
-                            val pendingIntent = action.actionIntent
-                            if (pendingIntent == null) {
-                                Log.e(TAG, "Reply failed: PendingIntent is null for $targetRoom")
-                                logOutgoing(targetRoom, message, false, "pendingIntent null")
-                                return false
-                            }
-                            pendingIntent.send(context, 0, intent)
-                            Log.d(TAG, "Reply sent to $targetRoom: $message")
-                            RoomStore.recordOutgoing(context, targetRoom, message)
-                            logOutgoing(targetRoom, message, true, null)
-                            
-                            // 디버그 모드에서 실전송 성공 시, 디버깅 룸에도 로그 남김
-                            if (isDebug) {
-                                val intentDebug = Intent("com.example.kakaotalkautobot.BOT_REPLY")
-                                intentDebug.putExtra("msg", "✅ [실전송] $targetRoom: $message")
-                                intentDebug.putExtra("room", room) // 현재 디버깅 중인 방에 표시
-                                intentDebug.setPackage(context.packageName)
-                                context.sendBroadcast(intentDebug)
-                            }
-                            return true
-                        }
+                    val remoteInput = remoteInputs.first()
+                    val intent = Intent()
+                    val bundle = Bundle()
+                    bundle.putCharSequence(remoteInput.resultKey, message)
+                    RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
+                    val clip = intent.clipData
+                    if (clip != null) {
+                        val clipLine = "clipData items=${clip.itemCount} label=${clip.description?.label}"
+                        Log.d(TAG, clipLine)
+                    } else {
+                        Log.d(TAG, "clipData=null")
                     }
-                    logOutgoing(targetRoom, message, false, "no remoteInput")
-                    return false
+
+                    val pendingIntent = action.actionIntent
+                    if (pendingIntent == null) {
+                        Log.e(TAG, "Reply failed: PendingIntent is null for $targetRoom")
+                        logOutgoing(targetRoom, message, false, REASON_PENDING_INTENT_NULL)
+                        return SendResult(false, REASON_PENDING_INTENT_NULL)
+                    }
+                    try {
+                        pendingIntent.send(context, 0, intent)
+                    } catch (e: Throwable) {
+                        Log.e(TAG, "Reply failed: PendingIntent send failed for $targetRoom", e)
+                        logOutgoing(targetRoom, message, false, REASON_PENDING_INTENT_SEND_FAILED)
+                        return SendResult(false, REASON_PENDING_INTENT_SEND_FAILED)
+                    }
+                    Log.d(TAG, "Reply sent to $targetRoom: $message")
+                    RoomStore.recordOutgoing(context, targetRoom, message)
+                    logOutgoing(targetRoom, message, true, null)
+
+                    // 디버그 모드에서 실전송 성공 시, 디버깅 룸에도 로그 남김
+                    if (isDebug) {
+                        val intentDebug = Intent("com.example.kakaotalkautobot.BOT_REPLY")
+                        intentDebug.putExtra("msg", "✅ [실전송] $targetRoom: $message")
+                        intentDebug.putExtra("room", room) // 현재 디버깅 중인 방에 표시
+                        intentDebug.setPackage(context.packageName)
+                        context.sendBroadcast(intentDebug)
+                    }
+                    return SendResult(true)
                 }
-                logOutgoing(targetRoom, message, false, "no remoteInput")
-                return false
+                logOutgoing(targetRoom, message, false, REASON_NO_REMOTE_INPUT)
+                return SendResult(false, REASON_NO_REMOTE_INPUT)
             } catch (e: Throwable) {
                 Log.e(TAG, "Reply failed", e)
-                logOutgoing(targetRoom, message, false, e.message ?: "exception")
+                logOutgoing(targetRoom, message, false, REASON_EXCEPTION)
+                return SendResult(false, REASON_EXCEPTION)
             }
         }
 
@@ -118,12 +137,12 @@ class SessionReplier(
             intent.putExtra("room", room)
             intent.setPackage(context.packageName)
             context.sendBroadcast(intent)
-            return true
+            return SendResult(true)
         }
 
         Log.e(TAG, "Reply failed: No session found for room $targetRoom")
-        logOutgoing(targetRoom, message, false, "no session")
-        return false
+        logOutgoing(targetRoom, message, false, REASON_NO_SESSION)
+        return SendResult(false, REASON_NO_SESSION)
     }
 
     fun log(message: String) {
