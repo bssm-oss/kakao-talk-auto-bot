@@ -16,7 +16,8 @@ class NotificationListener : NotificationListenerService() {
 
     internal data class IncomingHandlingPlan(
         val shouldCapture: Boolean,
-        val shouldAttemptReply: Boolean
+        val shouldAttemptReply: Boolean,
+        val skippedReason: String? = null
     )
 
     private val debugReceiver = object : BroadcastReceiver() {
@@ -119,7 +120,20 @@ class NotificationListener : NotificationListenerService() {
             speaker = sender,
             serverMessage = msg
         )
-        if (!handlingPlan.shouldAttemptReply || roomConfig == null) return
+        if (!handlingPlan.shouldAttemptReply || roomConfig == null) {
+            handlingPlan.skippedReason?.let { reason ->
+                UiLogger.log(
+                    this,
+                    "OUT_SKIP",
+                    "[$room] $reason",
+                    roomName = room,
+                    speaker = "시스템",
+                    serverMessage = reason,
+                    eventReason = reason
+                )
+            }
+            return
+        }
         AutoReplyEngine.onIncoming(this, room, msg, sender, isGroupChat, replier, roomConfig)
     }
 
@@ -127,9 +141,19 @@ class NotificationListener : NotificationListenerService() {
         roomConfig: AutoReplyConfig?,
         aiReplyEnabled: Boolean
     ): IncomingHandlingPlan {
+        val shouldCapture = roomConfig?.captureEnabled ?: true
+        val shouldAttemptReply = aiReplyEnabled && roomConfig?.replyEnabled == true
+        val skippedReason = when {
+            shouldAttemptReply -> null
+            !aiReplyEnabled -> "AI 답장 OFF 상태입니다."
+            roomConfig == null -> "응답 설정이 없는 방입니다."
+            !roomConfig.replyEnabled -> "방별 답장이 OFF 상태입니다."
+            else -> "답장 조건을 충족하지 못했습니다."
+        }
         return IncomingHandlingPlan(
-            shouldCapture = roomConfig?.captureEnabled ?: true,
-            shouldAttemptReply = aiReplyEnabled && roomConfig?.replyEnabled == true
+            shouldCapture = shouldCapture,
+            shouldAttemptReply = shouldAttemptReply,
+            skippedReason = skippedReason
         )
     }
 

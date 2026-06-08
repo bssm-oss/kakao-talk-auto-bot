@@ -1,6 +1,7 @@
 package com.example.kakaotalkautobot
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,6 +17,7 @@ class NotificationListenerTest {
 
         assertTrue(plan.shouldCapture)
         assertFalse(plan.shouldAttemptReply)
+        assertEquals("AI 답장 OFF 상태입니다.", plan.skippedReason)
     }
 
     @Test
@@ -27,6 +29,7 @@ class NotificationListenerTest {
 
         assertTrue(plan.shouldCapture)
         assertFalse(plan.shouldAttemptReply)
+        assertEquals("방별 답장이 OFF 상태입니다.", plan.skippedReason)
     }
 
     @Test
@@ -38,6 +41,7 @@ class NotificationListenerTest {
 
         assertTrue(plan.shouldCapture)
         assertFalse(plan.shouldAttemptReply)
+        assertEquals("응답 설정이 없는 방입니다.", plan.skippedReason)
     }
 
     @Test
@@ -49,5 +53,6 @@ class NotificationListenerTest {
 
         assertFalse(plan.shouldCapture)
         assertTrue(plan.shouldAttemptReply)
+        assertEquals(null, plan.skippedReason)
     }
 }
