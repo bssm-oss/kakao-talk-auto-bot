@@ -593,10 +593,18 @@ object AiProviderClient {
         }
         val explicitDeadline = Regex("(\\d{1,2})\\s*월\\s*(\\d{1,2})\\s*일(?:\\s*\\d{1,2}\\s*시)?").find(combinedFacts)
         if (explicitDeadline != null) {
-            return "${explicitDeadline.value}까지로 알고 있어."
+            return if (!prefersCasualTone(config) && prefersFormalTone(config)) {
+                "${explicitDeadline.value}까지입니다."
+            } else {
+                "${explicitDeadline.value}까지로 알고 있어."
+            }
         }
 
-        return "아직 일정이 확정된 건 못 찾았어. 정리되면 바로 공유할게."
+        return if (!prefersCasualTone(config) && prefersFormalTone(config)) {
+            "아직 일정이 확정된 내용은 못 찾았습니다."
+        } else {
+            "아직 일정이 확정된 건 못 찾았어. 정리되면 바로 공유할게."
+        }
     }
 
     internal fun findUnknownFactGuardReply(
