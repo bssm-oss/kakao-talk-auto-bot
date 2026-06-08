@@ -28,7 +28,7 @@ ARM64 실기기에서 Gemma 기본 모델과 실제 런타임 경로를 확인�
 scripts/verify-real-device-e2e.sh
 ```
 
-이 스크립트는 한 대의 ARM64 실기기 연결을 요구하고, debug APK와 androidTest APK 설치, Gemma 계측 테스트 실행, 모델 파일 크기/SHA-256 확인, 로그캣 저장까지 수행합니다. 요약 파일에는 기기 브랜드/모델/Android 버전, 알림 리스너 권한 상태(`notification_listener_enabled`), 계측 테스트 상태(`instrumentation_status`), 모델 파일 증거, 모델 로드 로그 감지(`model_load_log_detected`), 생성 응답 로그 감지(`model_generation_log_detected`), 생성/후보 로그 카운트, 로그캣 경로가 함께 남습니다. 카카오톡 알림 수신과 실제 자동 답장 표시는 계정/알림 권한이 필요한 수동 E2E 단계로 남기며, 스크립트가 생성하는 `outputs/real-device-e2e/*-summary.txt` 에 `manual_kakao_*` 증거 필드와 `manual_kakao_pending_reason` 을 남깁니다. 연결 기기가 없거나, 여러 대가 붙었거나, 에뮬레이터/비 ARM64 기기라서 중단되어도 `status=blocked` 와 `blocker_reason` 이 요약 파일에 남습니다.
+이 스크립트는 한 대의 ARM64 실기기 연결을 요구하고, debug APK와 androidTest APK 설치, Gemma 계측 테스트 실행, 모델 파일 크기/SHA-256 확인, 로그캣 저장까지 수행합니다. ADB에 에뮬레이터가 같이 떠 있으면 에뮬레이터는 진단에만 남기고 ARM64 실기기만 정확히 1대 선택합니다. 요약 파일에는 연결 기기 수, 실기기/에뮬레이터/비 ARM64 기기 수, 기기 브랜드/모델/Android 버전, 알림 리스너 권한 상태(`notification_listener_enabled`), 계측 테스트 상태(`instrumentation_status`), 모델 파일 증거, 모델 로드 로그 감지(`model_load_log_detected`), 생성 응답 로그 감지(`model_generation_log_detected`), 생성/후보 로그 카운트, 로그캣 경로가 함께 남습니다. 카카오톡 알림 수신과 실제 자동 답장 표시는 계정/알림 권한이 필요한 수동 E2E 단계로 남기며, 스크립트가 생성하는 `outputs/real-device-e2e/*-summary.txt` 에 `manual_kakao_*` 증거 필드와 `manual_kakao_pending_reason` 을 남깁니다. 연결된 ARM64 실기기가 없거나 여러 대라서 중단되어도 `status=blocked`, `blocker_reason`, 기기 분류 카운트가 요약 파일에 남습니다.
 
 실기기 없이 수동 증거 필드 형식만 확인하려면 다음을 실행합니다.
 
@@ -130,7 +130,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] `./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease` 통과
 - [ ] `git diff --check` 통과
 - [ ] `scripts/verify-real-device-e2e.sh` 가 ARM64 실기기에서 `status=complete` 로 끝남
-- [ ] 실기기 조건 미충족 시 `outputs/real-device-e2e/*-summary.txt` 에 `status=blocked` 와 `blocker_reason` 이 남음
+- [ ] 실기기 조건 미충족 시 `outputs/real-device-e2e/*-summary.txt` 에 `status=blocked`, `blocker_reason`, `real_device_count`, `emulator_device_count`, `non_arm64_device_count` 가 남음
 - [ ] 트리거 기본값이 빈 값이나 레거시 설정에서 `모든 메시지` 로 잘못 승격되지 않음
 - [ ] `AI가 판단`, `모든 메시지`, `호출어/멘션만`, `질문/명령만` 모드가 각각 의도대로 동작함
 - [ ] `AI가 판단` 모드에서 낮은 신호 메시지는 모델 파일이 없어도 실패가 아니라 skip으로 기록됨

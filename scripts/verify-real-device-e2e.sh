@@ -98,6 +98,17 @@ count_log() {
   grep -E -c "${pattern}" "${LOGCAT_FILE}" 2>/dev/null || true
 }
 
+is_emulator_device() {
+  local serial="$1"
+  local fingerprint="$2"
+  local brand="$3"
+  local model="$4"
+  [[ "${serial}" == emulator-* ||
+    "${fingerprint}" == *generic* ||
+    "${fingerprint}" == *sdk_gphone* ||
+    ( "${brand}" == "google" && "${model}" == sdk_gphone* ) ]]
+}
+
 write_blocker_summary() {
   local reason="$1"
   shift || true
@@ -129,17 +140,55 @@ fi
 mkdir -p "${OUT_DIR}"
 "${ADB_BIN}" devices -l > "${ADB_DEVICES_FILE}"
 mapfile -t DEVICES < <("${ADB_BIN}" devices | awk 'NR > 1 && $2 == "device" { print $1 }')
-if [[ "${#DEVICES[@]}" -ne 1 ]]; then
+
+REAL_DEVICES=()
+EMULATOR_DEVICES=()
+NON_ARM64_DEVICES=()
+DEVICE_DIAGNOSTICS=("attached_device_count=${#DEVICES[@]}" "adb_devices_file=${ADB_DEVICES_FILE}")
+for index in "${!DEVICES[@]}"; do
+  device_serial="${DEVICES[${index}]}"
+  device_abi="$("${ADB_BIN}" -s "${device_serial}" shell getprop ro.product.cpu.abi | tr -d '\r')"
+  device_fingerprint="$("${ADB_BIN}" -s "${device_serial}" shell getprop ro.build.fingerprint | tr -d '\r')"
+  device_brand="$("${ADB_BIN}" -s "${device_serial}" shell getprop ro.product.brand | tr -d '\r')"
+  device_model="$("${ADB_BIN}" -s "${device_serial}" shell getprop ro.product.model | tr -d '\r')"
+  DEVICE_DIAGNOSTICS+=(
+    "device_${index}_serial=${device_serial}"
+    "device_${index}_abi=${device_abi}"
+    "device_${index}_fingerprint=${device_fingerprint}"
+    "device_${index}_brand=${device_brand}"
+    "device_${index}_model=${device_model}"
+  )
+
+  if [[ "${device_abi}" != arm64* ]]; then
+    NON_ARM64_DEVICES+=("${device_serial}")
+  elif is_emulator_device "${device_serial}" "${device_fingerprint}" "${device_brand}" "${device_model}"; then
+    EMULATOR_DEVICES+=("${device_serial}")
+  else
+    REAL_DEVICES+=("${device_serial}")
+  fi
+done
+DEVICE_DIAGNOSTICS+=(
+  "real_device_count=${#REAL_DEVICES[@]}"
+  "emulator_device_count=${#EMULATOR_DEVICES[@]}"
+  "non_arm64_device_count=${#NON_ARM64_DEVICES[@]}"
+)
+
+if [[ "${#REAL_DEVICES[@]}" -ne 1 ]]; then
   cat "${ADB_DEVICES_FILE}"
+  BLOCKER_REASON="expected_exactly_one_real_device"
+  if [[ "${#REAL_DEVICES[@]}" -eq 0 && "${#EMULATOR_DEVICES[@]}" -gt 0 && "${#NON_ARM64_DEVICES[@]}" -eq 0 ]]; then
+    BLOCKER_REASON="emulator_detected"
+  elif [[ "${#REAL_DEVICES[@]}" -eq 0 ]]; then
+    BLOCKER_REASON="no_arm64_real_device"
+  fi
   write_blocker_summary \
-    "expected_exactly_one_device" \
-    "device_count=${#DEVICES[@]}" \
-    "adb_devices_file=${ADB_DEVICES_FILE}"
-  echo "Expected exactly one attached Android device." >&2
+    "${BLOCKER_REASON}" \
+    "${DEVICE_DIAGNOSTICS[@]}"
+  echo "Expected exactly one attached ARM64 real device; found ${#REAL_DEVICES[@]} real, ${#EMULATOR_DEVICES[@]} emulator, ${#NON_ARM64_DEVICES[@]} non-ARM64." >&2
   exit 1
 fi
 
-SERIAL="${DEVICES[0]}"
+SERIAL="${REAL_DEVICES[0]}"
 ABI="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.product.cpu.abi | tr -d '\r')"
 if [[ "${ABI}" != arm64* ]]; then
   write_blocker_summary \
@@ -156,7 +205,7 @@ DEVICE_BRAND="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.product.brand | tr 
 DEVICE_MODEL="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.product.model | tr -d '\r')"
 ANDROID_RELEASE="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.build.version.release | tr -d '\r')"
 ANDROID_SDK="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.build.version.sdk | tr -d '\r')"
-if [[ "${FINGERPRINT}" == *generic* || "${FINGERPRINT}" == *sdk_gphone* ]]; then
+if is_emulator_device "${SERIAL}" "${FINGERPRINT}" "${DEVICE_BRAND}" "${DEVICE_MODEL}"; then
   write_blocker_summary \
     "emulator_detected" \
     "serial=${SERIAL}" \
@@ -176,6 +225,10 @@ cd "${ROOT_DIR}"
 {
   echo "status=started"
   echo "serial=${SERIAL}"
+  echo "attached_device_count=${#DEVICES[@]}"
+  echo "real_device_count=${#REAL_DEVICES[@]}"
+  echo "emulator_device_count=${#EMULATOR_DEVICES[@]}"
+  echo "non_arm64_device_count=${#NON_ARM64_DEVICES[@]}"
   echo "abi=${ABI}"
   echo "fingerprint=${FINGERPRINT}"
   echo "device_brand=${DEVICE_BRAND}"
