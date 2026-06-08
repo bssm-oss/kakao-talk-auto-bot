@@ -83,6 +83,8 @@ class ReplyStatsStoreTest {
         assertEquals("room reply off", ReplyStatsStore.normalizeReason("room reply off"))
         assertEquals("condition not met", ReplyStatsStore.normalizeReason("condition not met"))
         assertEquals("blank message", ReplyStatsStore.normalizeReason("blank message"))
+        assertEquals(AutoReplyEngine.REASON_DUPLICATE_NOTIFICATION, ReplyStatsStore.normalizeReason("duplicate notification"))
+        assertEquals(AutoReplyEngine.REASON_DUPLICATE_NOTIFICATION, ReplyStatsStore.normalizeReason("중복 알림이라 답장을 건너뜁니다."))
     }
 
     @Test
@@ -238,6 +240,23 @@ class ReplyStatsStoreTest {
     }
 
     @Test
+    fun detailSummary_addsActionHintForDuplicateNotificationSkip() {
+        val detail = ReplyStatsStore.Snapshot(
+            incoming = 5,
+            sent = 1,
+            skipped = 2,
+            failed = 0,
+            failureReasons = emptyMap(),
+            skipReasons = mapOf(AutoReplyEngine.REASON_DUPLICATE_NOTIFICATION to 2),
+            lastSkipReason = AutoReplyEngine.REASON_DUPLICATE_NOTIFICATION,
+            lastSkipAtMillis = 1000L
+        ).detailSummary()
+
+        assertTrue(detail.contains("최근 스킵: duplicate notification"))
+        assertTrue(detail.contains("duplicate notification: 같은 방/발화자/메시지의 짧은 시간 내 알림 재게시 여부"))
+    }
+
+    @Test
     fun detailSummary_usesTopSkipActionHintWhenRecentSkipIsMissing() {
         val detail = ReplyStatsStore.Snapshot(
             incoming = 4,
@@ -284,6 +303,10 @@ class ReplyStatsStoreTest {
         assertEquals(
             "알림 텍스트 파싱 결과",
             ReplyStatsStore.actionHint("빈 메시지에는 답장하지 않습니다.")
+        )
+        assertEquals(
+            "같은 방/발화자/메시지의 짧은 시간 내 알림 재게시 여부",
+            ReplyStatsStore.actionHint(AutoReplyEngine.REASON_DUPLICATE_NOTIFICATION)
         )
     }
 

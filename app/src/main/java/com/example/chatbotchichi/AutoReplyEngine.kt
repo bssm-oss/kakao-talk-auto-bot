@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
 object AutoReplyEngine {
     private const val RECENT_REPLY_DEDUPE_TTL_MS = 12_000L
     private const val RECENT_REPLY_DEDUPE_MAX = 300
+    const val REASON_DUPLICATE_NOTIFICATION = "duplicate notification"
 
     /**
      * Reply generation stays off the main thread so notification capture remains responsive
@@ -41,7 +42,18 @@ object AutoReplyEngine {
             return
         }
         if (!config.replyEnabled) return
-        if (!shouldAcceptReplyWork(room, sender, message)) return
+        if (!shouldAcceptReplyWork(room, sender, message)) {
+            UiLogger.log(
+                context,
+                "OUT_SKIP",
+                "[$room] 중복 알림이라 답장을 건너뜁니다.",
+                roomName = room,
+                speaker = "AI",
+                serverMessage = "중복 알림이라 답장을 건너뜁니다.",
+                eventReason = REASON_DUPLICATE_NOTIFICATION
+            )
+            return
+        }
 
         replyScope.launch {
             mutexForRoom(room).withLock {

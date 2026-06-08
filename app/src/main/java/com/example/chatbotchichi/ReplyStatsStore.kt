@@ -191,6 +191,7 @@ object ReplyStatsStore {
             normalized.contains("응답 설정이 없는 방") -> "no room config"
             lowered.contains("off") || normalized.contains("답장 OFF") -> "reply off"
             normalized.contains("의미 없는 짧은 메시지") -> "low signal"
+            normalized.contains("중복 알림") || lowered.contains("duplicate notification") -> AutoReplyEngine.REASON_DUPLICATE_NOTIFICATION
             normalized.contains("응답 조건") || normalized.contains("조건을 충족") -> "condition not met"
             normalized.contains("모델이 로드되지") || lowered.contains("model") && lowered.contains("load") -> "model not loaded"
             normalized.contains("전송 가능한 품질") || lowered.contains("quality") && lowered.contains("candidate") -> "ai quality rejected"
@@ -217,7 +218,8 @@ object ReplyStatsStore {
         "condition not met",
         "reply off",
         "blank message",
-        "model not loaded"
+        "model not loaded",
+        AutoReplyEngine.REASON_DUPLICATE_NOTIFICATION
     )
 
     private fun readReasonMap(root: JSONObject, key: String): Map<String, Int> {
@@ -263,6 +265,7 @@ object ReplyStatsStore {
             "room reply off" -> "대상 방별 답장 활성화 스위치"
             "no room config" -> "대상 방 설정 생성 여부"
             "low signal" -> "AI 판단 모드의 낮은 신호 스킵 기준과 최근 대화 맥락"
+            AutoReplyEngine.REASON_DUPLICATE_NOTIFICATION -> "같은 방/발화자/메시지의 짧은 시간 내 알림 재게시 여부"
             "condition not met" -> "방 트리거와 발화자 조건"
             "reply off" -> "전역/방별 답장 스위치"
             "blank message" -> "알림 텍스트 파싱 결과"
