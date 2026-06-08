@@ -186,11 +186,11 @@ class DebugRoomActivity : AppCompatActivity() {
         val state = StyleProfileStore.getRoomLearnedStyleState(this, roomName, history)
         switchLearnedRoomStyle.isChecked = state.enabled
         editLearnedRoomStyle.setText(state.override)
-        learnedRoomStylePreview.text = if (state.generated.isBlank()) {
-            "자동 추출된 방 말투가 아직 없습니다. ${state.resetGuidance}"
-        } else {
-            "자동 추출 (${state.confidenceSummary}): ${state.generated}\n${state.resetGuidance}"
-        }
+        learnedRoomStylePreview.text = StyleProfileStore.learnedStylePreviewText(
+            subject = "방 말투",
+            state = state,
+            emptyMessage = "자동 추출된 방 말투가 아직 없습니다."
+        )
     }
 
     private fun configureSpinner(spinner: Spinner, items: List<String>) {

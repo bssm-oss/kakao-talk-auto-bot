@@ -66,6 +66,19 @@ object StyleProfileStore {
         val learnedRoomSampleCount: Int = 0
     )
 
+    fun learnedStylePreviewText(
+        subject: String,
+        state: LearnedStyleState,
+        emptyMessage: String
+    ): String {
+        val normalizedSubject = subject.trim().ifBlank { "말투" }
+        return if (state.generated.isBlank()) {
+            "$emptyMessage ${state.resetGuidance}"
+        } else {
+            "자동 추출 (${state.confidenceSummary}): ${state.generated}\n${state.resetGuidance}"
+        }.replace("학습 말투", "학습된 $normalizedSubject")
+    }
+
     fun buildPromptStyleGuide(
         context: Context,
         aiConfig: AppSettings.AiConfig,

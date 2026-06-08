@@ -189,4 +189,50 @@ class StyleProfileStoreTest {
         assertTrue(disabled.resetGuidance.contains("꺼져 있어"))
         assertTrue(disabled.resetGuidance.contains("반영되지 않습니다"))
     }
+
+    @Test
+    fun learnedStylePreviewText_includesResetGuidanceForUserStyle() {
+        val state = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "",
+            generated = "내 발화 기준: 반말과 캐주얼한 표현을 자주 씀",
+            confidence = 24,
+            sampleCount = 1
+        )
+
+        val preview = StyleProfileStore.learnedStylePreviewText(
+            subject = "내 말투",
+            state = state,
+            emptyMessage = "자동 추출된 내 말투가 아직 없습니다."
+        )
+
+        assertTrue(preview.contains("자동 추출"))
+        assertTrue(preview.contains("낮음"))
+        assertTrue(preview.contains("24점"))
+        assertTrue(preview.contains("샘플 1개"))
+        assertTrue(preview.contains("보조 힌트"))
+        assertTrue(preview.contains("학습 원본 삭제"))
+        assertTrue(preview.contains("새 대화"))
+    }
+
+    @Test
+    fun learnedStylePreviewText_explainsDisabledStateWhenGeneratedStyleExists() {
+        val state = StyleProfileStore.LearnedStyleState(
+            enabled = false,
+            override = "",
+            generated = "방 전체 말투 기준: 학교/팀방처럼 존댓말과 격식이 중심",
+            confidence = 78,
+            sampleCount = 8
+        )
+
+        val preview = StyleProfileStore.learnedStylePreviewText(
+            subject = "방 말투",
+            state = state,
+            emptyMessage = "자동 추출된 방 말투가 아직 없습니다."
+        )
+
+        assertTrue(preview.contains("꺼짐"))
+        assertTrue(preview.contains("학습된 방 말투가 꺼져 있어"))
+        assertTrue(preview.contains("반영되지 않습니다"))
+    }
 }

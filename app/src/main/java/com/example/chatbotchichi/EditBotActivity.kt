@@ -212,11 +212,11 @@ class EditBotActivity : AppCompatActivity() {
         val state = StyleProfileStore.getUserLearnedStyleState(this, config.displayName, history, importedText)
         switchLearnedUserStyle.isChecked = state.enabled
         editLearnedUserStyle.setText(state.override)
-        learnedUserStylePreview.text = if (state.generated.isBlank()) {
-            "자동 추출된 내 말투가 아직 없습니다. 방 대화나 CSV 내 발화가 쌓이면 답장 때 자동으로 참고합니다."
-        } else {
-            "자동 추출 (${state.confidenceSummary}): ${state.generated}"
-        }
+        learnedUserStylePreview.text = StyleProfileStore.learnedStylePreviewText(
+            subject = "내 말투",
+            state = state,
+            emptyMessage = "자동 추출된 내 말투가 아직 없습니다. 방 대화나 CSV 내 발화가 쌓이면 답장 때 자동으로 참고합니다."
+        )
     }
 
     private fun configureSpinner(spinner: Spinner, items: List<String>) {
