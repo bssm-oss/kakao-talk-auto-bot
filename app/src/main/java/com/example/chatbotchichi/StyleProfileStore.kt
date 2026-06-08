@@ -22,10 +22,16 @@ object StyleProfileStore {
         val effective: String
             get() = if (!enabled) "" else override.trim().ifBlank { generated.trim() }
 
+        val hasManualOverride: Boolean
+            get() = override.isNotBlank()
+
+        val resetOverrideButtonLabel: String
+            get() = if (hasManualOverride) "수정 초기화" else "수정 없음"
+
         val confidenceLabel: String
             get() = when {
                 !enabled -> "꺼짐"
-                override.isNotBlank() -> "수동 수정"
+                hasManualOverride -> "수동 수정"
                 confidence >= 80 -> "높음"
                 confidence >= 55 -> "보통"
                 confidence > 0 -> "낮음"
@@ -46,7 +52,7 @@ object StyleProfileStore {
         val resetGuidance: String
             get() = when {
                 !enabled -> "학습 말투가 꺼져 있어 현재 답장에는 반영되지 않습니다."
-                override.isNotBlank() -> "수동 수정값이 우선 적용됩니다. 자동 추출값만 다시 보려면 수정 초기화를 사용하세요."
+                hasManualOverride -> "수동 수정값이 우선 적용됩니다. 자동 추출값만 다시 보려면 수정 초기화를 사용하세요."
                 generated.isBlank() || sampleCount <= 0 -> "대화가 쌓이면 자동으로 다시 추출됩니다."
                 confidence in 1..54 -> "신뢰도가 낮습니다. 잘못 배웠다면 학습 원본 삭제 후 새 대화를 쌓으세요."
                 else -> "필요하면 학습 원본 삭제로 이 방의 자동 말투를 처음부터 다시 쌓을 수 있습니다."

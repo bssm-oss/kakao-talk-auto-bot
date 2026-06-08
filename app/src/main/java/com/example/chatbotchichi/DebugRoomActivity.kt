@@ -186,6 +186,8 @@ class DebugRoomActivity : AppCompatActivity() {
         val state = StyleProfileStore.getRoomLearnedStyleState(this, roomName, history)
         switchLearnedRoomStyle.isChecked = state.enabled
         editLearnedRoomStyle.setText(state.override)
+        resetLearnedRoomStyleButton.text = state.resetOverrideButtonLabel
+        resetLearnedRoomStyleButton.isEnabled = state.hasManualOverride
         learnedRoomStylePreview.text = StyleProfileStore.learnedStylePreviewText(
             subject = "방 말투",
             state = state,
