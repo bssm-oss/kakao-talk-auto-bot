@@ -46,6 +46,10 @@ object ReplyQualityEvaluator {
             score -= 20
             reasons.add("over_explained")
         }
+        if (overRepliesToLowSignal(normalized, message)) {
+            score -= 26
+            reasons.add("low_signal_overreply")
+        }
         if (echoesPrompt(normalized, message)) {
             score -= 22
             reasons.add("prompt_echo")
@@ -170,6 +174,14 @@ object ReplyQualityEvaluator {
         if (phraseHits == 0) return false
         val sentenceLikeBreaks = reply.count { it == '.' || it == '!' || it == '?' || it == '。' || it == '？' || it == '！' }
         return sentenceLikeBreaks >= 2 || reply.length >= 50 || (reply.length >= 30 && reply.contains("추가로"))
+    }
+
+    internal fun overRepliesToLowSignal(reply: String, message: String): Boolean {
+        if (!AiProviderClient.isLowSignalMessage(message)) return false
+        if (reply.length <= 14 && reply.lines().size == 1) return false
+        val replyLooksLikeBriefAck = listOf("응", "ㅇㅋ", "오케이", "넵", "네", "알겠", "좋아").any { reply.contains(it) }
+        val sentenceLikeBreaks = reply.count { it == '.' || it == '!' || it == '?' || it == '。' || it == '？' || it == '！' }
+        return reply.length > 22 || sentenceLikeBreaks >= 2 || (replyLooksLikeBriefAck && reply.length > 14)
     }
 
     private fun echoesPrompt(reply: String, message: String): Boolean {
