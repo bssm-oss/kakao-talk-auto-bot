@@ -42,6 +42,10 @@ object ReplyQualityEvaluator {
             score -= 18
             reasons.add("assistant_boilerplate")
         }
+        if (looksLikeServiceApologyBoilerplate(normalized)) {
+            score -= 24
+            reasons.add("service_apology_boilerplate")
+        }
         if (looksSelfReferentialBusinessTone(normalized)) {
             score -= 18
             reasons.add("self_referential_business_tone")
@@ -163,6 +167,26 @@ object ReplyQualityEvaluator {
             "확인해보겠습니다",
             "좋은 질문"
         ).any { reply.contains(it) }
+    }
+
+    internal fun looksLikeServiceApologyBoilerplate(reply: String): Boolean {
+        val normalized = normalizeForExampleMatch(reply)
+        val apology = listOf(
+            "죄송합니다",
+            "죄송해요",
+            "불편을드려",
+            "양해부탁",
+            "양해해주세요"
+        ).any { normalized.contains(normalizeForExampleMatch(it)) }
+        val servicePhrase = listOf(
+            "안내드리겠습니다",
+            "도움이되셨길",
+            "도움되셨길",
+            "최선을다하겠습니다",
+            "문의사항",
+            "필요한사항"
+        ).any { normalized.contains(normalizeForExampleMatch(it)) }
+        return apology || servicePhrase
     }
 
     internal fun looksSelfReferentialBusinessTone(reply: String): Boolean {
