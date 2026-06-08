@@ -126,6 +126,22 @@ object ReplyQualityScenarios {
                 expectedTraits = setOf("formal", "short")
             ),
             Scenario(
+                id = "school_concise_no_overexplained",
+                room = "학교방",
+                sender = "선생님",
+                message = "오늘 전달할 내용 있나요?",
+                config = AutoReplyJson.defaultConfig("학교방").copy(
+                    roomStyle = "학교 단톡. 존댓말. 별일 없으면 짧고 단정하게 답장하고 부연 설명을 붙이지 않음",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("선생님", "오늘 전달할 내용 있나요?", true, 1L),
+                    RoomHistoryMessage("나", "별일 없습니다.", false, 2L)
+                ),
+                expectedTraits = setOf("formal", "short", "concise_no_overexplained"),
+                minimumScore = 60
+            ),
+            Scenario(
                 id = "low_signal_skip",
                 room = "친구방",
                 sender = "민수",
@@ -271,6 +287,7 @@ object ReplyQualityScenarios {
             ScenarioExample("team_formal", "별일없습니다!"),
             ScenarioExample("team_known_fact_no_generic_ack", "15시입니다."),
             ScenarioExample("school_formal_notice", "별일 없습니다."),
+            ScenarioExample("school_concise_no_overexplained", "별일 없습니다."),
             ScenarioExample("low_signal_skip", ""),
             ScenarioExample("low_signal_with_context_ack", "응 알겠어"),
             ScenarioExample("ambiguous_clarify", "문서 말하는 거야, 발표 자료 말하는 거야?"),
@@ -422,6 +439,9 @@ object ReplyQualityScenarios {
         }
         if ("no_generic_ack" in scenario.expectedTraits) {
             if ("generic_ack_instead_of_known_fact" in candidate.reasons) score -= 40 else score += 20
+        }
+        if ("concise_no_overexplained" in scenario.expectedTraits) {
+            if ("over_explained" in candidate.reasons || "assistant_boilerplate" in candidate.reasons) score -= 40 else score += 20
         }
         if (ReplyQualityEvaluator.containsAiMetaText(normalized)) score -= 30
         if (normalized.length > 120) score -= 20

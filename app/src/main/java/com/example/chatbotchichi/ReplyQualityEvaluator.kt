@@ -42,6 +42,10 @@ object ReplyQualityEvaluator {
             score -= 18
             reasons.add("assistant_boilerplate")
         }
+        if (looksOverExplained(normalized)) {
+            score -= 20
+            reasons.add("over_explained")
+        }
         if (echoesPrompt(normalized, message)) {
             score -= 22
             reasons.add("prompt_echo")
@@ -147,6 +151,25 @@ object ReplyQualityEvaluator {
             "확인해보겠습니다",
             "좋은 질문"
         ).any { reply.contains(it) }
+    }
+
+    internal fun looksOverExplained(reply: String): Boolean {
+        val explanatoryPhrases = listOf(
+            "추가로",
+            "필요하시면",
+            "필요하면",
+            "말씀해 주세요",
+            "알려주세요",
+            "공유드리겠습니다",
+            "확인 후",
+            "진행하겠습니다",
+            "참고해주세요",
+            "문의 주세요"
+        )
+        val phraseHits = explanatoryPhrases.count { reply.contains(it) }
+        if (phraseHits == 0) return false
+        val sentenceLikeBreaks = reply.count { it == '.' || it == '!' || it == '?' || it == '。' || it == '？' || it == '！' }
+        return sentenceLikeBreaks >= 2 || reply.length >= 50 || (reply.length >= 30 && reply.contains("추가로"))
     }
 
     private fun echoesPrompt(reply: String, message: String): Boolean {

@@ -160,6 +160,37 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_penalizesOverExplainedSchoolNoticeReply() {
+        val config = AutoReplyJson.defaultConfig("학교방").copy(
+            roomStyle = "학교 단톡. 존댓말. 별일 없으면 짧고 단정하게 답장"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "별일 없습니다. 추가로 필요한 내용이 있으면 말씀해 주세요.",
+                reply = "별일 없습니다. 추가로 필요한 내용이 있으면 말씀해 주세요.",
+                config = config,
+                message = "오늘 전달할 내용 있나요?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "compact",
+                raw = "별일 없습니다.",
+                reply = "별일 없습니다.",
+                config = config,
+                message = "오늘 전달할 내용 있나요?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("compact", best?.source)
+        assertTrue(candidates.first().reasons.contains("over_explained"))
+        assertTrue(candidates.last().reasons.contains("manual_room_style_match"))
+    }
+
+    @Test
     fun selectBest_usesSourcePriorOnlyAsTieBreakerForCloseCandidates() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             roomStyle = "친한 친구방. 가볍게 반말."
@@ -326,6 +357,7 @@ class ReplyQualityEvaluatorTest {
             "team_formal",
             "team_known_fact_no_generic_ack",
             "school_formal_notice",
+            "school_concise_no_overexplained",
             "low_signal_skip",
             "low_signal_with_context_ack",
             "ambiguous_clarify",
@@ -345,6 +377,7 @@ class ReplyQualityEvaluatorTest {
         assertTrue("manual example trait missing", "manual_example" in coverage.traitIds)
         assertTrue("no echo trait missing", "no_echo" in coverage.traitIds)
         assertTrue("no generic ack trait missing", "no_generic_ack" in coverage.traitIds)
+        assertTrue("concise trait missing", "concise_no_overexplained" in coverage.traitIds)
         assertTrue("skip trait missing", "skip" in coverage.traitIds)
         assertTrue("ack trait missing", "ack" in coverage.traitIds)
     }
@@ -368,6 +401,7 @@ class ReplyQualityEvaluatorTest {
             "team_formal" to "별일없습니다!",
             "team_known_fact_no_generic_ack" to "15시입니다.",
             "school_formal_notice" to "별일 없습니다.",
+            "school_concise_no_overexplained" to "별일 없습니다.",
             "low_signal_skip" to "",
             "low_signal_with_context_ack" to "응 알겠어",
             "ambiguous_clarify" to "문서 말하는 거야, 발표 자료 말하는 거야?",
@@ -393,11 +427,13 @@ class ReplyQualityEvaluatorTest {
         val manualOverride = ReplyQualityScenarios.builtIns().first { it.id == "manual_example_override" }
         val noEcho = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_echo" }
         val noGenericAck = ReplyQualityScenarios.builtIns().first { it.id == "team_known_fact_no_generic_ack" }
+        val concise = ReplyQualityScenarios.builtIns().first { it.id == "school_concise_no_overexplained" }
 
         assertTrue(!ReplyQualityScenarios.evaluateReply("AI 모델로는 답변할 수 없습니다.", unknown).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("됐어.", ambiguous).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("별일 없습니다.", manualOverride).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("오늘 뭐함", noEcho).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("네 확인했습니다.", noGenericAck).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("별일 없습니다. 추가로 필요한 내용이 있으면 말씀해 주세요.", concise).passed)
     }
 }
