@@ -1,5 +1,6 @@
 package com.example.kakaotalkautobot
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -47,5 +48,51 @@ class ReplyStatsStoreTest {
         ).summary()
 
         assertTrue(summary.contains("최다 실패: pendingIntent send failed 2회"))
+    }
+
+    @Test
+    fun normalizeReason_collapsesKnownSendFailureVariants() {
+        assertEquals(
+            SessionReplier.REASON_NO_SESSION,
+            ReplyStatsStore.normalizeReason("AI 답장은 생성됐지만 카카오톡 전송에 실패했습니다. (reason=no session)")
+        )
+        assertEquals(
+            SessionReplier.REASON_PENDING_INTENT_SEND_FAILED,
+            ReplyStatsStore.normalizeReason("send_failed_after_generation:pendingIntent send failed")
+        )
+        assertEquals(
+            SessionReplier.REASON_NO_REMOTE_INPUT,
+            ReplyStatsStore.normalizeReason("no remoteInput")
+        )
+    }
+
+    @Test
+    fun normalizeReason_collapsesSkipAndModelReasons() {
+        assertEquals("reply off", ReplyStatsStore.normalizeReason("AI 답장 OFF · 메시지 수집 중"))
+        assertEquals("low signal", ReplyStatsStore.normalizeReason("의미 없는 짧은 메시지입니다."))
+        assertEquals("model not loaded", ReplyStatsStore.normalizeReason("LLM 모델이 로드되지 않았습니다. 모델 다운로드를 기다려주세요."))
+    }
+
+    @Test
+    fun detailSummary_listsTopFailureAndSkipReasons() {
+        val detail = ReplyStatsStore.Snapshot(
+            incoming = 9,
+            sent = 2,
+            skipped = 3,
+            failed = 4,
+            failureReasons = mapOf(
+                SessionReplier.REASON_NO_SESSION to 1,
+                SessionReplier.REASON_PENDING_INTENT_SEND_FAILED to 3
+            ),
+            skipReasons = mapOf(
+                "reply off" to 2,
+                "low signal" to 1
+            )
+        ).detailSummary()
+
+        assertTrue(detail.contains("실패: pendingIntent send failed 3회"))
+        assertTrue(detail.contains("no session 1회"))
+        assertTrue(detail.contains("스킵: reply off 2회"))
+        assertTrue(detail.contains("low signal 1회"))
     }
 }

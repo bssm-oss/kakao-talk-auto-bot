@@ -25,6 +25,24 @@ object ReplyStatsStore {
             }
             return "수신 $incoming · 전송 $sent · 스킵 $skipped · 실패 $failed · $reasonText"
         }
+
+        fun detailSummary(limit: Int = 3): String {
+            val failures = reasonSummary("실패", failureReasons, limit)
+            val skips = reasonSummary("스킵", skipReasons, limit)
+            return listOf(failures, skips)
+                .filter { it.isNotBlank() }
+                .ifEmpty { listOf("원인 없음") }
+                .joinToString(" · ")
+        }
+
+        private fun reasonSummary(label: String, reasons: Map<String, Int>, limit: Int): String {
+            if (reasons.isEmpty()) return ""
+            val text = reasons.entries
+                .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+                .take(limit.coerceAtLeast(1))
+                .joinToString(", ") { "${it.key} ${it.value}회" }
+            return "$label: $text"
+        }
     }
 
     @Synchronized
@@ -76,9 +94,31 @@ object ReplyStatsStore {
 
     private fun incrementReason(root: JSONObject, key: String, reason: String?) {
         val reasons = root.optJSONObject(key) ?: JSONObject()
-        val normalizedReason = reason?.trim()?.ifBlank { null } ?: "unknown"
+        val normalizedReason = normalizeReason(reason)
         reasons.put(normalizedReason, reasons.optInt(normalizedReason, 0) + 1)
         root.put(key, reasons)
+    }
+
+    internal fun normalizeReason(reason: String?): String {
+        val normalized = reason
+            ?.trim()
+            ?.ifBlank { null }
+            ?: return "unknown"
+        val lowered = normalized.lowercase()
+        return when {
+            lowered.contains(SessionReplier.REASON_NO_SESSION.lowercase()) -> SessionReplier.REASON_NO_SESSION
+            lowered.contains(SessionReplier.REASON_NO_REMOTE_INPUT.lowercase()) -> SessionReplier.REASON_NO_REMOTE_INPUT
+            lowered.contains(SessionReplier.REASON_PENDING_INTENT_NULL.lowercase()) -> SessionReplier.REASON_PENDING_INTENT_NULL
+            lowered.contains(SessionReplier.REASON_PENDING_INTENT_SEND_FAILED.lowercase()) -> SessionReplier.REASON_PENDING_INTENT_SEND_FAILED
+            lowered.contains(SessionReplier.REASON_EXCEPTION.lowercase()) -> SessionReplier.REASON_EXCEPTION
+            lowered.contains("send_failed_after_generation") -> "send_failed_after_generation"
+            lowered.contains("off") || normalized.contains("답장 OFF") -> "reply off"
+            normalized.contains("의미 없는 짧은 메시지") -> "low signal"
+            normalized.contains("응답 조건") || normalized.contains("조건을 충족") -> "condition not met"
+            normalized.contains("모델이 로드되지") || lowered.contains("model") && lowered.contains("load") -> "model not loaded"
+            normalized.contains("빈 메시지") -> "blank message"
+            else -> normalized.take(80)
+        }
     }
 
     private fun readReasonMap(root: JSONObject, key: String): Map<String, Int> {
