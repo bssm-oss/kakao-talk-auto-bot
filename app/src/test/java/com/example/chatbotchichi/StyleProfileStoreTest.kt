@@ -102,4 +102,34 @@ class StyleProfileStoreTest {
         assertTrue(high.confidence >= 80)
         assertTrue(high.sampleCount == 12)
     }
+
+    @Test
+    fun learnedStyleState_confidenceSummary_marksLowConfidenceAsSecondaryHint() {
+        val state = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "",
+            generated = "방 전체 말투 기준: 친한 친구방처럼 가볍고 짧은 반응이 중심",
+            confidence = 24,
+            sampleCount = 1
+        )
+
+        assertTrue(state.confidenceSummary.contains("낮음"))
+        assertTrue(state.confidenceSummary.contains("24점"))
+        assertTrue(state.confidenceSummary.contains("샘플 1개"))
+        assertTrue(state.confidenceSummary.contains("보조 힌트"))
+    }
+
+    @Test
+    fun learnedStyleState_confidenceSummary_marksManualOverrideAsManual() {
+        val state = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "친구방에서는 아무것도 없긴해처럼 짧게 반말",
+            generated = "방 전체 말투 기준: 학교/팀방처럼 존댓말과 격식이 중심",
+            confidence = 24,
+            sampleCount = 1
+        )
+
+        assertTrue(state.confidenceSummary.contains("수동 수정"))
+        assertTrue(!state.confidenceSummary.contains("보조 힌트"))
+    }
 }
