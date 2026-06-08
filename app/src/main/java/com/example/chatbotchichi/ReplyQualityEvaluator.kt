@@ -86,10 +86,17 @@ object ReplyQualityEvaluator {
         )
     }
 
-    fun selectBest(candidates: List<Candidate>): Candidate? {
+    fun selectBest(
+        candidates: List<Candidate>,
+        sourcePriors: Map<String, Int> = emptyMap()
+    ): Candidate? {
         return candidates
             .filter { it.reply.isNotBlank() && it.score >= 45 }
-            .maxWithOrNull(compareBy<Candidate> { it.score }.thenBy { -it.reply.length })
+            .maxWithOrNull(
+                compareBy<Candidate> { it.score + sourcePriors.getOrDefault(it.source, 0) }
+                    .thenBy { it.score }
+                    .thenBy { -it.reply.length }
+            )
     }
 
     internal fun containsAiMetaText(reply: String): Boolean {

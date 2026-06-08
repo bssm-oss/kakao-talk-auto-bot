@@ -98,16 +98,18 @@ object AiProviderClient {
             Log.d(TAG, "Prompt length: ${prompt.length} chars, judgeMode=$judgeMode")
             Log.d(TAG, "Config: persona=${config.persona.take(30)}, roomMemory=${config.roomMemory.take(30)}, replyMode=${config.replyMode}")
 
+            val candidateStats = ReplyCandidateStatsStore.snapshot(context)
+            val sourcePriors = candidateStats.selectionPriors()
             val candidates = deterministicCandidates + generateCandidateReplies(config, room, sender, normalizedMessage, history, prompt, styleGuide)
             logCandidateSummary(candidates)
-            val bestCandidate = ReplyQualityEvaluator.selectBest(candidates)
+            val bestCandidate = ReplyQualityEvaluator.selectBest(candidates, sourcePriors)
             ReplyCandidateStatsStore.recordBatch(context, candidates, bestCandidate?.source)
             val rawResponse = bestCandidate?.raw.orEmpty()
 
             if (bestCandidate != null) {
                 Log.d(
                     TAG,
-                    "Selected LLM reply source=${bestCandidate.source}, score=${bestCandidate.score}, reasons=${bestCandidate.reasons}"
+                    "Selected LLM reply source=${bestCandidate.source}, score=${bestCandidate.score}, sourcePrior=${sourcePriors.getOrDefault(bestCandidate.source, 0)}, reasons=${bestCandidate.reasons}"
                 )
                 Log.d(TAG, "Raw LLM response preview: '${rawResponse.take(100)}'")
             } else {

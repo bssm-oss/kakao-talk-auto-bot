@@ -97,6 +97,70 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_usesSourcePriorOnlyAsTieBreakerForCloseCandidates() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 가볍게 반말."
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "응 알겠어",
+                reply = "응 알겠어",
+                config = config,
+                message = "오늘 가능?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "human_style",
+                raw = "가능해",
+                reply = "가능해",
+                config = config,
+                message = "오늘 가능?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(
+            candidates = candidates,
+            sourcePriors = mapOf("human_style" to 6)
+        )
+
+        assertEquals("human_style", best?.source)
+    }
+
+    @Test
+    fun selectBest_doesNotLetSourcePriorOverrideClearlyBetterReply() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 가볍게 반말. 예시: 아무것도 없긴해"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "아무것도 없긴해",
+                reply = "아무것도 없긴해",
+                config = config,
+                message = "오늘 뭐 있어?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "compact",
+                raw = "좋은 질문입니다. 무엇을 도와드릴까요?",
+                reply = "좋은 질문입니다. 무엇을 도와드릴까요?",
+                config = config,
+                message = "오늘 뭐 있어?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(
+            candidates = candidates,
+            sourcePriors = mapOf("compact" to 6)
+        )
+
+        assertEquals("primary", best?.source)
+    }
+
+    @Test
     fun selectBest_penalizesCasualToneInSchoolRoom() {
         val config = AutoReplyJson.defaultConfig("학교방").copy(
             roomStyle = "학교 단톡. 존댓말로 단정하게 답장"

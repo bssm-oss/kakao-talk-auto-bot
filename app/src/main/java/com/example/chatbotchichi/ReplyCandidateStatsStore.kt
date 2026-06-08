@@ -7,6 +7,7 @@ object ReplyCandidateStatsStore {
     private const val PREFS_NAME = "ReplyCandidateStatsPrefs"
     private const val KEY_COUNTS = "counts"
     private const val MIN_QUALITY_SCORE = 45
+    private const val MIN_PRIOR_SAMPLE_COUNT = 5
 
     data class SourceStats(
         val generated: Int,
@@ -35,6 +36,26 @@ object ReplyCandidateStatsStore {
                 .joinToString(" · ") { (source, stats) ->
                     "$source 선택 ${stats.selected}/${stats.generated}, 빈 ${stats.blank}, 저품질 ${stats.lowQuality}, 평균 ${stats.averageLatencyMs}ms"
                 }
+        }
+
+        fun selectionPriors(): Map<String, Int> {
+            return sources.mapValues { (_, stats) ->
+                stats.selectionPrior()
+            }.filterValues { it != 0 }
+        }
+    }
+
+    internal fun SourceStats.selectionPrior(): Int {
+        if (generated < MIN_PRIOR_SAMPLE_COUNT) return 0
+        val selectedRate = selected.toDouble() / generated
+        val blankRate = blank.toDouble() / generated
+        val lowQualityRate = lowQuality.toDouble() / generated
+        return when {
+            selectedRate >= 0.45 && blankRate <= 0.15 && lowQualityRate <= 0.25 -> 6
+            selectedRate >= 0.30 && blankRate <= 0.20 && lowQualityRate <= 0.35 -> 3
+            blankRate >= 0.35 || lowQualityRate >= 0.55 -> -6
+            blankRate >= 0.25 || lowQualityRate >= 0.40 -> -3
+            else -> 0
         }
     }
 
