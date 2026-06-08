@@ -257,6 +257,22 @@ object ReplyQualityScenarios {
                 ),
                 expectedTraits = setOf("casual", "short", "manual_example"),
                 minimumScore = 55
+            ),
+            Scenario(
+                id = "friend_no_business_ack",
+                room = "친구방",
+                sender = "민수",
+                message = "오늘 별일 있어?",
+                config = AutoReplyJson.defaultConfig("친구방").copy(
+                    roomStyle = "친한 친구방. 가볍게 반말. 업무용 확인 답장 금지. 예시: 아무것도 없긴해",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("민수", "오늘 별일 있어?", true, 1L),
+                    RoomHistoryMessage("나", "아무것도 없긴해", false, 2L)
+                ),
+                expectedTraits = setOf("casual", "short", "manual_example", "no_business_ack"),
+                minimumScore = 65
             )
         )
     }
@@ -295,7 +311,8 @@ object ReplyQualityScenarios {
             ScenarioExample("unknown_fact_guard", "아직 확인된 내용은 못 찾았습니다."),
             ScenarioExample("friend_unknown_fact_guard", "아직 확인된 건 못 찾았어."),
             ScenarioExample("room_memory_fact", "6월 12일 18시까지입니다."),
-            ScenarioExample("manual_example_override", "아무것도 없긴해")
+            ScenarioExample("manual_example_override", "아무것도 없긴해"),
+            ScenarioExample("friend_no_business_ack", "아무것도 없긴해")
         )
     }
 
@@ -446,6 +463,9 @@ object ReplyQualityScenarios {
         }
         if ("low_signal_brief_ack" in scenario.expectedTraits) {
             if ("low_signal_overreply" in candidate.reasons || "over_explained" in candidate.reasons) score -= 40 else score += 20
+        }
+        if ("no_business_ack" in scenario.expectedTraits) {
+            if ("generic_business_ack_in_casual_room" in candidate.reasons) score -= 40 else score += 20
         }
         if (ReplyQualityEvaluator.containsAiMetaText(normalized)) score -= 30
         if (normalized.length > 120) score -= 20

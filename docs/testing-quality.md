@@ -20,7 +20,7 @@
 scripts/generate-reply-quality-report.sh
 ```
 
-리포트는 `app/build/reports/reply-quality/report.md` 에 생성됩니다. `Expected Reply Examples` 는 각 시나리오의 기대 예문, trait, 점수, 최소 기준, 통과 여부를 표로 남기고, 수동 예시 우선순위 충돌 시나리오는 존댓말 이력이 있더라도 직접 적은 예시와 가까운 답장이 통과하는지 확인합니다. 친구방 짧은 echo 방지 시나리오는 모델이 `오늘 뭐함` 같은 짧은 수신 문장을 그대로 따라 쓰지 않고 사용자 예시와 가까운 실제 답장을 선택하는지 확인합니다. 근거 있는 질문의 generic ack 방지 시나리오는 방 메모나 최근 대화에 답이 있는데도 `네 확인했습니다`처럼 넘기지 않고 바로 사실을 답하는지 확인합니다. 학교방 장황한 부연 방지 시나리오는 `추가로 필요한 내용이 있으면 말씀해 주세요` 같은 도우미식 부연 대신 짧은 실제 답장을 선택하는지 확인합니다. 맥락 있는 낮은 신호 시나리오는 `ㅇㅋ` 같은 리액션에 `필요하면 추가로 알려줘`처럼 길게 덧붙이지 않고 짧은 확인 반응만 고르는지 확인합니다. `Engine Baseline Without LLM` 은 모델 호출 없이 실제 엔진이 처리할 수 있는 `pre_model_skip`, `ambiguous_clarify`, `unknown_guard`, `deadline_fact` 경로의 source/coverage/pass 결과를 남깁니다. 맥락 없는 낮은 신호는 `pre_model_skip` 으로 빠져야 하지만, 최근 대화 맥락이 있는 낮은 신호는 `requires_llm` 로 남겨 사람처럼 짧게 반응할 수 있어야 합니다. 친구방/팀방/학교방과 수동 예시 우선순위처럼 모델 생성이 필요한 말투 응답은 `requires_llm` 으로 표시해 실기기 LLM 검증과 분리합니다.
+리포트는 `app/build/reports/reply-quality/report.md` 에 생성됩니다. `Expected Reply Examples` 는 각 시나리오의 기대 예문, trait, 점수, 최소 기준, 통과 여부를 표로 남기고, 수동 예시 우선순위 충돌 시나리오는 존댓말 이력이 있더라도 직접 적은 예시와 가까운 답장이 통과하는지 확인합니다. 친구방 짧은 echo 방지 시나리오는 모델이 `오늘 뭐함` 같은 짧은 수신 문장을 그대로 따라 쓰지 않고 사용자 예시와 가까운 실제 답장을 선택하는지 확인합니다. 친구방 업무체 ACK 방지 시나리오는 `확인했습니다!` 같은 단독 업무 답장 대신 `아무것도 없긴해` 같은 직접 예시 답장을 고르는지 확인합니다. 근거 있는 질문의 generic ack 방지 시나리오는 방 메모나 최근 대화에 답이 있는데도 `네 확인했습니다`처럼 넘기지 않고 바로 사실을 답하는지 확인합니다. 학교방 장황한 부연 방지 시나리오는 `추가로 필요한 내용이 있으면 말씀해 주세요` 같은 도우미식 부연 대신 짧은 실제 답장을 선택하는지 확인합니다. 맥락 있는 낮은 신호 시나리오는 `ㅇㅋ` 같은 리액션에 `필요하면 추가로 알려줘`처럼 길게 덧붙이지 않고 짧은 확인 반응만 고르는지 확인합니다. `Engine Baseline Without LLM` 은 모델 호출 없이 실제 엔진이 처리할 수 있는 `pre_model_skip`, `ambiguous_clarify`, `unknown_guard`, `deadline_fact` 경로의 source/coverage/pass 결과를 남깁니다. 맥락 없는 낮은 신호는 `pre_model_skip` 으로 빠져야 하지만, 최근 대화 맥락이 있는 낮은 신호는 `requires_llm` 로 남겨 사람처럼 짧게 반응할 수 있어야 합니다. 친구방/팀방/학교방과 수동 예시 우선순위처럼 모델 생성이 필요한 말투 응답은 `requires_llm` 으로 표시해 실기기 LLM 검증과 분리합니다.
 
 ARM64 실기기에서 Gemma 기본 모델과 실제 런타임 경로를 확인할 때는 아래 스크립트를 사용합니다.
 
@@ -78,7 +78,7 @@ maestro test .maestro
 - 후보 응답 source 별 생성/선택/빈 응답/저품질/latency 집계가 대화 원문 없이 계산되는 가드
 - source 별 후보 통계 보정점이 가까운 후보의 tie-breaker 로만 작동하고 명백히 나쁜 답변을 이기지 못하는 선택 가드
 - 여러 candidate lane 이 같은 답장을 반복하면 중복 후보가 `duplicate_reply` 로 감점되어 선택을 왜곡하지 않는 가드
-- primary/style_rewrite/human_style/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 자기 지칭 업무체, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
+- primary/style_rewrite/human_style/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 자기 지칭 업무체, 친구방 단독 업무체 ACK, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
 - 친구방, 팀방, 학교방, 친구방 짧은 echo 방지, 근거 있는 질문의 generic ack 방지, 학교방 장황한 부연 방지, 낮은 신호, 맥락 있는 낮은 신호의 과잉 답장 방지, 모르는 사실, 방 메모리 사실 확인, 수동 예시 우선순위 충돌을 포함한 기본 응답 품질 시나리오
 - 애매한 지시에는 아는 척하지 않고 방 말투에 맞춰 반말/존댓말 확인 질문을 하는 응답 품질 시나리오
 - 기본 응답 품질 시나리오의 Markdown 리포트 생성과 비-LLM 엔진 baseline 경로 검증
@@ -165,6 +165,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] `제가 확인해보겠습니다` 같은 자기 지칭 업무체 후보는 `self_referential_business_tone` 으로 감점됨
 - [ ] 사용자 직접 예시와 가까운 답장은 `manual_example_match` 로 보상됨
 - [ ] 존댓말 이력이 쌓인 방에서도 수동 친구방 예시가 있으면 수동 예시에 가까운 답장만 `manual_example_override` 시나리오를 통과함
+- [ ] 친구방에서 `확인했습니다!` 같은 단독 업무체 ACK는 `generic_business_ack_in_casual_room` 으로 감점되고 직접 예시 답장이 우선됨
 - [ ] primary/style_rewrite/human_style/compact candidate lane 이 같은 품질 게이트에서 비교되고, emergency lane 은 초기 후보가 약할 때만 추가됨
 - [ ] primary/style_rewrite/human_style/compact/emergency 후보 평가 결과와 선택 이유가 로그로 남음
 - [ ] 후보 source 별 생성/선택/빈 응답/저품질/latency 집계가 남고, 프롬프트/원문 응답/방 이름/발화자는 장기 저장하지 않음

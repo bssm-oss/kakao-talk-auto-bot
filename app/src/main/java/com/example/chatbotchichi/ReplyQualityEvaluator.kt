@@ -46,6 +46,10 @@ object ReplyQualityEvaluator {
             score -= 18
             reasons.add("self_referential_business_tone")
         }
+        if (looksGenericBusinessAckInCasualRoom(normalized, config.roomStyle)) {
+            score -= 30
+            reasons.add("generic_business_ack_in_casual_room")
+        }
         if (looksOverExplained(normalized)) {
             score -= 20
             reasons.add("over_explained")
@@ -174,6 +178,27 @@ object ReplyQualityEvaluator {
             "도와드리겠습니다",
             "말씀드리겠습니다"
         ).any { reply.contains(it) }
+    }
+
+    internal fun looksGenericBusinessAckInCasualRoom(reply: String, roomStyle: String): Boolean {
+        if (!prefersCasualStyle(roomStyle)) return false
+        val normalized = normalizeForExampleMatch(reply)
+        val genericAck = listOf(
+            "확인했습니다",
+            "확인하겠습니다",
+            "알겠습니다",
+            "알겠어요",
+            "네확인했습니다",
+            "넵확인했습니다",
+            "처리하겠습니다",
+            "진행하겠습니다",
+            "전달하겠습니다",
+            "공유드리겠습니다"
+        )
+        return genericAck.any { phrase ->
+            val normalizedPhrase = normalizeForExampleMatch(phrase)
+            normalized == normalizedPhrase || normalized.contains(normalizedPhrase)
+        }
     }
 
     internal fun looksOverExplained(reply: String): Boolean {
