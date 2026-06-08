@@ -212,6 +212,8 @@ class EditBotActivity : AppCompatActivity() {
         val state = StyleProfileStore.getUserLearnedStyleState(this, config.displayName, history, importedText)
         switchLearnedUserStyle.isChecked = state.enabled
         editLearnedUserStyle.setText(state.override)
+        resetLearnedUserStyleButton.text = state.resetOverrideButtonLabel
+        resetLearnedUserStyleButton.isEnabled = state.hasManualOverride
         learnedUserStylePreview.text = StyleProfileStore.learnedStylePreviewText(
             subject = "내 말투",
             state = state,

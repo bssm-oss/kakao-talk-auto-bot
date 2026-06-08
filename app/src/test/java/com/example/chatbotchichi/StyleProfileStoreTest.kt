@@ -153,6 +153,25 @@ class StyleProfileStoreTest {
     }
 
     @Test
+    fun learnedStyleState_resetOverrideActionReflectsManualOverrideOnly() {
+        val automaticOnly = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "",
+            generated = "방 전체 말투 기준: 친한 친구방처럼 가볍고 짧은 반응이 중심",
+            confidence = 62,
+            sampleCount = 5
+        )
+        val manualOverride = automaticOnly.copy(
+            override = "친구방에서는 아무것도 없긴해처럼 짧게 반말"
+        )
+
+        assertTrue(!automaticOnly.hasManualOverride)
+        assertTrue(automaticOnly.resetOverrideButtonLabel == "수정 없음")
+        assertTrue(manualOverride.hasManualOverride)
+        assertTrue(manualOverride.resetOverrideButtonLabel == "수정 초기화")
+    }
+
+    @Test
     fun learnedStyleState_resetGuidance_explainsLowConfidenceRelearningPath() {
         val state = StyleProfileStore.LearnedStyleState(
             enabled = true,
