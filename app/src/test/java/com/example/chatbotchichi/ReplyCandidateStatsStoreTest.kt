@@ -63,6 +63,44 @@ class ReplyCandidateStatsStoreTest {
     }
 
     @Test
+    fun selectionPriors_rewardReliableSourcesAndPenalizeWeakSources() {
+        val snapshot = ReplyCandidateStatsStore.Snapshot(
+            sources = mapOf(
+                "human_style" to ReplyCandidateStatsStore.SourceStats(
+                    generated = 10,
+                    selected = 5,
+                    blank = 0,
+                    lowQuality = 1,
+                    totalLatencyMs = 1000L,
+                    maxLatencyMs = 200L
+                ),
+                "primary" to ReplyCandidateStatsStore.SourceStats(
+                    generated = 10,
+                    selected = 1,
+                    blank = 4,
+                    lowQuality = 6,
+                    totalLatencyMs = 1000L,
+                    maxLatencyMs = 200L
+                ),
+                "compact" to ReplyCandidateStatsStore.SourceStats(
+                    generated = 4,
+                    selected = 4,
+                    blank = 0,
+                    lowQuality = 0,
+                    totalLatencyMs = 400L,
+                    maxLatencyMs = 100L
+                )
+            )
+        )
+
+        val priors = snapshot.selectionPriors()
+
+        assertEquals(6, priors["human_style"])
+        assertEquals(-6, priors["primary"])
+        assertTrue("small samples should not affect selection", "compact" !in priors)
+    }
+
+    @Test
     fun emptySummaryExplainsNoCandidateStats() {
         assertEquals("후보 통계 없음", ReplyCandidateStatsStore.Snapshot(emptyMap()).summary())
     }
