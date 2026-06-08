@@ -48,6 +48,7 @@ class ReplyStatsStoreTest {
         ).summary()
 
         assertTrue(summary.contains("최다 실패: pendingIntent send failed 2회"))
+        assertTrue(summary.contains("전송성공 25%"))
     }
 
     @Test
@@ -94,5 +95,38 @@ class ReplyStatsStoreTest {
         assertTrue(detail.contains("no session 1회"))
         assertTrue(detail.contains("스킵: reply off 2회"))
         assertTrue(detail.contains("low signal 1회"))
+    }
+
+    @Test
+    fun detailSummary_surfacesRecentFailureAndSkipReasons() {
+        val detail = ReplyStatsStore.Snapshot(
+            incoming = 6,
+            sent = 2,
+            skipped = 1,
+            failed = 1,
+            failureReasons = mapOf(SessionReplier.REASON_NO_REMOTE_INPUT to 1),
+            skipReasons = mapOf("model not loaded" to 1),
+            lastFailureReason = SessionReplier.REASON_NO_REMOTE_INPUT,
+            lastFailureAtMillis = 1000L,
+            lastSkipReason = "model not loaded",
+            lastSkipAtMillis = 2000L
+        ).detailSummary()
+
+        assertTrue(detail.contains("최근 실패: no remoteInput"))
+        assertTrue(detail.contains("최근 스킵: model not loaded"))
+    }
+
+    @Test
+    fun summaryShowsNoDeliveryAttemptsWhenOnlyIncomingExists() {
+        val summary = ReplyStatsStore.Snapshot(
+            incoming = 2,
+            sent = 0,
+            skipped = 0,
+            failed = 0,
+            failureReasons = emptyMap(),
+            skipReasons = emptyMap()
+        ).summary()
+
+        assertTrue(summary.contains("전송시도 없음"))
     }
 }
