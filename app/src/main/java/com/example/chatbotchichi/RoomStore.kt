@@ -49,6 +49,16 @@ object RoomStore {
         return json.toHistoryMessages(limit)
     }
 
+    @Synchronized
+    fun clearRoomHistory(context: Context, room: String): Boolean {
+        val normalizedRoom = room.trim()
+        if (normalizedRoom.isBlank()) return false
+        val file = roomFile(context, normalizedRoom)
+        val deleted = file.exists() && file.delete()
+        AutoMemoryStore.clear(context, normalizedRoom)
+        return deleted
+    }
+
     private fun updateRoom(context: Context, room: String, block: (JSONObject) -> Unit) {
         val file = roomFile(context, room)
         val json = readRoomJson(file, room, recoverCorruptFile = true) ?: JSONObject().put("room", room)

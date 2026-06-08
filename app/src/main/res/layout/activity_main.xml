@@ -371,6 +371,16 @@
                         android:textStyle="bold" />
 
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_clear_logs"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="@dimen/compact_button_height"
+                        android:layout_marginEnd="@dimen/space_2"
+                        android:text="삭제"
+                        android:textColor="@color/colorDanger"
+                        app:strokeColor="@color/colorDanger" />
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_copy_logs"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="wrap_content"

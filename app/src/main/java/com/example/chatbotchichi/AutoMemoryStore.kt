@@ -43,6 +43,15 @@ object AutoMemoryStore {
         return root.optJSONObject(normalizedRoom)?.optString("summary", "").orEmpty()
     }
 
+    fun clear(context: Context, room: String) {
+        val normalizedRoom = room.trim()
+        if (normalizedRoom.isBlank()) return
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val root = parseRoot(prefs)
+        root.remove(normalizedRoom)
+        prefs.edit().putString(KEY_MEMORIES, root.toString()).apply()
+    }
+
     fun getPersonaHint(context: Context, room: String, displayName: String): String? {
         val normalizedRoom = room.trim()
         val normalizedDisplayName = displayName.trim()
