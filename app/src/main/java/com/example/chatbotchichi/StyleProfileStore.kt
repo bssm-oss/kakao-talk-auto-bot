@@ -200,6 +200,7 @@ object StyleProfileStore {
             append("- 우선순위: 사용자 직접 예시 > 수동 방 스타일 > 가져온 내 발화 스타일 > 앱에서 관측한 내 발화 스타일 > 자동 방 스타일 > 최근 대화 사실.\n")
             append("- 답장할지 여부는 트리거 모드를 따르되, 답장을 만들 때는 위 우선순위의 말투를 먼저 따른다.\n")
             append("- 학습 말투 신뢰도가 낮으면 확정 규칙처럼 따르지 말고 수동 예시와 현재 방 맥락을 우선한다.\n")
+            append("- 보조 힌트로 표시된 학습 말투가 사용자 직접 예시나 수동 방 스타일과 충돌하면 반드시 버린다.\n")
             if (userExamples.isNotBlank()) {
                 append("사용자 직접 예시:\n")
                 append(userExamples)
@@ -247,6 +248,8 @@ object StyleProfileStore {
             add("신뢰도 $normalized")
             if (confidence > 0) add("${confidence.coerceIn(0, 100)}점")
             if (sampleCount > 0) add("샘플 ${sampleCount}개")
+            if (normalized == "낮음" && confidence in 1..54) add("보조 힌트")
+            if (normalized == "낮음" && confidence in 1..54) add("충돌 시 무시")
         }
         return "(${details.joinToString(", ")})"
     }

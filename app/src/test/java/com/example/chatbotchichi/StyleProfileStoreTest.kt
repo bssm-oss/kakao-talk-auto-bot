@@ -23,7 +23,9 @@ class StyleProfileStoreTest {
 
         assertTrue(guide.contains("우선순위"))
         assertTrue(guide.contains("신뢰도가 낮으면"))
-        assertTrue(guide.contains("학습된 사용자 말투(신뢰도 낮음, 24점, 샘플 2개)"))
+        assertTrue(guide.contains("보조 힌트로 표시된 학습 말투"))
+        assertTrue(guide.contains("충돌하면 반드시 버린다"))
+        assertTrue(guide.contains("학습된 사용자 말투(신뢰도 낮음, 24점, 샘플 2개, 보조 힌트, 충돌 시 무시)"))
         assertTrue(guide.contains("학습된 방 말투(신뢰도 높음, 92점, 샘플 12개)"))
         assertTrue(guide.indexOf("사용자 직접 예시") < guide.indexOf("수동 방 스타일"))
         assertTrue(guide.indexOf("수동 방 스타일") < guide.indexOf("학습된 사용자 말투"))
@@ -44,8 +46,25 @@ class StyleProfileStoreTest {
         )
 
         assertTrue(guide.contains("학습 말투 신뢰도가 낮으면 확정 규칙처럼 따르지 말고"))
-        assertTrue(guide.contains("학습된 방 말투(신뢰도 낮음, 24점, 샘플 1개)"))
+        assertTrue(guide.contains("학습된 방 말투(신뢰도 낮음, 24점, 샘플 1개, 보조 힌트, 충돌 시 무시)"))
         assertTrue(guide.indexOf("수동 방 스타일") < guide.indexOf("학습된 방 말투"))
+    }
+
+    @Test
+    fun composePromptStyleGuide_doesNotMarkManualOverrideAsDiscardableHint() {
+        val guide = StyleProfileStore.composePromptStyleGuide(
+            StyleProfileStore.StyleGuideParts(
+                personaExamples = "별일없습니다!",
+                manualRoomStyle = "팀방에서는 짧게 존댓말",
+                learnedUserStyle = "팀방에서는 별일없습니다!처럼 짧게",
+                learnedUserConfidenceLabel = "수동 수정",
+                learnedUserConfidence = 24,
+                learnedUserSampleCount = 1
+            )
+        )
+
+        assertTrue(guide.contains("학습된 사용자 말투(신뢰도 수동 수정, 24점, 샘플 1개)"))
+        assertTrue(!guide.contains("학습된 사용자 말투(신뢰도 수동 수정, 24점, 샘플 1개, 보조 힌트"))
     }
 
     @Test
