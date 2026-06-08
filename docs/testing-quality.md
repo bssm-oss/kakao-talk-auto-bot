@@ -80,7 +80,7 @@ maestro test .maestro
 - 트리거 섹션이 없거나 빈 값인 레거시 설정이 모든 메시지 모드로 승격되지 않는 JSON 파싱 가드
 - 알림 수집과 답장 시도 분리 가드 로직
 - OFF 상태 또는 방별 답장 비활성화일 때도 메시지 수집은 유지되고 답장만 막히는 가드 로직
-- 전송 실패와 스킵 reason 이 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `global reply off`, `room reply off`, `no room config`, `low signal`, `model not loaded`, `ai quality rejected`, `ai generation exception`, `canned reply empty` 같은 표준 카테고리로 집계되고 최근 실패/스킵 reason, 다음 확인 지점, 마지막 전송/실패/스킵 이벤트 시각이 남는 통계 가드
+- 전송 실패와 스킵 reason 이 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `global reply off`, `room reply off`, `no room config`, `low signal`, `model not loaded`, `ai quality rejected`, `ai generation exception`, `canned reply empty` 같은 표준 카테고리로 집계되고 최근 실패/스킵 reason, 실패/스킵별 다음 확인 지점, 마지막 전송/실패/스킵 이벤트 시각이 남는 통계 가드
 - 후보 응답 source 별 생성/선택/빈 응답/저품질/latency 집계가 대화 원문 없이 계산되는 가드
 - source 별 후보 통계 보정점이 가까운 후보의 tie-breaker 로만 작동하고 명백히 나쁜 답변을 이기지 못하는 선택 가드
 - 여러 candidate lane 이 같은 답장을 반복하면 중복 후보가 `duplicate_reply` 로 감점되어 선택을 왜곡하지 않는 가드
@@ -226,8 +226,9 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] `모든 메시지` 모드에서는 조건을 통과한 모든 수신 메시지에 답장함
 - [ ] PendingIntent RemoteInput 전송 성공 로그와 실제 카카오톡 대화창 답장 표시가 일치함
 - [ ] 전송 실패 시 `OUT_FAIL` 로그에 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed` 같은 원인이 남고 앱이 죽지 않음
-- [ ] 전송 실패와 스킵 통계 요약에 전송 성공률, 상위 원인별 횟수, 최근 실패/스킵 reason, 최근 또는 최다 실패 원인에 대한 `확인 필요` 힌트, 마지막 전송/실패/스킵 이벤트 시각이 표준 카테고리로 표시됨
+- [ ] 전송 실패와 스킵 통계 요약에 전송 성공률, 상위 원인별 횟수, 최근 실패/스킵 reason, 최근 또는 최다 실패/스킵 원인에 대한 `확인 필요` 힌트, 마지막 전송/실패/스킵 이벤트 시각이 표준 카테고리로 표시됨
 - [ ] AI 생성 실패, AI 품질 게이트 실패, 고정 답장 설정 실패가 각각 `ai generation exception`, `ai quality rejected`, `canned reply empty` 로 집계됨
+- [ ] 실패가 없고 스킵만 있어도 `global reply off`, `room reply off`, `low signal`, `condition not met` 같은 스킵 reason 의 다음 확인 지점이 통계 상세에 표시됨
 - [ ] AI 답장 생성 후 `replyToRoomDetailed` 이 실패하면 엔진 레벨에서도 같은 전송 원인을 포함한 `OUT_FAIL` 이 남음
 - [ ] `outputs/real-device-e2e/*-summary.txt` 의 `manual_kakao_in_log_confirmed`, `manual_kakao_out_log_confirmed`, `manual_kakao_reply_visible_in_kakaotalk`, `manual_kakao_complete` 가 실제 확인 결과로 채워짐
 - [ ] `manual_kakao_remoteinput_failure_reason` 이 비어 있지 않으면 다른 수동 증거가 true 여도 `manual_kakao_complete=false` 로 남음
