@@ -321,6 +321,22 @@ object ReplyQualityScenarios {
                 ),
                 expectedTraits = setOf("casual", "short", "manual_example", "no_therapy_empathy"),
                 minimumScore = 65
+            ),
+            Scenario(
+                id = "friend_no_reaction_spam",
+                room = "친구방",
+                sender = "민수",
+                message = "오늘 좀 빡세다",
+                config = AutoReplyJson.defaultConfig("친구방").copy(
+                    roomStyle = "친한 친구방. ㅋㅋ/ㅎㅎ만 반복하지 말고 짧게 반말. 예시: 아 빡세긴 하네",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("민수", "오늘 좀 빡세다", true, 1L),
+                    RoomHistoryMessage("나", "아 빡세긴 하네", false, 2L)
+                ),
+                expectedTraits = setOf("casual", "short", "manual_example", "no_reaction_spam"),
+                minimumScore = 65
             )
         )
     }
@@ -363,7 +379,8 @@ object ReplyQualityScenarios {
             ScenarioExample("friend_no_business_ack", "아무것도 없긴해"),
             ScenarioExample("friend_no_service_apology", "지금은 좀 애매해"),
             ScenarioExample("friend_no_helper_followup", "지금은 좀 애매해"),
-            ScenarioExample("friend_no_therapy_empathy", "아 빡세긴 하네")
+            ScenarioExample("friend_no_therapy_empathy", "아 빡세긴 하네"),
+            ScenarioExample("friend_no_reaction_spam", "아 빡세긴 하네")
         )
     }
 
@@ -537,6 +554,13 @@ object ReplyQualityScenarios {
         }
         if ("no_therapy_empathy" in scenario.expectedTraits) {
             if ("therapy_empathy_boilerplate" in candidate.reasons || "assistant_boilerplate" in candidate.reasons) {
+                score -= 45
+            } else {
+                score += 20
+            }
+        }
+        if ("no_reaction_spam" in scenario.expectedTraits) {
+            if ("reaction_spam" in candidate.reasons) {
                 score -= 45
             } else {
                 score += 20
