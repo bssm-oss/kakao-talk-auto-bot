@@ -13,23 +13,35 @@ object ReplyStatsStore {
         val skipped: Int,
         val failed: Int,
         val failureReasons: Map<String, Int>,
-        val skipReasons: Map<String, Int>
+        val skipReasons: Map<String, Int>,
+        val lastFailureReason: String? = null,
+        val lastFailureAtMillis: Long = 0L,
+        val lastSkipReason: String? = null,
+        val lastSkipAtMillis: Long = 0L
     ) {
         fun summary(): String {
             val topFailure = failureReasons.maxByOrNull { it.value }
             val topSkip = skipReasons.maxByOrNull { it.value }
+            val deliveryAttempts = sent + failed
+            val deliveryRateText = if (deliveryAttempts > 0) {
+                val rate = sent * 100 / deliveryAttempts
+                "전송성공 $rate%"
+            } else {
+                "전송시도 없음"
+            }
             val reasonText = when {
                 topFailure != null -> "최다 실패: ${topFailure.key} ${topFailure.value}회"
                 topSkip != null -> "최다 스킵: ${topSkip.key} ${topSkip.value}회"
                 else -> "원인 없음"
             }
-            return "수신 $incoming · 전송 $sent · 스킵 $skipped · 실패 $failed · $reasonText"
+            return "수신 $incoming · 전송 $sent · 스킵 $skipped · 실패 $failed · $deliveryRateText · $reasonText"
         }
 
         fun detailSummary(limit: Int = 3): String {
             val failures = reasonSummary("실패", failureReasons, limit)
             val skips = reasonSummary("스킵", skipReasons, limit)
-            return listOf(failures, skips)
+            val recent = recentReasonSummary()
+            return listOf(failures, skips, recent)
                 .filter { it.isNotBlank() }
                 .ifEmpty { listOf("원인 없음") }
                 .joinToString(" · ")
@@ -42,6 +54,14 @@ object ReplyStatsStore {
                 .take(limit.coerceAtLeast(1))
                 .joinToString(", ") { "${it.key} ${it.value}회" }
             return "$label: $text"
+        }
+
+        private fun recentReasonSummary(): String {
+            val parts = buildList {
+                if (!lastFailureReason.isNullOrBlank()) add("최근 실패: $lastFailureReason")
+                if (!lastSkipReason.isNullOrBlank()) add("최근 스킵: $lastSkipReason")
+            }
+            return parts.joinToString(", ")
         }
     }
 
@@ -58,8 +78,16 @@ object ReplyStatsStore {
         }
         root.put(key, root.optInt(key, 0) + 1)
         when (label) {
-            "OUT_FAIL" -> incrementReason(root, "failureReasons", reason)
-            "OUT_SKIP" -> incrementReason(root, "skipReasons", reason)
+            "OUT_FAIL" -> {
+                val normalizedReason = incrementReason(root, "failureReasons", reason)
+                root.put("lastFailureReason", normalizedReason)
+                root.put("lastFailureAtMillis", System.currentTimeMillis())
+            }
+            "OUT_SKIP" -> {
+                val normalizedReason = incrementReason(root, "skipReasons", reason)
+                root.put("lastSkipReason", normalizedReason)
+                root.put("lastSkipAtMillis", System.currentTimeMillis())
+            }
         }
         prefs.edit().putString(KEY_COUNTS, root.toString()).apply()
     }
@@ -72,7 +100,11 @@ object ReplyStatsStore {
             skipped = root.optInt("skipped", 0),
             failed = root.optInt("failed", 0),
             failureReasons = readReasonMap(root, "failureReasons"),
-            skipReasons = readReasonMap(root, "skipReasons")
+            skipReasons = readReasonMap(root, "skipReasons"),
+            lastFailureReason = root.optString("lastFailureReason").ifBlank { null },
+            lastFailureAtMillis = root.optLong("lastFailureAtMillis", 0L),
+            lastSkipReason = root.optString("lastSkipReason").ifBlank { null },
+            lastSkipAtMillis = root.optLong("lastSkipAtMillis", 0L)
         )
     }
 
@@ -92,11 +124,12 @@ object ReplyStatsStore {
         }
     }
 
-    private fun incrementReason(root: JSONObject, key: String, reason: String?) {
+    private fun incrementReason(root: JSONObject, key: String, reason: String?): String {
         val reasons = root.optJSONObject(key) ?: JSONObject()
         val normalizedReason = normalizeReason(reason)
         reasons.put(normalizedReason, reasons.optInt(normalizedReason, 0) + 1)
         root.put(key, reasons)
+        return normalizedReason
     }
 
     internal fun normalizeReason(reason: String?): String {
