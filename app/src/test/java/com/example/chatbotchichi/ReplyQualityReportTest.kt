@@ -71,6 +71,8 @@ class ReplyQualityReportTest {
         assertTrue(report.contains("| team_known_fact_no_generic_ack | 팀단톡 | formal, grounded_fact, no_generic_ack, short |"))
         assertTrue(report.contains("| school_concise_no_overexplained | 학교방 | concise_no_overexplained, formal, short |"))
         assertTrue(report.contains("| low_signal_with_context_ack | 친구방 | ack, casual, low_signal_brief_ack, short |"))
+        assertTrue(report.contains("| ambiguous_clarify | 프로젝트방 | clarify, no_overclaim, short |"))
+        assertTrue(report.contains("| school_ambiguous_formal | 학교방 | clarify, formal, no_overclaim, short |"))
         assertTrue(report.contains("| manual_example_override | 친구방 | casual, manual_example, short |"))
         assertTrue(report.contains("| friend_no_service_apology | 친구방 | casual, manual_example, no_service_apology, short |"))
         assertTrue(report.contains("| manual_example_override | requires_llm | no |"))
