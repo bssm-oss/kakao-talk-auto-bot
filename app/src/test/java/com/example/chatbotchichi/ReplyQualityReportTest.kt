@@ -68,6 +68,7 @@ class ReplyQualityReportTest {
         assertTrue(report.contains("| manual_example_override |"))
         assertTrue(report.contains("| friend_no_service_apology |"))
         assertTrue(report.contains("| friend_no_helper_followup |"))
+        assertTrue(report.contains("| friend_no_therapy_empathy |"))
         assertTrue(report.contains("| friend_no_echo | 친구방 | casual, manual_example, no_echo, short |"))
         assertTrue(report.contains("| team_known_fact_no_generic_ack | 팀단톡 | formal, grounded_fact, no_generic_ack, short |"))
         assertTrue(report.contains("| school_concise_no_overexplained | 학교방 | concise_no_overexplained, formal, short |"))
@@ -77,6 +78,7 @@ class ReplyQualityReportTest {
         assertTrue(report.contains("| manual_example_override | 친구방 | casual, manual_example, short |"))
         assertTrue(report.contains("| friend_no_service_apology | 친구방 | casual, manual_example, no_service_apology, short |"))
         assertTrue(report.contains("| friend_no_helper_followup | 친구방 | casual, manual_example, no_helper_followup, short |"))
+        assertTrue(report.contains("| friend_no_therapy_empathy | 친구방 | casual, manual_example, no_therapy_empathy, short |"))
         assertTrue(report.contains("| manual_example_override | requires_llm | no |"))
         assertTrue(report.contains("| room_memory_fact | deadline_fact | yes |"))
     }

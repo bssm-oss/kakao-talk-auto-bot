@@ -50,6 +50,10 @@ object ReplyQualityEvaluator {
             score -= 22
             reasons.add("helper_followup_boilerplate")
         }
+        if (looksLikeTherapyEmpathyBoilerplate(normalized, config.roomStyle)) {
+            score -= 24
+            reasons.add("therapy_empathy_boilerplate")
+        }
         if (looksSelfReferentialBusinessTone(normalized)) {
             score -= 18
             reasons.add("self_referential_business_tone")
@@ -215,6 +219,24 @@ object ReplyQualityEvaluator {
         if (!helperTail) return false
         val sentenceLikeBreaks = reply.count { it == '.' || it == '!' || it == '?' || it == '。' || it == '？' || it == '！' }
         return reply.length >= 18 || sentenceLikeBreaks >= 2
+    }
+
+    internal fun looksLikeTherapyEmpathyBoilerplate(reply: String, roomStyle: String): Boolean {
+        if (!prefersCasualStyle(roomStyle)) return false
+        val normalized = normalizeForExampleMatch(reply)
+        val therapyPhrases = listOf(
+            "그마음이해",
+            "마음이해해",
+            "힘들었겠다",
+            "충분히그럴수",
+            "많이힘들었",
+            "괜찮아질거야",
+            "너의감정",
+            "감정을존중"
+        )
+        val hasTherapyPhrase = therapyPhrases.any { normalized.contains(normalizeForExampleMatch(it)) }
+        if (!hasTherapyPhrase) return false
+        return reply.length >= 18 || reply.contains(".") || reply.contains("!") || reply.contains("요")
     }
 
     internal fun looksSelfReferentialBusinessTone(reply: String): Boolean {
