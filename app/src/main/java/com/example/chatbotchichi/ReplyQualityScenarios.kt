@@ -8,6 +8,15 @@ object ReplyQualityScenarios {
         val message: String,
         val config: AutoReplyConfig,
         val history: List<RoomHistoryMessage>,
+        val expectedTraits: Set<String>,
+        val minimumScore: Int = 40
+    )
+
+    data class Result(
+        val scenarioId: String,
+        val reply: String,
+        val score: Int,
+        val passed: Boolean,
         val expectedTraits: Set<String>
     )
 
@@ -52,7 +61,24 @@ object ReplyQualityScenarios {
                     trigger = TriggerConfig("ai_judge", "")
                 ),
                 history = emptyList(),
-                expectedTraits = setOf("skip")
+                expectedTraits = setOf("skip"),
+                minimumScore = 50
+            ),
+            Scenario(
+                id = "ambiguous_clarify",
+                room = "프로젝트방",
+                sender = "민수",
+                message = "그거 됐어?",
+                config = AutoReplyJson.defaultConfig("프로젝트방").copy(
+                    roomStyle = "프로젝트방. 모호한 요청은 아는 척하지 말고 짧게 확인 질문",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("지우", "문서 초안이랑 발표 자료 둘 다 남았어", true, 1L),
+                    RoomHistoryMessage("나", "일단 문서부터 볼게", false, 2L)
+                ),
+                expectedTraits = setOf("clarify", "short"),
+                minimumScore = 45
             ),
             Scenario(
                 id = "unknown_fact_guard",
@@ -82,15 +108,29 @@ object ReplyQualityScenarios {
         )
     }
 
+    fun evaluateReply(reply: String, scenario: Scenario): Result {
+        val score = traitScore(reply, scenario)
+        return Result(
+            scenarioId = scenario.id,
+            reply = reply.trim(),
+            score = score,
+            passed = score >= scenario.minimumScore,
+            expectedTraits = scenario.expectedTraits
+        )
+    }
+
     fun traitScore(reply: String, scenario: Scenario): Int {
         var score = 0
         val normalized = reply.trim()
+        if ("skip" in scenario.expectedTraits && normalized.isBlank()) score += 50
         if ("short" in scenario.expectedTraits && normalized.length in 1..80) score += 20
         if ("casual" in scenario.expectedTraits && !normalized.contains("습니다") && !normalized.endsWith("요")) score += 20
         if ("formal" in scenario.expectedTraits && (normalized.contains("습니다") || normalized.endsWith("요") || normalized.contains("입니다"))) score += 20
+        if ("clarify" in scenario.expectedTraits && listOf("뭐", "어떤", "문서", "발표", "그거").any { normalized.contains(it) }) score += 25
         if ("unknown_guard" in scenario.expectedTraits && listOf("몰라", "확인", "못 찾", "모르").any { normalized.contains(it) }) score += 25
         if ("grounded_fact" in scenario.expectedTraits && listOf("6월 12일", "18시", "12일").any { normalized.contains(it) }) score += 25
         if (ReplyQualityEvaluator.containsAiMetaText(normalized)) score -= 30
+        if (normalized.length > 120) score -= 20
         return score.coerceAtLeast(0)
     }
 }
