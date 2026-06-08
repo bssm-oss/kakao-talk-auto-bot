@@ -36,6 +36,10 @@ object ReplyQualityEvaluator {
             score -= 28
             reasons.add("ai_meta_text")
         }
+        if (looksLikeAssistantBoilerplate(normalized)) {
+            score -= 18
+            reasons.add("assistant_boilerplate")
+        }
         if (echoesPrompt(normalized, message)) {
             score -= 22
             reasons.add("prompt_echo")
@@ -60,6 +64,10 @@ object ReplyQualityEvaluator {
         if (matchesManualStyleHint(normalized, config.roomStyle)) {
             score += 8
             reasons.add("manual_room_style_match")
+        }
+        if (matchesManualExample(normalized, config.roomStyle)) {
+            score += 14
+            reasons.add("manual_example_match")
         }
         if (hasRelevantKnownFact(normalized, config.roomMemory, history)) {
             score += 10
@@ -86,6 +94,18 @@ object ReplyQualityEvaluator {
         return listOf("ai", "인공지능", "모델", "프롬프트", "답변:", "답장:", "assistant").any {
             lowered.contains(it.lowercase())
         }
+    }
+
+    internal fun looksLikeAssistantBoilerplate(reply: String): Boolean {
+        return listOf(
+            "도움이 필요",
+            "도와드릴",
+            "추가로 궁금",
+            "무엇을 도와",
+            "알려드릴게요",
+            "확인해보겠습니다",
+            "좋은 질문"
+        ).any { reply.contains(it) }
     }
 
     private fun echoesPrompt(reply: String, message: String): Boolean {
@@ -116,6 +136,33 @@ object ReplyQualityEvaluator {
         val formal = !casual && prefersFormalStyle(roomStyle)
         return (casual && !reply.endsWith("요") && !reply.contains("습니다")) ||
             (formal && (reply.endsWith("요") || reply.contains("습니다") || reply.contains("입니다")))
+    }
+
+    private fun matchesManualExample(reply: String, roomStyle: String): Boolean {
+        val examples = extractManualExamples(roomStyle)
+        if (examples.isEmpty()) return false
+        val normalizedReply = normalizeForExampleMatch(reply)
+        return examples.any { example ->
+            val normalizedExample = normalizeForExampleMatch(example)
+            normalizedExample.isNotBlank() &&
+                (normalizedReply == normalizedExample ||
+                    normalizedReply.contains(normalizedExample) ||
+                    normalizedExample.contains(normalizedReply))
+        }
+    }
+
+    private fun extractManualExamples(roomStyle: String): List<String> {
+        val markers = listOf("예시:", "예시：", "예:", "example:")
+        return markers.flatMap { marker ->
+            roomStyle.split(marker, ignoreCase = true, limit = 2)
+                .getOrNull(1)
+                ?.lineSequence()
+                ?.flatMap { line -> line.split(",", "/", "|").asSequence() }
+                ?.map { it.trim().trim('"', '\'', '`') }
+                ?.filter { it.length in 2..40 }
+                ?.toList()
+                .orEmpty()
+        }.distinct()
     }
 
     private fun manualStyleMismatchReason(reply: String, roomStyle: String): String? {
@@ -160,5 +207,10 @@ object ReplyQualityEvaluator {
             .map { it.value.lowercase() }
             .filter { it.length >= 2 }
             .toSet()
+    }
+
+    private fun normalizeForExampleMatch(text: String): String {
+        return Regex("[가-힣A-Za-z0-9]+").findAll(text)
+            .joinToString("") { it.value.lowercase() }
     }
 }
