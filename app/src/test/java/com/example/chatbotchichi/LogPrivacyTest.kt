@@ -109,6 +109,21 @@ class LogPrivacyTest {
     }
 
     @Test
+    fun redact_hidesJsonChatFields() {
+        val raw = """{"room":"비밀팀방","sender":"민수","message":"010-1234-5678로 전화줘","reason":"no session"}"""
+
+        val redacted = LogPrivacy.redact(raw)
+
+        assertFalse(redacted.contains("비밀팀방"))
+        assertFalse(redacted.contains("민수"))
+        assertFalse(redacted.contains("010-1234-5678"))
+        assertTrue(redacted.contains("\"room\":\"<방 숨김>\""))
+        assertTrue(redacted.contains("\"sender\":\"<발화자 숨김>\""))
+        assertTrue(redacted.contains("\"message\":\"<메시지 숨김>\""))
+        assertTrue(redacted.contains("\"reason\":\"no session\""))
+    }
+
+    @Test
     fun redactSensitiveTokens_canBeReusedForStoredOperationalReasons() {
         val redacted = LogPrivacy.redactSensitiveTokens(
             "reason=test@example.com 010-1234-5678 https://example.com/fail"
