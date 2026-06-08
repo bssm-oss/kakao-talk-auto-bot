@@ -323,6 +323,22 @@ object ReplyQualityScenarios {
                 minimumScore = 65
             ),
             Scenario(
+                id = "friend_no_generic_casual_ack",
+                room = "친구방",
+                sender = "민수",
+                message = "오늘 좀 빡세다",
+                config = AutoReplyJson.defaultConfig("친구방").copy(
+                    roomStyle = "친한 친구방. generic 수긍만 하지 말고 상황에 짧게 반응. 예시: 아 빡세긴 하네",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("민수", "오늘 좀 빡세다", true, 1L),
+                    RoomHistoryMessage("나", "아 빡세긴 하네", false, 2L)
+                ),
+                expectedTraits = setOf("casual", "short", "manual_example", "no_generic_casual_ack"),
+                minimumScore = 65
+            ),
+            Scenario(
                 id = "friend_no_therapy_empathy",
                 room = "친구방",
                 sender = "민수",
@@ -396,6 +412,7 @@ object ReplyQualityScenarios {
             ScenarioExample("friend_no_service_apology", "지금은 좀 애매해"),
             ScenarioExample("friend_no_helper_followup", "지금은 좀 애매해"),
             ScenarioExample("friend_no_generic_encouragement", "아 빡세긴 하네"),
+            ScenarioExample("friend_no_generic_casual_ack", "아 빡세긴 하네"),
             ScenarioExample("friend_no_therapy_empathy", "아 빡세긴 하네"),
             ScenarioExample("friend_no_reaction_spam", "아 빡세긴 하네")
         )
@@ -571,6 +588,13 @@ object ReplyQualityScenarios {
         }
         if ("no_generic_encouragement" in scenario.expectedTraits) {
             if ("generic_encouragement_boilerplate" in candidate.reasons || "helper_followup_boilerplate" in candidate.reasons) {
+                score -= 45
+            } else {
+                score += 20
+            }
+        }
+        if ("no_generic_casual_ack" in scenario.expectedTraits) {
+            if ("generic_casual_ack_boilerplate" in candidate.reasons) {
                 score -= 45
             } else {
                 score += 20
