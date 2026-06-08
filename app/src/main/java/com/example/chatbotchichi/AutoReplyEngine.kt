@@ -67,17 +67,18 @@ object AutoReplyEngine {
                 }
                 when {
                     !resolution.reply.isNullOrBlank() -> {
-                        val sent = replier.replyToRoom(room, resolution.reply)
-                        if (!sent) {
+                        val sendResult = replier.replyToRoomDetailed(room, resolution.reply)
+                        if (!sendResult.sent) {
                             val reason = "AI 답장은 생성됐지만 카카오톡 전송에 실패했습니다."
+                            val detail = sendResult.reason ?: "unknown"
                             UiLogger.log(
                                 context,
                                 "OUT_FAIL",
-                                "[$room] $reason",
+                                "[$room] $reason (reason=$detail)",
                                 roomName = room,
                                 speaker = "AI",
-                                serverMessage = reason,
-                                eventReason = "send_failed_after_generation",
+                                serverMessage = "$reason (reason=$detail)",
+                                eventReason = "send_failed_after_generation:$detail",
                                 trackStats = false
                             )
                         }
