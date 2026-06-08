@@ -320,6 +320,35 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_penalizesAmbiguousOverclaimAgainstClarifyingQuestion() {
+        val scenario = ReplyQualityScenarios.builtIns().first { it.id == "ambiguous_clarify" }
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "됐어.",
+                reply = "됐어.",
+                config = scenario.config,
+                message = scenario.message,
+                history = scenario.history
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "human_style",
+                raw = "문서 말하는 거야, 발표 자료 말하는 거야?",
+                reply = "문서 말하는 거야, 발표 자료 말하는 거야?",
+                config = scenario.config,
+                message = scenario.message,
+                history = scenario.history
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("human_style", best?.source)
+        assertTrue(candidates.first().reasons.contains("ambiguous_overclaim"))
+        assertTrue(!candidates.last().reasons.contains("ambiguous_overclaim"))
+    }
+
+    @Test
     fun selectBest_usesSourcePriorOnlyAsTieBreakerForCloseCandidates() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             roomStyle = "친한 친구방. 가볍게 반말."
@@ -512,6 +541,7 @@ class ReplyQualityEvaluatorTest {
         assertTrue("low signal brief ack trait missing", "low_signal_brief_ack" in coverage.traitIds)
         assertTrue("skip trait missing", "skip" in coverage.traitIds)
         assertTrue("ack trait missing", "ack" in coverage.traitIds)
+        assertTrue("no overclaim trait missing", "no_overclaim" in coverage.traitIds)
         assertTrue("no business ack trait missing", "no_business_ack" in coverage.traitIds)
         assertTrue("no service apology trait missing", "no_service_apology" in coverage.traitIds)
     }
@@ -560,6 +590,7 @@ class ReplyQualityEvaluatorTest {
     fun builtInScenarioExamples_rejectMetaAndOverconfidentReplies() {
         val unknown = ReplyQualityScenarios.builtIns().first { it.id == "unknown_fact_guard" }
         val ambiguous = ReplyQualityScenarios.builtIns().first { it.id == "ambiguous_clarify" }
+        val schoolAmbiguous = ReplyQualityScenarios.builtIns().first { it.id == "school_ambiguous_formal" }
         val manualOverride = ReplyQualityScenarios.builtIns().first { it.id == "manual_example_override" }
         val noEcho = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_echo" }
         val noGenericAck = ReplyQualityScenarios.builtIns().first { it.id == "team_known_fact_no_generic_ack" }
@@ -570,6 +601,8 @@ class ReplyQualityEvaluatorTest {
 
         assertTrue(!ReplyQualityScenarios.evaluateReply("AI 모델로는 답변할 수 없습니다.", unknown).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("됐어.", ambiguous).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("완료했습니다.", ambiguous).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("준비됐습니다.", schoolAmbiguous).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("별일 없습니다.", manualOverride).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("오늘 뭐함", noEcho).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("네 확인했습니다.", noGenericAck).passed)

@@ -82,6 +82,10 @@ object ReplyQualityEvaluator {
             score -= 18
             reasons.add("unguarded_guess")
         }
+        if (overclaimsAmbiguousRequest(normalized, message, history)) {
+            score -= 34
+            reasons.add("ambiguous_overclaim")
+        }
         if (evadesKnownFactQuestion(normalized, config, message, history)) {
             score -= 36
             reasons.add("generic_ack_instead_of_known_fact")
@@ -279,6 +283,46 @@ object ReplyQualityEvaluator {
 
     private fun looksLikeGuess(reply: String): Boolean {
         return listOf("아마", "대충", "같아", "것 같", "듯", "추측").any { reply.contains(it) }
+    }
+
+    internal fun overclaimsAmbiguousRequest(
+        reply: String,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): Boolean {
+        if (!looksAmbiguousRequest(message, history)) return false
+        if (looksLikeClarifyingQuestion(reply)) return false
+        val normalized = normalizeForExampleMatch(reply)
+        val completionClaims = listOf(
+            "됐어",
+            "되었어",
+            "됐습니다",
+            "되었습니다",
+            "완료",
+            "처리했",
+            "처리됐",
+            "준비됐",
+            "해놨어",
+            "해뒀어",
+            "끝났어"
+        )
+        return completionClaims.any { normalized.contains(normalizeForExampleMatch(it)) }
+    }
+
+    private fun looksAmbiguousRequest(message: String, history: List<RoomHistoryMessage>): Boolean {
+        val normalized = normalizeForExampleMatch(message)
+        val ambiguousMarkers = listOf("그거", "그건", "그건가", "그거됐", "준비됐", "됐어", "됐나요", "어떻게됐")
+        if (ambiguousMarkers.none { normalized.contains(normalizeForExampleMatch(it)) }) return false
+        val historyTopics = history.flatMap { tokens(it.message) }
+            .filter { it.length >= 2 }
+            .distinct()
+        return historyTopics.size >= 2 || normalized.length <= 12
+    }
+
+    private fun looksLikeClarifyingQuestion(reply: String): Boolean {
+        return reply.contains("?") ||
+            reply.contains("？") ||
+            listOf("뭐", "어떤", "말하는", "건가", "거야", "자료", "문서", "발표").any { reply.contains(it) }
     }
 
     private fun evadesKnownFactQuestion(

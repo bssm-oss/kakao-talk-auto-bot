@@ -183,8 +183,8 @@ object ReplyQualityScenarios {
                     RoomHistoryMessage("지우", "문서 초안이랑 발표 자료 둘 다 남았어", true, 1L),
                     RoomHistoryMessage("나", "일단 문서부터 볼게", false, 2L)
                 ),
-                expectedTraits = setOf("clarify", "short"),
-                minimumScore = 45
+                expectedTraits = setOf("clarify", "short", "no_overclaim"),
+                minimumScore = 55
             ),
             Scenario(
                 id = "school_ambiguous_formal",
@@ -199,7 +199,7 @@ object ReplyQualityScenarios {
                     RoomHistoryMessage("선생님", "문서 초안과 발표 자료를 둘 다 확인해 주세요.", true, 1L),
                     RoomHistoryMessage("나", "먼저 문서 초안부터 정리하겠습니다.", false, 2L)
                 ),
-                expectedTraits = setOf("clarify", "formal", "short"),
+                expectedTraits = setOf("clarify", "formal", "short", "no_overclaim"),
                 minimumScore = 55
             ),
             Scenario(
@@ -480,6 +480,9 @@ object ReplyQualityScenarios {
         }
         if ("low_signal_brief_ack" in scenario.expectedTraits) {
             if ("low_signal_overreply" in candidate.reasons || "over_explained" in candidate.reasons) score -= 40 else score += 20
+        }
+        if ("no_overclaim" in scenario.expectedTraits) {
+            if ("ambiguous_overclaim" in candidate.reasons) score -= 45 else score += 20
         }
         if ("no_business_ack" in scenario.expectedTraits) {
             if ("generic_business_ack_in_casual_room" in candidate.reasons) score -= 40 else score += 20
