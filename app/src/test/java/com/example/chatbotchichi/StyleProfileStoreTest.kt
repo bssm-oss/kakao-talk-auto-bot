@@ -297,4 +297,58 @@ class StyleProfileStoreTest {
         assertTrue(preview.contains("학습된 방 말투가 꺼져 있어"))
         assertTrue(preview.contains("반영되지 않습니다"))
     }
+
+    @Test
+    fun learnedStylePreviewText_warnsWhenManualRoomStyleConflictsWithGeneratedStyle() {
+        val state = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "",
+            generated = "방 전체 말투 기준: 학교/팀방처럼 존댓말과 격식이 중심",
+            confidence = 78,
+            sampleCount = 8
+        )
+
+        val preview = StyleProfileStore.learnedStylePreviewText(
+            subject = "방 말투",
+            state = state,
+            emptyMessage = "자동 추출된 방 말투가 아직 없습니다.",
+            manualStyle = "친한 친구방. 가볍게 반말. 예시: 아무것도 없긴해"
+        )
+
+        assertTrue(preview.contains("수동 방 스타일과 자동 학습값이 충돌합니다"))
+        assertTrue(preview.contains("수동 방 스타일이 우선"))
+        assertTrue(preview.contains("학습 원본 삭제"))
+    }
+
+    @Test
+    fun learnedStyleConflictWarning_doesNotWarnWhenManualOverrideOrDisabledStateApplies() {
+        val automaticConflict = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "",
+            generated = "방 전체 말투 기준: 학교/팀방처럼 존댓말과 격식이 중심",
+            confidence = 78,
+            sampleCount = 8
+        )
+        val manualOverride = automaticConflict.copy(override = "친구방에서는 아무것도 없긴해처럼 짧게 반말")
+        val disabled = automaticConflict.copy(enabled = false)
+
+        assertTrue(
+            StyleProfileStore.learnedStyleConflictWarning(
+                manualStyle = "친한 친구방. 가볍게 반말",
+                state = automaticConflict
+            ).isNotBlank()
+        )
+        assertTrue(
+            StyleProfileStore.learnedStyleConflictWarning(
+                manualStyle = "친한 친구방. 가볍게 반말",
+                state = manualOverride
+            ).isBlank()
+        )
+        assertTrue(
+            StyleProfileStore.learnedStyleConflictWarning(
+                manualStyle = "친한 친구방. 가볍게 반말",
+                state = disabled
+            ).isBlank()
+        )
+    }
 }
