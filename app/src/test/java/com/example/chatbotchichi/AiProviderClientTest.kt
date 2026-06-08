@@ -271,6 +271,45 @@ class AiProviderClientTest {
     }
 
     @Test
+    fun buildDeterministicCandidates_addsAmbiguousClarificationCandidate() {
+        val config = AutoReplyJson.defaultConfig("프로젝트방").copy(
+            roomStyle = "친한 팀 프로젝트방. 짧게 반말로 확인 질문"
+        )
+        val history = listOf(
+            RoomHistoryMessage("지우", "문서 초안이랑 발표 자료 둘 다 남았어", true, 1L),
+            RoomHistoryMessage("나", "일단 문서부터 볼게", false, 2L)
+        )
+
+        val candidates = AiProviderClient.buildDeterministicCandidates(
+            config = config,
+            message = "그거 됐어?",
+            history = history
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+        assertEquals("ambiguous_clarify", best?.source)
+        assertEquals("문서 초안 말하는 거야, 발표 자료 말하는 거야?", best?.reply)
+    }
+
+    @Test
+    fun findAmbiguousClarificationReply_usesFormalToneForSchoolRoom() {
+        val config = AutoReplyJson.defaultConfig("학교방").copy(
+            roomStyle = "학교 단톡. 존댓말로 짧게 확인"
+        )
+        val history = listOf(
+            RoomHistoryMessage("선생님", "회의 일정이랑 제출 마감 둘 다 확인해 주세요.", true, 1L)
+        )
+
+        val reply = AiProviderClient.findAmbiguousClarificationReply(
+            config = config,
+            message = "그건 어떻게 됐나요?",
+            history = history
+        )
+
+        assertEquals("회의 일정 말씀하시는 건가요, 제출 마감 말씀하시는 건가요?", reply)
+    }
+
+    @Test
     fun findUnknownFactGuardReply_usesFormalToneForSchoolRoom() {
         val config = AutoReplyJson.defaultConfig("학교방").copy(
             roomStyle = "학교 단톡. 존댓말. 모르는 일정은 추측하지 않음"
