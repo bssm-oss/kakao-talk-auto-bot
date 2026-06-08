@@ -128,6 +128,38 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_penalizesGenericAckWhenKnownFactAnswersQuestion() {
+        val config = AutoReplyJson.defaultConfig("팀단톡").copy(
+            roomMemory = "오늘 회의는 15시.",
+            roomStyle = "팀 단톡. 존댓말. 메모에 답이 있으면 바로 답장"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "네 확인했습니다.",
+                reply = "네 확인했습니다.",
+                config = config,
+                message = "오늘 회의 몇 시인가요?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "compact",
+                raw = "15시입니다.",
+                reply = "15시입니다.",
+                config = config,
+                message = "오늘 회의 몇 시인가요?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("compact", best?.source)
+        assertTrue(candidates.first().reasons.contains("generic_ack_instead_of_known_fact"))
+        assertTrue(candidates.last().reasons.contains("grounded_fact"))
+    }
+
+    @Test
     fun selectBest_usesSourcePriorOnlyAsTieBreakerForCloseCandidates() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             roomStyle = "친한 친구방. 가볍게 반말."
@@ -292,6 +324,7 @@ class ReplyQualityEvaluatorTest {
             "friend_light",
             "friend_no_echo",
             "team_formal",
+            "team_known_fact_no_generic_ack",
             "school_formal_notice",
             "low_signal_skip",
             "low_signal_with_context_ack",
@@ -311,6 +344,7 @@ class ReplyQualityEvaluatorTest {
         assertTrue("grounded fact trait missing", "grounded_fact" in coverage.traitIds)
         assertTrue("manual example trait missing", "manual_example" in coverage.traitIds)
         assertTrue("no echo trait missing", "no_echo" in coverage.traitIds)
+        assertTrue("no generic ack trait missing", "no_generic_ack" in coverage.traitIds)
         assertTrue("skip trait missing", "skip" in coverage.traitIds)
         assertTrue("ack trait missing", "ack" in coverage.traitIds)
     }
@@ -332,6 +366,7 @@ class ReplyQualityEvaluatorTest {
             "friend_light" to "아무것도 없긴해",
             "friend_no_echo" to "아무것도 없긴해",
             "team_formal" to "별일없습니다!",
+            "team_known_fact_no_generic_ack" to "15시입니다.",
             "school_formal_notice" to "별일 없습니다.",
             "low_signal_skip" to "",
             "low_signal_with_context_ack" to "응 알겠어",
@@ -357,10 +392,12 @@ class ReplyQualityEvaluatorTest {
         val ambiguous = ReplyQualityScenarios.builtIns().first { it.id == "ambiguous_clarify" }
         val manualOverride = ReplyQualityScenarios.builtIns().first { it.id == "manual_example_override" }
         val noEcho = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_echo" }
+        val noGenericAck = ReplyQualityScenarios.builtIns().first { it.id == "team_known_fact_no_generic_ack" }
 
         assertTrue(!ReplyQualityScenarios.evaluateReply("AI 모델로는 답변할 수 없습니다.", unknown).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("됐어.", ambiguous).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("별일 없습니다.", manualOverride).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("오늘 뭐함", noEcho).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("네 확인했습니다.", noGenericAck).passed)
     }
 }
