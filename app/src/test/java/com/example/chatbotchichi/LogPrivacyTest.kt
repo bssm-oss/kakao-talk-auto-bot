@@ -67,4 +67,44 @@ class LogPrivacyTest {
         assertTrue(redacted.contains("<방 숨김>"))
         assertTrue(redacted.contains("reason=exception:<이메일 숨김>"))
     }
+
+    @Test
+    fun redact_hidesLooseBracketedChatLines() {
+        val raw = "카톡 알림 [비밀친구방] 민수: 오늘 7시에 보자"
+
+        val redacted = LogPrivacy.redact(raw)
+
+        assertFalse(redacted.contains("비밀친구방"))
+        assertFalse(redacted.contains("민수"))
+        assertFalse(redacted.contains("오늘 7시에 보자"))
+        assertTrue(redacted.contains("<카톡 로그 숨김>"))
+    }
+
+    @Test
+    fun redact_hidesChatKeyValueLines() {
+        val raw = "debug room=비밀팀방, sender=민수, msg=010-1234-5678로 전화줘"
+
+        val redacted = LogPrivacy.redact(raw)
+
+        assertFalse(redacted.contains("비밀팀방"))
+        assertFalse(redacted.contains("민수"))
+        assertFalse(redacted.contains("010-1234-5678"))
+        assertTrue(redacted.contains("room=<방 숨김>"))
+        assertTrue(redacted.contains("sender=<발화자 숨김>"))
+        assertTrue(redacted.contains("msg=<메시지 숨김>"))
+    }
+
+    @Test
+    fun redact_hidesKoreanChatKeyValueLines() {
+        val raw = "디버그 방=비밀방, 발화자=지우, 메시지=내일 자료 보내줘"
+
+        val redacted = LogPrivacy.redact(raw)
+
+        assertFalse(redacted.contains("비밀방"))
+        assertFalse(redacted.contains("지우"))
+        assertFalse(redacted.contains("내일 자료 보내줘"))
+        assertTrue(redacted.contains("방=<방 숨김>"))
+        assertTrue(redacted.contains("발화자=<발화자 숨김>"))
+        assertTrue(redacted.contains("메시지=<메시지 숨김>"))
+    }
 }
