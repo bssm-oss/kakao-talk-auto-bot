@@ -3,6 +3,9 @@ package com.example.kakaotalkautobot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class AiProviderClientTest {
 
@@ -204,6 +207,54 @@ class AiProviderClientTest {
         assertTrue(specs[2].prompt.contains("수동 방 말투가 있으면 학습된 말투보다 우선"))
         assertTrue(specs.last().prompt.contains("사용자 직접 예시와 수동 방 말투가 있으면 학습된 말투보다 우선"))
         assertTrue(specs.last().prompt.contains("최근 대화"))
+    }
+
+    @Test
+    fun generateCandidatesFromSpecs_runsLanesConcurrentlyForInternalComparison() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 가볍게 반말. 예시: 아무것도 없긴해"
+        )
+        val specs = listOf(
+            AiProviderClient.LlmCandidateSpec("primary", "primary prompt", 12),
+            AiProviderClient.LlmCandidateSpec("style_rewrite", "style prompt", 18),
+            AiProviderClient.LlmCandidateSpec("human_style", "human prompt", 18),
+            AiProviderClient.LlmCandidateSpec("compact", "compact prompt", 24)
+        )
+        val started = CountDownLatch(specs.size)
+        val active = AtomicInteger(0)
+        val maxActive = AtomicInteger(0)
+        val allStartedCount = AtomicInteger(0)
+
+        val candidates = AiProviderClient.generateCandidatesFromSpecs(
+            specs = specs,
+            config = config,
+            message = "오늘 별일 있어?",
+            history = emptyList(),
+            logProgress = false
+        ) { spec ->
+            val currentActive = active.incrementAndGet()
+            maxActive.updateMax(currentActive)
+            try {
+                started.countDown()
+                if (started.await(2, TimeUnit.SECONDS)) {
+                    allStartedCount.incrementAndGet()
+                }
+                Thread.sleep(40)
+                when (spec.source) {
+                    "human_style" -> "아무것도 없긴해"
+                    "style_rewrite" -> "없긴해"
+                    "compact" -> "없어"
+                    else -> "확인했습니다!"
+                }
+            } finally {
+                active.decrementAndGet()
+            }
+        }
+
+        assertEquals(specs.map { it.source }, candidates.map { it.source })
+        assertEquals(specs.size, allStartedCount.get())
+        assertTrue("candidate lanes should overlap instead of running sequentially", maxActive.get() > 1)
+        assertTrue(candidates.any { it.source == "human_style" && it.reply == "아무것도 없긴해" })
     }
 
     @Test
@@ -443,4 +494,11 @@ class AiProviderClientTest {
         assertEquals("아직 확인된 내용은 못 찾았습니다.", reply)
     }
 
+}
+
+private fun AtomicInteger.updateMax(value: Int) {
+    while (true) {
+        val current = get()
+        if (value <= current || compareAndSet(current, value)) return
+    }
 }

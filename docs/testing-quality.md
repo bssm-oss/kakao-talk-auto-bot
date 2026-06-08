@@ -78,6 +78,7 @@ maestro test .maestro
 - 후보 응답 source 별 생성/선택/빈 응답/저품질/latency 집계가 대화 원문 없이 계산되는 가드
 - source 별 후보 통계 보정점이 가까운 후보의 tie-breaker 로만 작동하고 명백히 나쁜 답변을 이기지 못하는 선택 가드
 - 여러 candidate lane 이 같은 답장을 반복하면 중복 후보가 `duplicate_reply` 로 감점되어 선택을 왜곡하지 않는 가드
+- primary/style_rewrite/human_style/compact 후보 lane 이 순차 실행으로 퇴행하지 않고 병렬 예약/오케스트레이션되는지 확인하는 가드
 - primary/style_rewrite/human_style/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 자기 지칭 업무체, 친구방 단독 업무체 ACK, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
 - 친구방, 팀방, 학교방, 친구방 짧은 echo 방지, 근거 있는 질문의 generic ack 방지, 학교방 장황한 부연 방지, 낮은 신호, 맥락 있는 낮은 신호의 과잉 답장 방지, 모르는 사실, 방 메모리 사실 확인, 수동 예시 우선순위 충돌을 포함한 기본 응답 품질 시나리오
 - 애매한 지시에는 아는 척하지 않고 방 말투에 맞춰 반말/존댓말 확인 질문을 하는 응답 품질 시나리오
@@ -167,6 +168,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 존댓말 이력이 쌓인 방에서도 수동 친구방 예시가 있으면 수동 예시에 가까운 답장만 `manual_example_override` 시나리오를 통과함
 - [ ] 친구방에서 `확인했습니다!` 같은 단독 업무체 ACK는 `generic_business_ack_in_casual_room` 으로 감점되고 직접 예시 답장이 우선됨
 - [ ] primary/style_rewrite/human_style/compact candidate lane 이 같은 품질 게이트에서 비교되고, emergency lane 은 초기 후보가 약할 때만 추가됨
+- [ ] primary/style_rewrite/human_style/compact candidate lane 은 코루틴에서 병렬 예약되어 순차 후보 생성으로 퇴행하지 않음
 - [ ] primary/style_rewrite/human_style/compact/emergency 후보 평가 결과와 선택 이유가 로그로 남음
 - [ ] 후보 source 별 생성/선택/빈 응답/저품질/latency 집계가 남고, 프롬프트/원문 응답/방 이름/발화자는 장기 저장하지 않음
 - [ ] 후보 source 통계 보정점은 샘플이 충분할 때만 적용되고, 기본 품질 점수를 압도하지 않음

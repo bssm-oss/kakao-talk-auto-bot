@@ -384,7 +384,7 @@ object AiProviderClient {
         styleGuide: String
     ): List<ReplyQualityEvaluator.Candidate> {
         val initialSpecs = buildInitialCandidateSpecs(config, room, sender, message, history, prompt, styleGuide)
-        Log.d(TAG, "Generating ${initialSpecs.size} LLM candidate lanes for internal comparison")
+        Log.d(TAG, "Generating ${initialSpecs.size} LLM candidate lanes for parallel internal comparison")
         val candidates = generateCandidatesFromSpecs(initialSpecs, config, message, history).toMutableList()
 
         if (candidates.any { it.score >= 80 }) {
@@ -458,21 +458,29 @@ object AiProviderClient {
         )
     }
 
-    private fun generateCandidatesFromSpecs(
+    internal fun generateCandidatesFromSpecs(
         specs: List<LlmCandidateSpec>,
         config: AutoReplyConfig,
         message: String,
-        history: List<RoomHistoryMessage>
+        history: List<RoomHistoryMessage>,
+        logProgress: Boolean = true,
+        rawGenerator: (LlmCandidateSpec) -> String = { spec ->
+            LlmEngine.generate(spec.prompt, maxTokens = spec.maxTokens)
+        }
     ): List<ReplyQualityEvaluator.Candidate> {
         if (specs.isEmpty()) return emptyList()
         return runBlocking {
             specs.map { spec ->
                 async(Dispatchers.Default) {
-                    Log.d(TAG, "Generating ${spec.source} candidate prompt length=${spec.prompt.length} chars")
+                    if (logProgress) {
+                        Log.d(TAG, "Generating ${spec.source} candidate prompt length=${spec.prompt.length} chars")
+                    }
                     val startedAt = System.currentTimeMillis()
-                    val rawResponse = LlmEngine.generate(spec.prompt, maxTokens = spec.maxTokens)
+                    val rawResponse = rawGenerator(spec)
                     val latencyMs = System.currentTimeMillis() - startedAt
-                    Log.d(TAG, "${spec.source} raw LLM response length: ${rawResponse.length}, latencyMs=$latencyMs")
+                    if (logProgress) {
+                        Log.d(TAG, "${spec.source} raw LLM response length: ${rawResponse.length}, latencyMs=$latencyMs")
+                    }
                     evaluateCandidate(spec.source, rawResponse, config, message, history, latencyMs)
                 }
             }.awaitAll()
