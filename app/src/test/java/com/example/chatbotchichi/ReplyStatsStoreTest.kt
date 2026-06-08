@@ -122,6 +122,7 @@ class ReplyStatsStoreTest {
             failed = 1,
             failureReasons = mapOf(SessionReplier.REASON_NO_REMOTE_INPUT to 1),
             skipReasons = mapOf("model not loaded" to 1),
+            lastSentAtMillis = 3000L,
             lastFailureReason = SessionReplier.REASON_NO_REMOTE_INPUT,
             lastFailureAtMillis = 1000L,
             lastSkipReason = "model not loaded",
@@ -130,6 +131,21 @@ class ReplyStatsStoreTest {
 
         assertTrue(detail.contains("최근 실패: no remoteInput"))
         assertTrue(detail.contains("최근 스킵: model not loaded"))
+        assertTrue(detail.contains("최근 이벤트:"))
+        assertTrue(detail.contains("전송"))
+        assertTrue(detail.contains("실패"))
+        assertTrue(detail.contains("스킵"))
+    }
+
+    @Test
+    fun formatAge_usesHumanReadableBuckets() {
+        val now = 200_000_000L
+
+        assertEquals("5초 전", ReplyStatsStore.formatAge(now - 5_000L, now))
+        assertEquals("2분 전", ReplyStatsStore.formatAge(now - 120_000L, now))
+        assertEquals("3시간 전", ReplyStatsStore.formatAge(now - 10_800_000L, now))
+        assertEquals("2일 전", ReplyStatsStore.formatAge(now - 172_800_000L, now))
+        assertEquals("없음", ReplyStatsStore.formatAge(0L, now))
     }
 
     @Test
