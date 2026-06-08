@@ -14,13 +14,13 @@
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
 ```
 
-친구방/팀방/학교방/애매한 말/낮은 신호/모르는 사실/방 메모 질문의 고정 답변 품질 리포트는 아래 명령으로 생성합니다.
+친구방/팀방/학교방/애매한 말/낮은 신호/모르는 사실/방 메모 질문/수동 예시 우선순위 충돌의 고정 답변 품질 리포트는 아래 명령으로 생성합니다.
 
 ```bash
 scripts/generate-reply-quality-report.sh
 ```
 
-리포트는 `app/build/reports/reply-quality/report.md` 에 생성됩니다. `Expected Reply Examples` 는 각 시나리오의 기대 예문, trait, 점수, 최소 기준, 통과 여부를 표로 남기고, `Engine Baseline Without LLM` 은 모델 호출 없이 실제 엔진이 처리할 수 있는 `pre_model_skip`, `ambiguous_clarify`, `unknown_guard`, `deadline_fact` 경로의 source/coverage/pass 결과를 남깁니다. 친구방/팀방/학교방처럼 모델 생성이 필요한 말투 응답은 `requires_llm` 으로 표시해 실기기 LLM 검증과 분리합니다.
+리포트는 `app/build/reports/reply-quality/report.md` 에 생성됩니다. `Expected Reply Examples` 는 각 시나리오의 기대 예문, trait, 점수, 최소 기준, 통과 여부를 표로 남기고, 수동 예시 우선순위 충돌 시나리오는 존댓말 이력이 있더라도 직접 적은 예시와 가까운 답장이 통과하는지 확인합니다. `Engine Baseline Without LLM` 은 모델 호출 없이 실제 엔진이 처리할 수 있는 `pre_model_skip`, `ambiguous_clarify`, `unknown_guard`, `deadline_fact` 경로의 source/coverage/pass 결과를 남깁니다. 친구방/팀방/학교방과 수동 예시 우선순위처럼 모델 생성이 필요한 말투 응답은 `requires_llm` 으로 표시해 실기기 LLM 검증과 분리합니다.
 
 ARM64 실기기에서 Gemma 기본 모델과 실제 런타임 경로를 확인할 때는 아래 스크립트를 사용합니다.
 
@@ -76,7 +76,7 @@ maestro test .maestro
 - OFF 상태 또는 방별 답장 비활성화일 때도 메시지 수집은 유지되고 답장만 막히는 가드 로직
 - 전송 실패와 스킵 reason 이 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `reply off`, `low signal`, `model not loaded` 같은 표준 카테고리로 집계되고 최근 실패/스킵 reason 이 남는 통계 가드
 - primary/style_rewrite/human_style/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
-- 친구방, 팀방, 학교방, 낮은 신호, 모르는 사실, 방 메모리 사실 확인을 포함한 기본 응답 품질 시나리오
+- 친구방, 팀방, 학교방, 낮은 신호, 모르는 사실, 방 메모리 사실 확인, 수동 예시 우선순위 충돌을 포함한 기본 응답 품질 시나리오
 - 애매한 지시에는 아는 척하지 않고 짧게 확인 질문을 하는 응답 품질 시나리오
 - 기본 응답 품질 시나리오의 Markdown 리포트 생성과 비-LLM 엔진 baseline 경로 검증
 - 로그 복사 시 방 이름, 발화자, 메시지 본문과 비정형 줄의 전화번호/이메일/URL을 가리는 개인정보 보호 처리
@@ -155,6 +155,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 모르는 사실은 추측하지 않고 모른다고 짧게 답함
 - [ ] AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 지나치게 긴 후보가 최종 답장으로 선택되지 않음
 - [ ] 사용자 직접 예시와 가까운 답장은 `manual_example_match` 로 보상됨
+- [ ] 존댓말 이력이 쌓인 방에서도 수동 친구방 예시가 있으면 수동 예시에 가까운 답장만 `manual_example_override` 시나리오를 통과함
 - [ ] primary/style_rewrite/human_style/compact candidate lane 이 같은 품질 게이트에서 비교되고, emergency lane 은 초기 후보가 약할 때만 추가됨
 - [ ] primary/style_rewrite/human_style/compact/emergency 후보 평가 결과와 선택 이유가 로그로 남음
 - [ ] 규칙 기반 후보와 Gemma 후보가 같은 품질 게이트에서 평가됨

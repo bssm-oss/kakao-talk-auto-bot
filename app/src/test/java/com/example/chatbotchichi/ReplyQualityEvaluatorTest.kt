@@ -137,7 +137,8 @@ class ReplyQualityEvaluatorTest {
             "low_signal_skip",
             "ambiguous_clarify",
             "unknown_fact_guard",
-            "room_memory_fact"
+            "room_memory_fact",
+            "manual_example_override"
         )
 
         assertTrue("required quality matrix missing: ${coverage.scenarioIds}", coverage.hasRequiredScenarios(requiredIds))
@@ -146,6 +147,7 @@ class ReplyQualityEvaluatorTest {
         assertTrue("clarify trait missing", "clarify" in coverage.traitIds)
         assertTrue("unknown guard trait missing", "unknown_guard" in coverage.traitIds)
         assertTrue("grounded fact trait missing", "grounded_fact" in coverage.traitIds)
+        assertTrue("manual example trait missing", "manual_example" in coverage.traitIds)
         assertTrue("skip trait missing", "skip" in coverage.traitIds)
     }
 
@@ -169,7 +171,8 @@ class ReplyQualityEvaluatorTest {
             "low_signal_skip" to "",
             "ambiguous_clarify" to "문서 말하는 거야, 발표 자료 말하는 거야?",
             "unknown_fact_guard" to "아직 확인된 내용은 못 찾았습니다.",
-            "room_memory_fact" to "6월 12일 18시까지입니다."
+            "room_memory_fact" to "6월 12일 18시까지입니다.",
+            "manual_example_override" to "아무것도 없긴해"
         )
 
         ReplyQualityScenarios.builtIns().forEach { scenario ->
@@ -184,8 +187,10 @@ class ReplyQualityEvaluatorTest {
     fun builtInScenarioExamples_rejectMetaAndOverconfidentReplies() {
         val unknown = ReplyQualityScenarios.builtIns().first { it.id == "unknown_fact_guard" }
         val ambiguous = ReplyQualityScenarios.builtIns().first { it.id == "ambiguous_clarify" }
+        val manualOverride = ReplyQualityScenarios.builtIns().first { it.id == "manual_example_override" }
 
         assertTrue(!ReplyQualityScenarios.evaluateReply("AI 모델로는 답변할 수 없습니다.", unknown).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("됐어.", ambiguous).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("별일 없습니다.", manualOverride).passed)
     }
 }

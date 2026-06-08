@@ -144,6 +144,24 @@ object ReplyQualityScenarios {
                 ),
                 history = emptyList(),
                 expectedTraits = setOf("grounded_fact", "formal")
+            ),
+            Scenario(
+                id = "manual_example_override",
+                room = "친구방",
+                sender = "민수",
+                message = "오늘 별일 있어?",
+                config = AutoReplyJson.defaultConfig("친구방").copy(
+                    roomStyle = "친한 친구방. 수동 방 말투가 최우선. 예시: 아무것도 없긴해",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("선생님", "전달 사항 있나요?", true, 1L),
+                    RoomHistoryMessage("나", "별일 없습니다.", false, 2L),
+                    RoomHistoryMessage("팀장", "공유할 이슈 있나요?", true, 3L),
+                    RoomHistoryMessage("나", "별일없습니다!", false, 4L)
+                ),
+                expectedTraits = setOf("casual", "short", "manual_example"),
+                minimumScore = 55
             )
         )
     }
@@ -175,7 +193,8 @@ object ReplyQualityScenarios {
             ScenarioExample("low_signal_skip", ""),
             ScenarioExample("ambiguous_clarify", "문서 말하는 거야, 발표 자료 말하는 거야?"),
             ScenarioExample("unknown_fact_guard", "아직 확인된 내용은 못 찾았습니다."),
-            ScenarioExample("room_memory_fact", "6월 12일 18시까지입니다.")
+            ScenarioExample("room_memory_fact", "6월 12일 18시까지입니다."),
+            ScenarioExample("manual_example_override", "아무것도 없긴해")
         )
     }
 
@@ -301,6 +320,18 @@ object ReplyQualityScenarios {
         if ("clarify" in scenario.expectedTraits && listOf("뭐", "어떤", "문서", "발표", "그거").any { normalized.contains(it) }) score += 25
         if ("unknown_guard" in scenario.expectedTraits && listOf("몰라", "확인", "못 찾", "모르").any { normalized.contains(it) }) score += 25
         if ("grounded_fact" in scenario.expectedTraits && listOf("6월 12일", "18시", "12일").any { normalized.contains(it) }) score += 25
+        if ("manual_example" in scenario.expectedTraits) {
+            val candidate = ReplyQualityEvaluator.evaluate(
+                source = "quality_scenario",
+                raw = normalized,
+                reply = normalized,
+                config = scenario.config,
+                message = scenario.message,
+                history = scenario.history
+            )
+            if ("manual_example_match" in candidate.reasons) score += 25
+            if (candidate.reasons.any { it.startsWith("manual_room_style_mismatch") }) score -= 20
+        }
         if (ReplyQualityEvaluator.containsAiMetaText(normalized)) score -= 30
         if (normalized.length > 120) score -= 20
         return score.coerceAtLeast(0)
