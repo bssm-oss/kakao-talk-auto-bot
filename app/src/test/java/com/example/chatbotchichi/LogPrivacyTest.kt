@@ -107,4 +107,18 @@ class LogPrivacyTest {
         assertTrue(redacted.contains("발화자=<발화자 숨김>"))
         assertTrue(redacted.contains("메시지=<메시지 숨김>"))
     }
+
+    @Test
+    fun redactSensitiveTokens_canBeReusedForStoredOperationalReasons() {
+        val redacted = LogPrivacy.redactSensitiveTokens(
+            "reason=test@example.com 010-1234-5678 https://example.com/fail"
+        )
+
+        assertFalse(redacted.contains("test@example.com"))
+        assertFalse(redacted.contains("010-1234-5678"))
+        assertFalse(redacted.contains("https://example.com/fail"))
+        assertTrue(redacted.contains("<이메일 숨김>"))
+        assertTrue(redacted.contains("<전화번호 숨김>"))
+        assertTrue(redacted.contains("<URL 숨김>"))
+    }
 }

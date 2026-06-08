@@ -1,6 +1,7 @@
 package com.example.kakaotalkautobot
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -88,6 +89,20 @@ class ReplyStatsStoreTest {
             "canned reply empty",
             ReplyStatsStore.normalizeReason("고정 답장 템플릿이 비어 있습니다.")
         )
+    }
+
+    @Test
+    fun normalizeReason_redactsSensitiveTokensInUnknownReasons() {
+        val reason = ReplyStatsStore.normalizeReason(
+            "vendor_error room=비밀방 email=test@example.com phone=010-1234-5678 url=https://example.com/fail"
+        )
+
+        assertFalse(reason.contains("test@example.com"))
+        assertFalse(reason.contains("010-1234-5678"))
+        assertFalse(reason.contains("https://example.com/fail"))
+        assertTrue(reason.contains("<이메일 숨김>"))
+        assertTrue(reason.contains("<전화번호 숨김>"))
+        assertTrue(reason.contains("<URL 숨김>"))
     }
 
     @Test
