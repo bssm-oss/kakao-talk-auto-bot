@@ -28,7 +28,7 @@ ARM64 실기기에서 Gemma 기본 모델과 실제 런타임 경로를 확인�
 scripts/verify-real-device-e2e.sh
 ```
 
-이 스크립트는 한 대의 ARM64 실기기 연결을 요구하고, debug APK와 androidTest APK 설치, Gemma 계측 테스트 실행, 모델 파일 크기/SHA-256 확인, 로그캣 저장까지 수행합니다. 카카오톡 알림 수신과 실제 자동 답장 표시는 계정/알림 권한이 필요한 수동 E2E 단계로 남기며, 스크립트가 생성하는 `outputs/real-device-e2e/*-summary.txt` 에 `manual_kakao_*` 증거 필드를 남깁니다.
+이 스크립트는 한 대의 ARM64 실기기 연결을 요구하고, debug APK와 androidTest APK 설치, Gemma 계측 테스트 실행, 모델 파일 크기/SHA-256 확인, 로그캣 저장까지 수행합니다. 요약 파일에는 기기 브랜드/모델/Android 버전, 알림 리스너 권한 상태(`notification_listener_enabled`), 모델 파일 증거, 로그캣 경로가 함께 남습니다. 카카오톡 알림 수신과 실제 자동 답장 표시는 계정/알림 권한이 필요한 수동 E2E 단계로 남기며, 스크립트가 생성하는 `outputs/real-device-e2e/*-summary.txt` 에 `manual_kakao_*` 증거 필드를 남깁니다.
 
 실기기 없이 수동 증거 필드 형식만 확인하려면 다음을 실행합니다.
 
@@ -48,6 +48,8 @@ MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK=true \
 MANUAL_KAKAO_EVIDENCE_NOTE="IN/OUT 로그와 카카오톡 대화창 답장 표시 확인" \
 scripts/verify-real-device-e2e.sh
 ```
+
+위 값이 모두 충족되면 요약 파일의 `manual_kakao_complete=true` 로 기록됩니다. `notification_listener_enabled=true` 는 기기 설정의 알림 접근 권한 상태를 자동으로 읽은 값이고, `manual_kakao_notification_access_confirmed=true` 는 사람이 실제 카카오톡 수신/전송 검증 흐름에서 권한 상태를 확인했다는 별도 증거입니다.
 
 UI 흐름을 바꿨다면 아래도 같이 확인합니다.
 
@@ -168,6 +170,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 ### 실기기 Gemma 4 검증
 
 - [ ] `adb devices -l` 에서 ARM64 Android 실기기 연결 확인
+- [ ] `outputs/real-device-e2e/*-summary.txt` 에 기기 브랜드/모델/Android 버전이 기록됨
 - [ ] 앱 내 Gemma 4 E2B LiteRT-LM 다운로드 완료
 - [ ] 모델 파일 크기가 기본 모델 기대치와 일치함
 - [ ] 모델 파일 SHA-256 검증 또는 검증 완료 sidecar가 확인됨
@@ -183,6 +186,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 ### 실제 카카오톡 end-to-end
 
 - [ ] 알림 접근 권한 허용 후 `NotificationListener` 연결 상태 확인
+- [ ] `outputs/real-device-e2e/*-summary.txt` 의 `notification_listener_enabled=true` 확인
 - [ ] 카카오톡 메시지 수신 시 방 이름, 발화자, 메시지가 로컬에 저장됨
 - [ ] 대상 방으로 설정하지 않은 방에는 답장하지 않음
 - [ ] 대상 방에서는 조건을 만족할 때 자동 답장이 전송됨
@@ -193,7 +197,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 전송 실패 시 `OUT_FAIL` 로그에 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed` 같은 원인이 남고 앱이 죽지 않음
 - [ ] 전송 실패와 스킵 통계 요약에 상위 원인별 횟수가 표준 카테고리로 표시됨
 - [ ] AI 답장 생성 후 `replyToRoomDetailed` 이 실패하면 엔진 레벨에서도 같은 전송 원인을 포함한 `OUT_FAIL` 이 남음
-- [ ] `outputs/real-device-e2e/*-summary.txt` 의 `manual_kakao_in_log_confirmed`, `manual_kakao_out_log_confirmed`, `manual_kakao_reply_visible_in_kakaotalk` 가 실제 확인 결과로 채워짐
+- [ ] `outputs/real-device-e2e/*-summary.txt` 의 `manual_kakao_in_log_confirmed`, `manual_kakao_out_log_confirmed`, `manual_kakao_reply_visible_in_kakaotalk`, `manual_kakao_complete` 가 실제 확인 결과로 채워짐
 - [ ] OFF 상태 전환 직후 수신 메시지는 저장되지만 답장은 나가지 않음
 - [ ] OFF 상태 전환 직후 수신 메시지는 `OUT_SKIP` 에 OFF 원인이 남음
 
