@@ -2,6 +2,10 @@ package com.example.kakaotalkautobot
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 
 object AiProviderClient {
     private const val TAG = "AiProviderClient"
@@ -22,6 +26,12 @@ object AiProviderClient {
         val reply: String? = null,
         val failureReason: String? = null,
         val skippedReason: String? = null
+    )
+
+    internal data class LlmCandidateSpec(
+        val source: String,
+        val prompt: String,
+        val maxTokens: Int
     )
 
     fun generate(
@@ -276,29 +286,75 @@ object AiProviderClient {
         prompt: String,
         styleGuide: String
     ): List<ReplyQualityEvaluator.Candidate> {
-        val candidates = mutableListOf<ReplyQualityEvaluator.Candidate>()
-        val primaryRawResponse = LlmEngine.generate(prompt, maxTokens = 12)
-        Log.d(TAG, "Primary raw LLM response length: ${primaryRawResponse.length}")
-        candidates += evaluateCandidate("primary", primaryRawResponse, config, message, history)
-
-        Log.d(TAG, "Generating compact candidate for internal comparison")
-        val compactPrompt = buildCompactPrompt(config, room, sender, message, history, styleGuide)
-        Log.d(TAG, "Compact prompt length: ${compactPrompt.length} chars")
-        val compactRawResponse = LlmEngine.generate(compactPrompt, maxTokens = 24)
-        Log.d(TAG, "Retry raw LLM response length: ${compactRawResponse.length}")
-        candidates += evaluateCandidate("compact", compactRawResponse, config, message, history)
+        val initialSpecs = buildInitialCandidateSpecs(config, room, sender, message, history, prompt, styleGuide)
+        Log.d(TAG, "Generating ${initialSpecs.size} LLM candidate lanes for internal comparison")
+        val candidates = generateCandidatesFromSpecs(initialSpecs, config, message, history).toMutableList()
 
         if (candidates.any { it.score >= 80 }) {
             return candidates
         }
 
+        val emergencySpec = buildEmergencyCandidateSpec(config, room, sender, message, history, styleGuide)
         Log.d(TAG, "Generating emergency candidate because quality is still weak")
-        val emergencyPrompt = buildEmergencyPrompt(config, room, sender, message, history, styleGuide)
-        Log.d(TAG, "Emergency prompt length: ${emergencyPrompt.length} chars")
-        val emergencyRawResponse = LlmEngine.generate(emergencyPrompt, maxTokens = 24)
-        Log.d(TAG, "Emergency raw LLM response length: ${emergencyRawResponse.length}")
-        candidates += evaluateCandidate("emergency", emergencyRawResponse, config, message, history)
+        candidates += generateCandidatesFromSpecs(listOf(emergencySpec), config, message, history)
         return candidates
+    }
+
+    internal fun buildInitialCandidateSpecs(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String,
+        history: List<RoomHistoryMessage>,
+        primaryPrompt: String,
+        styleGuide: String
+    ): List<LlmCandidateSpec> {
+        return listOf(
+            LlmCandidateSpec(
+                source = "primary",
+                prompt = primaryPrompt,
+                maxTokens = 12
+            ),
+            LlmCandidateSpec(
+                source = "compact",
+                prompt = buildCompactPrompt(config, room, sender, message, history, styleGuide),
+                maxTokens = 24
+            )
+        )
+    }
+
+    internal fun buildEmergencyCandidateSpec(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String,
+        history: List<RoomHistoryMessage>,
+        styleGuide: String
+    ): LlmCandidateSpec {
+        return LlmCandidateSpec(
+            source = "emergency",
+            prompt = buildEmergencyPrompt(config, room, sender, message, history, styleGuide),
+            maxTokens = 24
+        )
+    }
+
+    private fun generateCandidatesFromSpecs(
+        specs: List<LlmCandidateSpec>,
+        config: AutoReplyConfig,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): List<ReplyQualityEvaluator.Candidate> {
+        if (specs.isEmpty()) return emptyList()
+        return runBlocking {
+            specs.map { spec ->
+                async(Dispatchers.Default) {
+                    Log.d(TAG, "Generating ${spec.source} candidate prompt length=${spec.prompt.length} chars")
+                    val rawResponse = LlmEngine.generate(spec.prompt, maxTokens = spec.maxTokens)
+                    Log.d(TAG, "${spec.source} raw LLM response length: ${rawResponse.length}")
+                    evaluateCandidate(spec.source, rawResponse, config, message, history)
+                }
+            }.awaitAll()
+        }
     }
 
     internal fun buildDeterministicCandidates(
