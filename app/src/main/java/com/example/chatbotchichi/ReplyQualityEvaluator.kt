@@ -46,6 +46,10 @@ object ReplyQualityEvaluator {
             score -= 22
             reasons.add("prompt_echo")
         }
+        if (echoesShortPrompt(normalized, message)) {
+            score -= 34
+            reasons.add("short_prompt_echo")
+        }
         if (hasUnsupportedEnglish(normalized)) {
             score -= 12
             reasons.add("english_noise")
@@ -147,6 +151,16 @@ object ReplyQualityEvaluator {
         if (replyTokens.isEmpty() || messageTokens.isEmpty()) return false
         val overlap = replyTokens.count { it in messageTokens }
         return overlap >= 4 && overlap * 2 >= replyTokens.size
+    }
+
+    private fun echoesShortPrompt(reply: String, message: String): Boolean {
+        val normalizedReply = normalizeForExampleMatch(reply)
+        val normalizedMessage = normalizeForExampleMatch(message)
+        if (normalizedReply.isBlank() || normalizedMessage.isBlank()) return false
+        if (normalizedMessage.length > 18 || normalizedReply.length > 28) return false
+        return normalizedReply == normalizedMessage ||
+            normalizedReply.contains(normalizedMessage) ||
+            normalizedMessage.contains(normalizedReply)
     }
 
     private fun hasUnsupportedEnglish(reply: String): Boolean {
