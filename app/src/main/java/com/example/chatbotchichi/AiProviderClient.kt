@@ -313,6 +313,9 @@ object AiProviderClient {
             findFastDeadlineReply(message, config, history)?.let { reply ->
                 evaluateDeterministicCandidate("deadline_fact", reply, config, message, history)
             },
+            findAmbiguousClarificationReply(config, message, history)?.let { reply ->
+                evaluateDeterministicCandidate("ambiguous_clarify", reply, config, message, history)
+            },
             findUnknownFactGuardReply(config, message, history)?.let { reply ->
                 evaluateDeterministicCandidate("unknown_guard", reply, config, message, history)
             }
@@ -493,6 +496,53 @@ object AiProviderClient {
         }
     }
 
+    internal fun findAmbiguousClarificationReply(
+        config: AutoReplyConfig,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): String? {
+        val normalized = message.trim()
+        if (!isAmbiguousReference(normalized)) return null
+
+        val topics = extractClarificationTopics(history)
+        if (topics.size < 2) return null
+
+        val first = topics[0]
+        val second = topics[1]
+        return if (!prefersCasualTone(config) && prefersFormalTone(config)) {
+            "$first 말씀하시는 건가요, $second 말씀하시는 건가요?"
+        } else {
+            "$first 말하는 거야, $second 말하는 거야?"
+        }
+    }
+
+    private fun isAmbiguousReference(message: String): Boolean {
+        val normalized = message.trim()
+        if (normalized.length > 30) return false
+        return listOf("그거", "그건", "그건?", "이거", "그때", "그 일", "그것").any {
+            normalized.contains(it)
+        }
+    }
+
+    private fun extractClarificationTopics(history: List<RoomHistoryMessage>): List<String> {
+        val topicCandidates = listOf(
+            "문서 초안" to listOf("문서 초안", "문서", "초안"),
+            "발표 자료" to listOf("발표 자료", "발표", "자료"),
+            "회의 일정" to listOf("회의 일정", "회의", "일정"),
+            "제출 마감" to listOf("제출 마감", "제출", "마감"),
+            "장소" to listOf("장소", "어디", "회의실", "과학실"),
+            "모델 다운로드" to listOf("모델 다운로드", "다운로드", "모델")
+        )
+        val recentText = history
+            .takeLast(6)
+            .joinToString("\n") { it.message }
+        return topicCandidates
+            .filter { (_, needles) -> needles.any { recentText.contains(it) } }
+            .map { it.first }
+            .distinct()
+            .take(2)
+    }
+
     private fun asksSpecificFact(message: String): Boolean {
         return listOf("언제", "몇 시", "몇시", "마감", "일정", "제출", "발표", "어디", "누구").any {
             message.contains(it)
@@ -512,5 +562,13 @@ object AiProviderClient {
             style.contains("팀") ||
             style.contains("습니다") ||
             style.contains("정중")
+    }
+
+    private fun prefersCasualTone(config: AutoReplyConfig): Boolean {
+        val style = "${config.roomStyle}\n${config.persona}"
+        return style.contains("반말") ||
+            style.contains("친한") ||
+            style.contains("가볍") ||
+            style.contains("캐주얼")
     }
 }
