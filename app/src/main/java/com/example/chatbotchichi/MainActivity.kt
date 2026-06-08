@@ -309,16 +309,11 @@ class MainActivity : AppCompatActivity() {
         val clipboard = getSystemService(ClipboardManager::class.java)
         val redacted = AppSettings.shouldRedactLogCopies(this)
         val copyText = if (redacted) LogPrivacy.redact(allLogs) else allLogs
+        val dialogText = LogCopyPolicy.dialogText(redacted)
         androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("로그 복사")
-            .setMessage(
-                if (redacted) {
-                    "방 이름, 발화자, 메시지 내용을 가린 로그를 복사합니다."
-                } else {
-                    "원본 로그에는 방 이름, 발화자, 메시지 내용이 포함될 수 있습니다."
-                }
-            )
-            .setPositiveButton("복사") { _, _ ->
+            .setTitle(dialogText.title)
+            .setMessage(dialogText.message)
+            .setPositiveButton(dialogText.positiveButton) { _, _ ->
                 val clip = ClipData.newPlainText("자동답장 로그", copyText)
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(this, "로그가 복사되었습니다.", Toast.LENGTH_SHORT).show()
