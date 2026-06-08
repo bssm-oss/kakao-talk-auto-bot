@@ -95,6 +95,20 @@ class LogPrivacyTest {
     }
 
     @Test
+    fun redact_hidesColonSeparatedChatKeyValueLines() {
+        val raw = "debug room: 비밀팀방, sender: 민수, message: 010-1234-5678로 전화줘"
+
+        val redacted = LogPrivacy.redact(raw)
+
+        assertFalse(redacted.contains("비밀팀방"))
+        assertFalse(redacted.contains("민수"))
+        assertFalse(redacted.contains("010-1234-5678"))
+        assertTrue(redacted.contains("room:<방 숨김>"))
+        assertTrue(redacted.contains("sender:<발화자 숨김>"))
+        assertTrue(redacted.contains("message:<메시지 숨김>"))
+    }
+
+    @Test
     fun redact_hidesKoreanChatKeyValueLines() {
         val raw = "디버그 방=비밀방, 발화자=지우, 메시지=내일 자료 보내줘"
 
