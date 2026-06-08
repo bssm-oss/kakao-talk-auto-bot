@@ -28,6 +28,19 @@ scripts/verify-real-device-e2e.sh
 scripts/verify-real-device-e2e.sh --print-manual-template
 ```
 
+실제 카카오톡 수신/전송까지 확인했다면 실행 시점에 증거 값을 함께 넘깁니다.
+
+```bash
+MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED=true \
+MANUAL_KAKAO_TEST_ROOM="테스트방" \
+MANUAL_KAKAO_TEST_SENDER="보조계정" \
+MANUAL_KAKAO_IN_LOG_CONFIRMED=true \
+MANUAL_KAKAO_OUT_LOG_CONFIRMED=true \
+MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK=true \
+MANUAL_KAKAO_EVIDENCE_NOTE="IN/OUT 로그와 카카오톡 대화창 답장 표시 확인" \
+scripts/verify-real-device-e2e.sh
+```
+
 UI 흐름을 바꿨다면 아래도 같이 확인합니다.
 
 ```bash

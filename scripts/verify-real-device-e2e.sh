@@ -13,16 +13,16 @@ OUT_DIR="${ROOT_DIR}/outputs/real-device-e2e"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 print_manual_kakao_template() {
-  cat <<'EOF'
+  cat <<EOF
 manual_kakao_e2e_required=true
-manual_kakao_notification_access_confirmed=false
-manual_kakao_test_room=
-manual_kakao_test_sender=
-manual_kakao_in_log_confirmed=false
-manual_kakao_out_log_confirmed=false
-manual_kakao_reply_visible_in_kakaotalk=false
-manual_kakao_remoteinput_failure_reason=
-manual_kakao_evidence_note=
+manual_kakao_notification_access_confirmed=${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}
+manual_kakao_test_room=${MANUAL_KAKAO_TEST_ROOM:-}
+manual_kakao_test_sender=${MANUAL_KAKAO_TEST_SENDER:-}
+manual_kakao_in_log_confirmed=${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}
+manual_kakao_out_log_confirmed=${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}
+manual_kakao_reply_visible_in_kakaotalk=${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}
+manual_kakao_remoteinput_failure_reason=${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON:-}
+manual_kakao_evidence_note=${MANUAL_KAKAO_EVIDENCE_NOTE:-}
 manual_kakao_steps=1) enable notification access, 2) send KakaoTalk message from another account, 3) confirm IN log with the expected room/sender, 4) confirm OUT log or OUT_FAIL reason, 5) confirm the reply appears in KakaoTalk
 EOF
 }
