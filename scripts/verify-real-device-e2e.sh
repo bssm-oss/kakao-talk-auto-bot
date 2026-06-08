@@ -7,13 +7,18 @@ PACKAGE_NAME="com.example.kakaotalkautobot"
 RUNNER="androidx.test.runner.AndroidJUnitRunner"
 TEST_PACKAGE="${PACKAGE_NAME}.test"
 MODEL_PATH="files/llm_models/model.litertlm"
+APP_LOG_PATH="files/logs/app.log"
 EXPECTED_MODEL_SIZE="2588147712"
 EXPECTED_MODEL_SHA="181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c"
 OUT_DIR="${ROOT_DIR}/outputs/real-device-e2e"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 LOGCAT_FILE="${OUT_DIR}/${STAMP}-logcat.txt"
+APP_LOG_FILE="${OUT_DIR}/${STAMP}-app-log.txt"
 SUMMARY_FILE="${OUT_DIR}/${STAMP}-summary.txt"
 ADB_DEVICES_FILE="${OUT_DIR}/${STAMP}-adb-devices.txt"
+AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED="false"
+AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED="false"
+AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON=""
 
 bool_env() {
   case "${1:-false}" in
@@ -22,14 +27,30 @@ bool_env() {
   esac
 }
 
+bool_or() {
+  if [[ "$(bool_env "${1:-false}")" == "true" || "$(bool_env "${2:-false}")" == "true" ]]; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
+manual_kakao_remoteinput_failure_reason() {
+  if [[ -n "${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON:-}" ]]; then
+    echo "${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON}"
+  else
+    echo "${AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON}"
+  fi
+}
+
 manual_kakao_complete() {
   local notification_access
   local in_log
   local out_log
   local reply_visible
   notification_access="$(bool_env "${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}")"
-  in_log="$(bool_env "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}")"
-  out_log="$(bool_env "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}")"
+  in_log="$(bool_or "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED}")"
+  out_log="$(bool_or "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED}")"
   reply_visible="$(bool_env "${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}")"
 
   if [[ "${notification_access}" == "true" &&
@@ -38,7 +59,7 @@ manual_kakao_complete() {
     "${in_log}" == "true" &&
     "${out_log}" == "true" &&
     "${reply_visible}" == "true" &&
-    -z "${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON:-}" ]]; then
+    -z "$(manual_kakao_remoteinput_failure_reason)" ]]; then
     echo "true"
   else
     echo "false"
@@ -48,7 +69,7 @@ manual_kakao_complete() {
 manual_kakao_pending_reason() {
   if [[ "$(manual_kakao_complete)" == "true" ]]; then
     echo "none"
-  elif [[ -n "${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON:-}" ]]; then
+  elif [[ -n "$(manual_kakao_remoteinput_failure_reason)" ]]; then
     echo "remoteinput_failed"
   elif [[ "$(bool_env "${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}")" != "true" ]]; then
     echo "notification_access_unconfirmed"
@@ -73,10 +94,13 @@ manual_kakao_e2e_required=true
 manual_kakao_notification_access_confirmed=$(bool_env "${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}")
 manual_kakao_test_room=${MANUAL_KAKAO_TEST_ROOM:-}
 manual_kakao_test_sender=${MANUAL_KAKAO_TEST_SENDER:-}
-manual_kakao_in_log_confirmed=$(bool_env "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}")
-manual_kakao_out_log_confirmed=$(bool_env "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}")
+manual_kakao_in_log_confirmed=$(bool_or "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED}")
+manual_kakao_out_log_confirmed=$(bool_or "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}" "${AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED}")
 manual_kakao_reply_visible_in_kakaotalk=$(bool_env "${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}")
-manual_kakao_remoteinput_failure_reason=${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON:-}
+manual_kakao_remoteinput_failure_reason=$(manual_kakao_remoteinput_failure_reason)
+manual_kakao_auto_in_log_detected=${AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED}
+manual_kakao_auto_out_log_detected=${AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED}
+manual_kakao_app_log_file=${APP_LOG_FILE}
 manual_kakao_evidence_note=${MANUAL_KAKAO_EVIDENCE_NOTE:-}
 manual_kakao_complete=$(manual_kakao_complete)
 manual_kakao_pending_reason=$(manual_kakao_pending_reason)
@@ -96,6 +120,32 @@ contains_log() {
 count_log() {
   local pattern="$1"
   grep -E -c "${pattern}" "${LOGCAT_FILE}" 2>/dev/null || true
+}
+
+detect_manual_kakao_logs() {
+  AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED="false"
+  AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED="false"
+  AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON=""
+  if [[ -z "${MANUAL_KAKAO_TEST_ROOM:-}" || -z "${MANUAL_KAKAO_TEST_SENDER:-}" || ! -s "${APP_LOG_FILE}" ]]; then
+    return
+  fi
+
+  if grep -F -q "][IN] [${MANUAL_KAKAO_TEST_ROOM}] ${MANUAL_KAKAO_TEST_SENDER}:" "${APP_LOG_FILE}"; then
+    AUTO_MANUAL_KAKAO_IN_LOG_CONFIRMED="true"
+  fi
+  if grep -F -q "][OUT] [${MANUAL_KAKAO_TEST_ROOM}]" "${APP_LOG_FILE}"; then
+    AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED="true"
+  fi
+
+  local out_fail_line
+  out_fail_line="$(grep -F "][OUT_FAIL]" "${APP_LOG_FILE}" | grep -F "[${MANUAL_KAKAO_TEST_ROOM}]" | tail -1 || true)"
+  if [[ -n "${out_fail_line}" ]]; then
+    AUTO_MANUAL_KAKAO_OUT_LOG_CONFIRMED="true"
+    AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON="$(sed -n 's/.*(reason=\([^)]*\)).*/\1/p' <<<"${out_fail_line}" | tail -1)"
+    if [[ -z "${AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON}" ]]; then
+      AUTO_MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON="out_fail_detected"
+    fi
+  fi
 }
 
 is_emulator_device() {
@@ -264,6 +314,8 @@ TEST_STATUS="${PIPESTATUS[0]}"
 set -e
 
 "${ADB_BIN}" -s "${SERIAL}" logcat -d > "${LOGCAT_FILE}"
+"${ADB_BIN}" -s "${SERIAL}" shell run-as "${PACKAGE_NAME}" cat "${APP_LOG_PATH}" > "${APP_LOG_FILE}" 2>/dev/null || true
+detect_manual_kakao_logs
 
 MODEL_LOAD_LOG_DETECTED="$(contains_log "LlmEngine.*Model loaded successfully|AiProviderClient.*LLM loaded successfully|Model loaded: n_vocab")"
 MODEL_GENERATION_LOG_DETECTED="$(contains_log "ExampleInstrumentedTest.*LLM_.*REPLY=|AiProviderClient.*Selected LLM reply source=|AiProviderClient.*raw LLM response length")"
@@ -286,6 +338,7 @@ MODEL_SHA="$("${ADB_BIN}" -s "${SERIAL}" shell run-as "${PACKAGE_NAME}" sha256su
   echo "model_generation_reply_log_count=${MODEL_GENERATION_REPLY_LOG_COUNT}"
   echo "model_candidate_log_count=${MODEL_CANDIDATE_LOG_COUNT}"
   echo "logcat_file=${LOGCAT_FILE}"
+  echo "app_log_file=${APP_LOG_FILE}"
   print_manual_kakao_template
 } | tee -a "${SUMMARY_FILE}"
 
