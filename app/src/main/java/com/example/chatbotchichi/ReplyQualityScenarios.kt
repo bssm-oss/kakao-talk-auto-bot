@@ -20,6 +20,16 @@ object ReplyQualityScenarios {
         val expectedTraits: Set<String>
     )
 
+    data class CoverageSummary(
+        val scenarioCount: Int,
+        val scenarioIds: Set<String>,
+        val traitIds: Set<String>
+    ) {
+        fun hasRequiredScenarios(requiredIds: Set<String>): Boolean {
+            return scenarioIds.containsAll(requiredIds)
+        }
+    }
+
     fun builtIns(): List<Scenario> {
         return listOf(
             Scenario(
@@ -49,6 +59,21 @@ object ReplyQualityScenarios {
                 history = listOf(
                     RoomHistoryMessage("팀장", "오늘 공유할 특이사항 있나요?", true, 1L),
                     RoomHistoryMessage("나", "별일없습니다!", false, 2L)
+                ),
+                expectedTraits = setOf("formal", "short")
+            ),
+            Scenario(
+                id = "school_formal_notice",
+                room = "학교방",
+                sender = "선생님",
+                message = "오늘 전달할 내용 있나요?",
+                config = AutoReplyJson.defaultConfig("학교방").copy(
+                    roomStyle = "학교 단톡. 존댓말. 별일 없으면 '별일 없습니다.'처럼 단정하게 답장",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("선생님", "오늘 전달할 내용 있나요?", true, 1L),
+                    RoomHistoryMessage("나", "별일 없습니다.", false, 2L)
                 ),
                 expectedTraits = setOf("formal", "short")
             ),
@@ -105,6 +130,14 @@ object ReplyQualityScenarios {
                 history = emptyList(),
                 expectedTraits = setOf("grounded_fact", "formal")
             )
+        )
+    }
+
+    fun coverageSummary(scenarios: List<Scenario> = builtIns()): CoverageSummary {
+        return CoverageSummary(
+            scenarioCount = scenarios.size,
+            scenarioIds = scenarios.map { it.id }.toSet(),
+            traitIds = scenarios.flatMap { it.expectedTraits }.toSet()
         )
     }
 

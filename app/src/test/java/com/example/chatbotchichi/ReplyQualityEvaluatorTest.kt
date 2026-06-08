@@ -97,23 +97,35 @@ class ReplyQualityEvaluatorTest {
 
     @Test
     fun builtInScenarios_coverRequiredQualityCases() {
-        val ids = ReplyQualityScenarios.builtIns().map { it.id }.toSet()
+        val coverage = ReplyQualityScenarios.coverageSummary()
+        val requiredIds = setOf(
+            "friend_light",
+            "team_formal",
+            "school_formal_notice",
+            "low_signal_skip",
+            "ambiguous_clarify",
+            "unknown_fact_guard",
+            "room_memory_fact"
+        )
 
-        assertTrue("friend scenario missing", "friend_light" in ids)
-        assertTrue("team scenario missing", "team_formal" in ids)
-        assertTrue("low signal scenario missing", "low_signal_skip" in ids)
-        assertTrue("ambiguous scenario missing", "ambiguous_clarify" in ids)
-        assertTrue("unknown fact scenario missing", "unknown_fact_guard" in ids)
-        assertTrue("room memory scenario missing", "room_memory_fact" in ids)
+        assertTrue("required quality matrix missing: ${coverage.scenarioIds}", coverage.hasRequiredScenarios(requiredIds))
+        assertTrue("formal trait missing", "formal" in coverage.traitIds)
+        assertTrue("casual trait missing", "casual" in coverage.traitIds)
+        assertTrue("clarify trait missing", "clarify" in coverage.traitIds)
+        assertTrue("unknown guard trait missing", "unknown_guard" in coverage.traitIds)
+        assertTrue("grounded fact trait missing", "grounded_fact" in coverage.traitIds)
+        assertTrue("skip trait missing", "skip" in coverage.traitIds)
     }
 
     @Test
     fun traitScore_rewardsExpectedRoomStyle() {
         val friend = ReplyQualityScenarios.builtIns().first { it.id == "friend_light" }
         val team = ReplyQualityScenarios.builtIns().first { it.id == "team_formal" }
+        val school = ReplyQualityScenarios.builtIns().first { it.id == "school_formal_notice" }
 
         assertTrue(ReplyQualityScenarios.traitScore("아무것도 없긴해", friend) >= 40)
         assertTrue(ReplyQualityScenarios.traitScore("별일없습니다!", team) >= 40)
+        assertTrue(ReplyQualityScenarios.traitScore("별일 없습니다.", school) >= 40)
     }
 
     @Test
@@ -121,6 +133,7 @@ class ReplyQualityEvaluatorTest {
         val replies = mapOf(
             "friend_light" to "아무것도 없긴해",
             "team_formal" to "별일없습니다!",
+            "school_formal_notice" to "별일 없습니다.",
             "low_signal_skip" to "",
             "ambiguous_clarify" to "문서 말하는 거야, 발표 자료 말하는 거야?",
             "unknown_fact_guard" to "아직 확인된 내용은 못 찾았습니다.",
