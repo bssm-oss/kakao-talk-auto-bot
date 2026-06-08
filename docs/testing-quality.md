@@ -49,7 +49,7 @@ MANUAL_KAKAO_EVIDENCE_NOTE="IN/OUT 로그와 카카오톡 대화창 답장 표�
 scripts/verify-real-device-e2e.sh
 ```
 
-위 값이 모두 충족되면 요약 파일의 `manual_kakao_complete=true` 로 기록됩니다. `notification_listener_enabled=true` 는 기기 설정의 알림 접근 권한 상태를 자동으로 읽은 값이고, `manual_kakao_notification_access_confirmed=true` 는 사람이 실제 카카오톡 수신/전송 검증 흐름에서 권한 상태를 확인했다는 별도 증거입니다.
+위 값이 모두 충족되면 요약 파일의 `manual_kakao_complete=true` 로 기록되고 최종 `status=complete` 가 됩니다. 모델 다운로드/해시/계측 테스트만 통과했지만 실제 카카오톡 수신/전송 증거가 빠졌으면 `status=manual_kakao_pending` 으로 남습니다. `notification_listener_enabled=true` 는 기기 설정의 알림 접근 권한 상태를 자동으로 읽은 값이고, `manual_kakao_notification_access_confirmed=true` 는 사람이 실제 카카오톡 수신/전송 검증 흐름에서 권한 상태를 확인했다는 별도 증거입니다.
 
 UI 흐름을 바꿨다면 아래도 같이 확인합니다.
 
@@ -128,7 +128,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 
 - [ ] `./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease` 통과
 - [ ] `git diff --check` 통과
-- [ ] `scripts/verify-real-device-e2e.sh` 가 ARM64 실기기에서 통과
+- [ ] `scripts/verify-real-device-e2e.sh` 가 ARM64 실기기에서 `status=complete` 로 끝남
 - [ ] 실기기 조건 미충족 시 `outputs/real-device-e2e/*-summary.txt` 에 `status=blocked` 와 `blocker_reason` 이 남음
 - [ ] 트리거 기본값이 빈 값이나 레거시 설정에서 `모든 메시지` 로 잘못 승격되지 않음
 - [ ] `AI가 판단`, `모든 메시지`, `호출어/멘션만`, `질문/명령만` 모드가 각각 의도대로 동작함
@@ -210,6 +210,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] AI 생성 실패, AI 품질 게이트 실패, 고정 답장 설정 실패가 각각 `ai generation exception`, `ai quality rejected`, `canned reply empty` 로 집계됨
 - [ ] AI 답장 생성 후 `replyToRoomDetailed` 이 실패하면 엔진 레벨에서도 같은 전송 원인을 포함한 `OUT_FAIL` 이 남음
 - [ ] `outputs/real-device-e2e/*-summary.txt` 의 `manual_kakao_in_log_confirmed`, `manual_kakao_out_log_confirmed`, `manual_kakao_reply_visible_in_kakaotalk`, `manual_kakao_complete` 가 실제 확인 결과로 채워짐
+- [ ] 모델 검증만 통과하고 수동 카카오톡 증거가 비어 있으면 최종 상태가 `manual_kakao_pending` 으로 남음
 - [ ] OFF 상태 전환 직후 수신 메시지는 저장되지만 답장은 나가지 않음
 - [ ] OFF 상태 전환 직후 수신 메시지는 `OUT_SKIP` 에 OFF 원인이 남음
 
