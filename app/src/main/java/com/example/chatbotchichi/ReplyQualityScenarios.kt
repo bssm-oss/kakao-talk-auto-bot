@@ -30,6 +30,11 @@ object ReplyQualityScenarios {
         }
     }
 
+    data class ScenarioExample(
+        val scenarioId: String,
+        val reply: String
+    )
+
     fun builtIns(): List<Scenario> {
         return listOf(
             Scenario(
@@ -152,6 +157,57 @@ object ReplyQualityScenarios {
         )
     }
 
+    fun baselineReplies(): List<ScenarioExample> {
+        return listOf(
+            ScenarioExample("friend_light", "아무것도 없긴해"),
+            ScenarioExample("team_formal", "별일없습니다!"),
+            ScenarioExample("school_formal_notice", "별일 없습니다."),
+            ScenarioExample("low_signal_skip", ""),
+            ScenarioExample("ambiguous_clarify", "문서 말하는 거야, 발표 자료 말하는 거야?"),
+            ScenarioExample("unknown_fact_guard", "아직 확인된 내용은 못 찾았습니다."),
+            ScenarioExample("room_memory_fact", "6월 12일 18시까지입니다.")
+        )
+    }
+
+    fun evaluateBaselineReplies(
+        scenarios: List<Scenario> = builtIns(),
+        examples: List<ScenarioExample> = baselineReplies()
+    ): List<Result> {
+        val scenarioById = scenarios.associateBy { it.id }
+        return examples.map { example ->
+            val scenario = requireNotNull(scenarioById[example.scenarioId]) {
+                "Unknown reply quality scenario: ${example.scenarioId}"
+            }
+            evaluateReply(example.reply, scenario)
+        }
+    }
+
+    fun baselineReportMarkdown(
+        scenarios: List<Scenario> = builtIns(),
+        examples: List<ScenarioExample> = baselineReplies()
+    ): String {
+        val scenarioById = scenarios.associateBy { it.id }
+        val results = evaluateBaselineReplies(scenarios, examples)
+        val passedCount = results.count { it.passed }
+        return buildString {
+            appendLine("# Reply Quality Baseline")
+            appendLine()
+            appendLine("- scenarios: ${results.size}")
+            appendLine("- passed: $passedCount")
+            appendLine("- failed: ${results.size - passedCount}")
+            appendLine()
+            appendLine("| scenario | room | traits | score | min | passed | reply |")
+            appendLine("| --- | --- | --- | ---: | ---: | --- | --- |")
+            results.forEach { result ->
+                val scenario = requireNotNull(scenarioById[result.scenarioId])
+                appendLine(
+                    "| ${result.scenarioId} | ${scenario.room} | ${result.expectedTraits.sorted().joinToString(", ")} | " +
+                        "${result.score} | ${scenario.minimumScore} | ${if (result.passed) "yes" else "no"} | ${escapeMarkdownTable(result.reply)} |"
+                )
+            }
+        }
+    }
+
     fun traitScore(reply: String, scenario: Scenario): Int {
         var score = 0
         val normalized = reply.trim()
@@ -165,5 +221,12 @@ object ReplyQualityScenarios {
         if (ReplyQualityEvaluator.containsAiMetaText(normalized)) score -= 30
         if (normalized.length > 120) score -= 20
         return score.coerceAtLeast(0)
+    }
+
+    private fun escapeMarkdownTable(value: String): String {
+        return value
+            .ifBlank { "(skip)" }
+            .replace("|", "\\|")
+            .replace("\n", " ")
     }
 }
