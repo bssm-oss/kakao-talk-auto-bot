@@ -53,6 +53,9 @@ class ReplyQualityReportTest {
         assertTrue(report.contains("# Reply Quality Baseline"))
         assertTrue(report.contains("| friend_light |"))
         assertTrue(report.contains("| room_memory_fact |"))
+        assertTrue(report.contains("| manual_example_override |"))
+        assertTrue(report.contains("| manual_example_override | 친구방 | casual, manual_example, short |"))
+        assertTrue(report.contains("| manual_example_override | requires_llm | no |"))
         assertTrue(report.contains("| room_memory_fact | deadline_fact | yes |"))
     }
 }
