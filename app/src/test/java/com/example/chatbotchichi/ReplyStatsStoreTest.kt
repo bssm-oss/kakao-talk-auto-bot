@@ -75,6 +75,22 @@ class ReplyStatsStoreTest {
     }
 
     @Test
+    fun normalizeReason_collapsesAiGenerationAndQualityFailures() {
+        assertEquals(
+            "ai quality rejected",
+            ReplyStatsStore.normalizeReason("AI가 전송 가능한 품질의 응답을 만들지 못했습니다. (candidates=5)")
+        )
+        assertEquals(
+            "ai generation exception",
+            ReplyStatsStore.normalizeReason("AI 응답 생성 중 오류: LiteRtLmJniException")
+        )
+        assertEquals(
+            "canned reply empty",
+            ReplyStatsStore.normalizeReason("고정 답장 템플릿이 비어 있습니다.")
+        )
+    }
+
+    @Test
     fun detailSummary_listsTopFailureAndSkipReasons() {
         val detail = ReplyStatsStore.Snapshot(
             incoming = 9,

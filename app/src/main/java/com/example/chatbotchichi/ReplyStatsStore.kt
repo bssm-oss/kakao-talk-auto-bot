@@ -149,6 +149,9 @@ object ReplyStatsStore {
             normalized.contains("의미 없는 짧은 메시지") -> "low signal"
             normalized.contains("응답 조건") || normalized.contains("조건을 충족") -> "condition not met"
             normalized.contains("모델이 로드되지") || lowered.contains("model") && lowered.contains("load") -> "model not loaded"
+            normalized.contains("전송 가능한 품질") || lowered.contains("quality") && lowered.contains("candidate") -> "ai quality rejected"
+            normalized.contains("AI 응답 생성 중 오류") || lowered.contains("generation") && lowered.contains("exception") -> "ai generation exception"
+            normalized.contains("고정 답장 목록") || normalized.contains("고정 답장 템플릿") -> "canned reply empty"
             normalized.contains("빈 메시지") -> "blank message"
             else -> normalized.take(80)
         }
