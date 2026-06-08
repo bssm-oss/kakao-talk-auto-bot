@@ -54,6 +54,10 @@ object ReplyQualityEvaluator {
             score -= 24
             reasons.add("generic_encouragement_boilerplate")
         }
+        if (looksLikeGenericCasualAckBoilerplate(normalized, config.roomStyle)) {
+            score -= 24
+            reasons.add("generic_casual_ack_boilerplate")
+        }
         if (looksLikeTherapyEmpathyBoilerplate(normalized, config.roomStyle)) {
             score -= 24
             reasons.add("therapy_empathy_boilerplate")
@@ -247,6 +251,27 @@ object ReplyQualityEvaluator {
 
         val hasGenericEncouragement = standaloneEncouragements.any { normalized.contains(it) }
         return hasGenericEncouragement && normalized.length <= 10
+    }
+
+    internal fun looksLikeGenericCasualAckBoilerplate(reply: String, roomStyle: String): Boolean {
+        if (!prefersCasualStyle(roomStyle)) return false
+        if (extractManualExamples(roomStyle).isEmpty()) return false
+
+        val normalized = normalizeForExampleMatch(reply)
+        val genericAcks = setOf(
+            "그렇구나",
+            "아그렇구나",
+            "그렇네",
+            "아그렇네",
+            "그럴수있지",
+            "그럴수도있지",
+            "그렇긴하지",
+            "그러게"
+        )
+        if (normalized in genericAcks) return true
+
+        val hasGenericAck = genericAcks.any { normalized.contains(it) }
+        return hasGenericAck && normalized.length <= 12
     }
 
     internal fun looksLikeTherapyEmpathyBoilerplate(reply: String, roomStyle: String): Boolean {
