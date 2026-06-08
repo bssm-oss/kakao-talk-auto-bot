@@ -155,6 +155,60 @@ class ReplyStatsStoreTest {
     }
 
     @Test
+    fun detailSummary_addsActionHintForRecentRemoteInputFailure() {
+        val detail = ReplyStatsStore.Snapshot(
+            incoming = 6,
+            sent = 2,
+            skipped = 0,
+            failed = 2,
+            failureReasons = mapOf(
+                SessionReplier.REASON_NO_SESSION to 1,
+                SessionReplier.REASON_NO_REMOTE_INPUT to 1
+            ),
+            skipReasons = emptyMap(),
+            lastFailureReason = SessionReplier.REASON_NO_REMOTE_INPUT,
+            lastFailureAtMillis = 1000L
+        ).detailSummary()
+
+        assertTrue(detail.contains("최근 실패: no remoteInput"))
+        assertTrue(detail.contains("확인 필요: 카카오톡 알림 액션에 답장 RemoteInput 포함 여부"))
+    }
+
+    @Test
+    fun detailSummary_usesTopFailureActionHintWhenRecentFailureIsMissing() {
+        val detail = ReplyStatsStore.Snapshot(
+            incoming = 5,
+            sent = 1,
+            skipped = 0,
+            failed = 4,
+            failureReasons = mapOf(
+                SessionReplier.REASON_NO_SESSION to 3,
+                SessionReplier.REASON_PENDING_INTENT_SEND_FAILED to 1
+            ),
+            skipReasons = emptyMap()
+        ).detailSummary()
+
+        assertTrue(detail.contains("실패: no session 3회"))
+        assertTrue(detail.contains("확인 필요: 카카오톡 알림 수신 후 세션 캐시 생성 여부"))
+    }
+
+    @Test
+    fun failureActionHint_coversModelAndAiFailureReasons() {
+        assertEquals(
+            "Gemma 모델 다운로드와 해시 검증 상태",
+            ReplyStatsStore.failureActionHint("LLM 모델이 로드되지 않았습니다.")
+        )
+        assertEquals(
+            "후보 lane 점수와 품질 게이트 실패 이유",
+            ReplyStatsStore.failureActionHint("AI가 전송 가능한 품질의 응답을 만들지 못했습니다.")
+        )
+        assertEquals(
+            "LiteRT-LM 생성 예외와 모델 런타임 상태",
+            ReplyStatsStore.failureActionHint("AI 응답 생성 중 오류: LiteRtLmJniException")
+        )
+    }
+
+    @Test
     fun formatAge_usesHumanReadableBuckets() {
         val now = 200_000_000L
 
