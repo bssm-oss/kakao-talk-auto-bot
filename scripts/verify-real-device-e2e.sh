@@ -12,17 +12,47 @@ EXPECTED_MODEL_SHA="181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139
 OUT_DIR="${ROOT_DIR}/outputs/real-device-e2e"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
+bool_env() {
+  case "${1:-false}" in
+    true | TRUE | 1 | yes | YES) echo "true" ;;
+    *) echo "false" ;;
+  esac
+}
+
+manual_kakao_complete() {
+  local notification_access
+  local in_log
+  local out_log
+  local reply_visible
+  notification_access="$(bool_env "${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}")"
+  in_log="$(bool_env "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}")"
+  out_log="$(bool_env "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}")"
+  reply_visible="$(bool_env "${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}")"
+
+  if [[ "${notification_access}" == "true" &&
+    -n "${MANUAL_KAKAO_TEST_ROOM:-}" &&
+    -n "${MANUAL_KAKAO_TEST_SENDER:-}" &&
+    "${in_log}" == "true" &&
+    "${out_log}" == "true" &&
+    "${reply_visible}" == "true" ]]; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
 print_manual_kakao_template() {
   cat <<EOF
 manual_kakao_e2e_required=true
-manual_kakao_notification_access_confirmed=${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}
+manual_kakao_notification_access_confirmed=$(bool_env "${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}")
 manual_kakao_test_room=${MANUAL_KAKAO_TEST_ROOM:-}
 manual_kakao_test_sender=${MANUAL_KAKAO_TEST_SENDER:-}
-manual_kakao_in_log_confirmed=${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}
-manual_kakao_out_log_confirmed=${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}
-manual_kakao_reply_visible_in_kakaotalk=${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}
+manual_kakao_in_log_confirmed=$(bool_env "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}")
+manual_kakao_out_log_confirmed=$(bool_env "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}")
+manual_kakao_reply_visible_in_kakaotalk=$(bool_env "${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}")
 manual_kakao_remoteinput_failure_reason=${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON:-}
 manual_kakao_evidence_note=${MANUAL_KAKAO_EVIDENCE_NOTE:-}
+manual_kakao_complete=$(manual_kakao_complete)
 manual_kakao_steps=1) enable notification access, 2) send KakaoTalk message from another account, 3) confirm IN log with the expected room/sender, 4) confirm OUT log or OUT_FAIL reason, 5) confirm the reply appears in KakaoTalk
 EOF
 }
@@ -53,6 +83,10 @@ if [[ "${ABI}" != arm64* ]]; then
 fi
 
 FINGERPRINT="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.build.fingerprint | tr -d '\r')"
+DEVICE_BRAND="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.product.brand | tr -d '\r')"
+DEVICE_MODEL="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.product.model | tr -d '\r')"
+ANDROID_RELEASE="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.build.version.release | tr -d '\r')"
+ANDROID_SDK="$("${ADB_BIN}" -s "${SERIAL}" shell getprop ro.build.version.sdk | tr -d '\r')"
 if [[ "${FINGERPRINT}" == *generic* || "${FINGERPRINT}" == *sdk_gphone* ]]; then
   echo "This looks like an emulator, not a real device: ${FINGERPRINT}" >&2
   exit 1
@@ -68,6 +102,10 @@ cd "${ROOT_DIR}"
   echo "serial=${SERIAL}"
   echo "abi=${ABI}"
   echo "fingerprint=${FINGERPRINT}"
+  echo "device_brand=${DEVICE_BRAND}"
+  echo "device_model=${DEVICE_MODEL}"
+  echo "android_release=${ANDROID_RELEASE}"
+  echo "android_sdk=${ANDROID_SDK}"
   echo "started_at=${STAMP}"
 } | tee "${SUMMARY_FILE}"
 
@@ -75,6 +113,19 @@ cd "${ROOT_DIR}"
 ANDROID_SERIAL="${SERIAL}" ./gradlew installDebug installDebugAndroidTest
 
 "${ADB_BIN}" -s "${SERIAL}" shell am start -n "${PACKAGE_NAME}/.MainActivity" >/dev/null
+
+NOTIFICATION_LISTENERS="$("${ADB_BIN}" -s "${SERIAL}" shell settings get secure enabled_notification_listeners | tr -d '\r' || true)"
+if [[ "${NOTIFICATION_LISTENERS}" == *"${PACKAGE_NAME}"* ]]; then
+  NOTIFICATION_LISTENER_ENABLED="true"
+else
+  NOTIFICATION_LISTENER_ENABLED="false"
+fi
+
+{
+  echo "notification_listener_expected_component=${PACKAGE_NAME}/.NotificationListener"
+  echo "notification_listener_enabled=${NOTIFICATION_LISTENER_ENABLED}"
+  echo "notification_listener_raw=${NOTIFICATION_LISTENERS}"
+} | tee -a "${SUMMARY_FILE}"
 
 set +e
 "${ADB_BIN}" -s "${SERIAL}" shell am instrument -w -r \
