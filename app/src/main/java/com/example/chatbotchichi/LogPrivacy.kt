@@ -6,6 +6,7 @@ object LogPrivacy {
     private val roomOnlyPattern = Regex("^(\\[[^\\]\\n]+]\\[[A-Z_]+]\\s*(?:❌\\s*|⏭\\s*)?)\\[[^\\]\\n]{1,80}]\\s*(.*)$")
     private val looseChatLinePattern = Regex("^(?:.*?(?:room|chat|kakao|카카오|카톡).*?[:=]?\\s*)?\\[[^\\]\\n]{1,80}]\\s*([^:\\n]{1,80}):\\s*(.+)$", RegexOption.IGNORE_CASE)
     private val keyValueChatPattern = Regex("(^|[\\s,;])(room|sender|speaker|message|msg|text|방|발화자|메시지)\\s*=\\s*([^,\\]\\n]+)", RegexOption.IGNORE_CASE)
+    private val jsonChatFieldPattern = Regex("(\"(?:room|sender|speaker|message|msg|text|방|발화자|메시지)\"\\s*:\\s*\")([^\"\\n]*)\"", RegexOption.IGNORE_CASE)
     private val reasonPattern = Regex("(\\(reason=[^)]+\\)|reason=[^\\s)]+|send_failed_after_generation:[^\\s)]+)")
     private val emailPattern = Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
     private val urlPattern = Regex("https?://[^\\s)]+", RegexOption.IGNORE_CASE)
@@ -45,6 +46,10 @@ object LogPrivacy {
             return redactChatKeyValues(line)
         }
 
+        if (jsonChatFieldPattern.containsMatchIn(line)) {
+            return redactJsonChatFields(line)
+        }
+
         return redactSensitiveTokens(line)
     }
 
@@ -75,6 +80,22 @@ object LogPrivacy {
                     else -> "<내용 숨김>"
                 }
                 "$prefix$key=$replacement"
+            }
+        )
+    }
+
+    private fun redactJsonChatFields(line: String): String {
+        return redactSensitiveTokens(
+            jsonChatFieldPattern.replace(line) { match ->
+                val prefix = match.groupValues[1]
+                val key = prefix.substringAfter('"').substringBefore('"').lowercase()
+                val replacement = when (key) {
+                    "room", "방" -> "<방 숨김>"
+                    "sender", "speaker", "발화자" -> "<발화자 숨김>"
+                    "message", "msg", "text", "메시지" -> "<메시지 숨김>"
+                    else -> "<내용 숨김>"
+                }
+                "$prefix$replacement\""
             }
         )
     }
