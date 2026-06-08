@@ -54,6 +54,10 @@ object ReplyQualityEvaluator {
             score -= 24
             reasons.add("therapy_empathy_boilerplate")
         }
+        if (looksLikeReactionSpam(normalized, config.roomStyle)) {
+            score -= 26
+            reasons.add("reaction_spam")
+        }
         if (looksSelfReferentialBusinessTone(normalized)) {
             score -= 18
             reasons.add("self_referential_business_tone")
@@ -237,6 +241,20 @@ object ReplyQualityEvaluator {
         val hasTherapyPhrase = therapyPhrases.any { normalized.contains(normalizeForExampleMatch(it)) }
         if (!hasTherapyPhrase) return false
         return reply.length >= 18 || reply.contains(".") || reply.contains("!") || reply.contains("요")
+    }
+
+    internal fun looksLikeReactionSpam(reply: String, roomStyle: String): Boolean {
+        if (!prefersCasualStyle(roomStyle)) return false
+        val compact = reply.filterNot(Char::isWhitespace)
+        if (compact.length < 5) return false
+
+        val reactionChars = setOf('ㅋ', 'ㅎ', 'ㅠ', 'ㅜ', '!', '~')
+        val reactionCount = compact.count { it in reactionChars }
+        val semanticCount = compact.count { it.isLetterOrDigit() && it !in reactionChars }
+        val hasLongReactionRun = Regex("[ㅋㅎㅠㅜ!~]{6,}").containsMatchIn(compact)
+        val mostlyReaction = reactionCount >= 5 && reactionCount * 2 >= compact.length
+
+        return hasLongReactionRun || (mostlyReaction && semanticCount <= 5)
     }
 
     internal fun looksSelfReferentialBusinessTone(reply: String): Boolean {
