@@ -31,6 +31,17 @@ object StyleProfileStore {
                 confidence > 0 -> "낮음"
                 else -> "없음"
             }
+
+        val confidenceSummary: String
+            get() {
+                val details = buildList {
+                    add(confidenceLabel)
+                    if (confidence > 0) add("${confidence.coerceIn(0, 100)}점")
+                    if (sampleCount > 0) add("샘플 ${sampleCount}개")
+                    if (enabled && override.isBlank() && confidence in 1..54) add("보조 힌트")
+                }
+                return details.joinToString(" · ")
+            }
     }
 
     data class StyleGuideParts(

@@ -189,7 +189,7 @@ class DebugRoomActivity : AppCompatActivity() {
         learnedRoomStylePreview.text = if (state.generated.isBlank()) {
             "자동 추출된 방 말투가 아직 없습니다. 대화가 쌓이면 답장 때 자동으로 참고합니다."
         } else {
-            "자동 추출 (${state.confidenceLabel}, 샘플 ${state.sampleCount}개): ${state.generated}"
+            "자동 추출 (${state.confidenceSummary}): ${state.generated}"
         }
     }
 
