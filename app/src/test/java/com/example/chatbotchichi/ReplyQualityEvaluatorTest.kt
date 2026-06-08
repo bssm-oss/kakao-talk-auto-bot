@@ -36,7 +36,7 @@ class ReplyQualityEvaluatorTest {
     @Test
     fun selectBest_penalizesFormalToneInCasualFriendRoom() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
-            roomStyle = "친한 친구방. 가볍게 반말로 답장"
+            roomStyle = "친한 친구방. 가볍게 반말로 답장. 예시: 아무것도 없긴해"
         )
         val candidates = listOf(
             ReplyQualityEvaluator.evaluate(
@@ -62,6 +62,38 @@ class ReplyQualityEvaluatorTest {
         assertEquals("compact", best?.source)
         assertTrue(candidates.first().reasons.contains("manual_room_style_mismatch_formal"))
         assertTrue(candidates.last().reasons.contains("manual_room_style_match"))
+        assertTrue(candidates.last().reasons.contains("manual_example_match"))
+    }
+
+    @Test
+    fun selectBest_penalizesAssistantBoilerplateAgainstHumanLikeReply() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 가볍게 반말. 예시: 아무것도 없긴해"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "좋은 질문입니다. 추가로 궁금한 점이 있으면 도와드릴게요.",
+                reply = "좋은 질문입니다. 추가로 궁금한 점이 있으면 도와드릴게요.",
+                config = config,
+                message = "오늘 뭐함",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "style_rewrite",
+                raw = "아무것도 없긴해",
+                reply = "아무것도 없긴해",
+                config = config,
+                message = "오늘 뭐함",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("style_rewrite", best?.source)
+        assertTrue(candidates.first().reasons.contains("assistant_boilerplate"))
+        assertTrue(candidates.last().reasons.contains("manual_example_match"))
     }
 
     @Test

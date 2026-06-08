@@ -167,9 +167,10 @@ class AiProviderClientTest {
     }
 
     @Test
-    fun buildInitialCandidateSpecs_preparesPrimaryAndCompactLanes() {
+    fun buildInitialCandidateSpecs_preparesPrimaryStyleRewriteAndCompactLanes() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             persona = "친구처럼 짧게 답해",
+            roomStyle = "친한 친구방. 예시: 아무것도 없긴해",
             roomMemory = "오늘 별일 있는지 묻는 방"
         )
         val history = listOf(
@@ -193,10 +194,40 @@ class AiProviderClientTest {
             styleGuide = "사용자 직접 예시: 아무것도 없긴해"
         )
 
-        assertEquals(listOf("primary", "compact"), specs.map { it.source })
-        assertEquals(listOf(12, 24), specs.map { it.maxTokens })
+        assertEquals(listOf("primary", "style_rewrite", "compact"), specs.map { it.source })
+        assertEquals(listOf(12, 18, 24), specs.map { it.maxTokens })
         assertTrue(specs.first().prompt.contains("이전 대화 맥락"))
+        assertTrue(specs[1].prompt.contains("내가 보낼 답장"))
+        assertTrue(specs[1].prompt.contains("아무것도 없긴해"))
         assertTrue(specs.last().prompt.contains("최근 대화"))
+    }
+
+    @Test
+    fun buildStyleRewritePrompt_prioritizesManualExamplesAndUserLikeTone() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            persona = "사용자처럼 짧게 답장",
+            roomStyle = "친한 친구방. 가볍게 반말. 예시: 아무것도 없긴해",
+            roomMemory = "오늘은 별다른 일정이 없음"
+        )
+        val history = listOf(
+            RoomHistoryMessage("민수", "오늘 뭐함", true, 1L),
+            RoomHistoryMessage("나", "아무것도 없긴해", false, 2L)
+        )
+
+        val prompt = AiProviderClient.buildStyleRewritePrompt(
+            config = config,
+            room = "친구방",
+            sender = "민수",
+            message = "오늘 뭐해?",
+            history = history,
+            styleGuide = "사용자 직접 예시: 아무것도 없긴해"
+        )
+
+        assertTrue(prompt.contains("사용자 직접 예시"))
+        assertTrue(prompt.contains("수동 방 말투"))
+        assertTrue(prompt.contains("아무것도 없긴해"))
+        assertTrue(prompt.contains("챗봇처럼 설명하지 말고"))
+        assertTrue(prompt.contains("[나/나] 아무것도 없긴해"))
     }
 
     @Test

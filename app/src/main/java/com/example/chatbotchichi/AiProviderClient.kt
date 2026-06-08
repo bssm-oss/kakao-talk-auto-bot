@@ -13,6 +13,10 @@ object AiProviderClient {
     private const val PRIMARY_PERSONA_LIMIT = 220
     private const val PRIMARY_ROOM_MEMORY_LIMIT = 320
     private const val PRIMARY_STYLE_GUIDE_LIMIT = 640
+    private const val STYLE_HISTORY_LIMIT = 6
+    private const val STYLE_PERSONA_LIMIT = 160
+    private const val STYLE_ROOM_MEMORY_LIMIT = 220
+    private const val STYLE_GUIDE_LIMIT = 520
     private const val COMPACT_HISTORY_LIMIT = 4
     private const val COMPACT_PERSONA_LIMIT = 100
     private const val COMPACT_ROOM_MEMORY_LIMIT = 160
@@ -91,6 +95,7 @@ object AiProviderClient {
             Log.d(TAG, "Config: persona=${config.persona.take(30)}, roomMemory=${config.roomMemory.take(30)}, replyMode=${config.replyMode}")
 
             val candidates = deterministicCandidates + generateCandidateReplies(config, room, sender, normalizedMessage, history, prompt, styleGuide)
+            logCandidateSummary(candidates)
             val bestCandidate = ReplyQualityEvaluator.selectBest(candidates)
             val rawResponse = bestCandidate?.raw.orEmpty()
 
@@ -243,6 +248,46 @@ object AiProviderClient {
         }
     }
 
+    internal fun buildStyleRewritePrompt(
+        config: AutoReplyConfig,
+        room: String,
+        sender: String,
+        message: String,
+        history: List<RoomHistoryMessage>,
+        styleGuide: String = ""
+    ): String {
+        return buildString {
+            append("아래 대화에서 '나'가 실제로 보낼 법한 카카오톡 답장만 써라.\n")
+            append("사용자 직접 예시와 수동 방 말투가 있으면 그것을 최우선으로 흉내내라.\n")
+            append("모르는 사실은 지어내지 말고 짧게 모른다고 하거나 확인 질문을 해라.\n")
+            append("챗봇처럼 설명하지 말고 한 문장으로 끝내라.\n")
+            if (styleGuide.isNotBlank()) {
+                append(styleGuide.take(STYLE_GUIDE_LIMIT))
+                append("\n")
+            }
+            if (config.persona.isNotBlank()) {
+                append("페르소나: ${config.persona.take(STYLE_PERSONA_LIMIT)}\n")
+            }
+            if (config.roomStyle.isNotBlank()) {
+                append("수동 방 말투: ${config.roomStyle.take(STYLE_GUIDE_LIMIT)}\n")
+            }
+            if (config.roomMemory.isNotBlank()) {
+                append("방 메모: ${config.roomMemory.take(STYLE_ROOM_MEMORY_LIMIT)}\n")
+            }
+            val recentHistory = history.takeLast(STYLE_HISTORY_LIMIT)
+            if (recentHistory.isNotEmpty()) {
+                append("최근 대화:\n")
+                recentHistory.forEach { msg ->
+                    val role = if (msg.incoming) "상대" else "나"
+                    append("[$role/${msg.sender}] ${msg.message}\n")
+                }
+            }
+            append("방: $room\n")
+            append("[$sender] $message\n")
+            append("내가 보낼 답장:\n")
+        }
+    }
+
     internal fun buildEmergencyPrompt(
         config: AutoReplyConfig,
         room: String,
@@ -316,11 +361,29 @@ object AiProviderClient {
                 maxTokens = 12
             ),
             LlmCandidateSpec(
+                source = "style_rewrite",
+                prompt = buildStyleRewritePrompt(config, room, sender, message, history, styleGuide),
+                maxTokens = 18
+            ),
+            LlmCandidateSpec(
                 source = "compact",
                 prompt = buildCompactPrompt(config, room, sender, message, history, styleGuide),
                 maxTokens = 24
             )
         )
+    }
+
+    private fun logCandidateSummary(candidates: List<ReplyQualityEvaluator.Candidate>) {
+        if (candidates.isEmpty()) {
+            Log.w(TAG, "No reply candidates were available for quality selection")
+            return
+        }
+        candidates.forEach { candidate ->
+            Log.d(
+                TAG,
+                "Candidate source=${candidate.source}, score=${candidate.score}, reasons=${candidate.reasons}, replyLength=${candidate.reply.length}"
+            )
+        }
     }
 
     internal fun buildEmergencyCandidateSpec(
