@@ -6,7 +6,8 @@ object ReplyQualityEvaluator {
         val raw: String,
         val reply: String,
         val score: Int,
-        val reasons: List<String>
+        val reasons: List<String>,
+        val latencyMs: Long = 0L
     )
 
     fun evaluate(
@@ -15,14 +16,15 @@ object ReplyQualityEvaluator {
         reply: String,
         config: AutoReplyConfig,
         message: String,
-        history: List<RoomHistoryMessage>
+        history: List<RoomHistoryMessage>,
+        latencyMs: Long = 0L
     ): Candidate {
         val normalized = reply.trim()
         val reasons = mutableListOf<String>()
         var score = 100
 
         if (normalized.isBlank()) {
-            return Candidate(source, raw, normalized, 0, listOf("blank"))
+            return Candidate(source, raw, normalized, 0, listOf("blank"), latencyMs)
         }
         if (normalized.length > 90) {
             score -= 18
@@ -79,7 +81,8 @@ object ReplyQualityEvaluator {
             raw = raw,
             reply = normalized,
             score = score.coerceIn(0, 120),
-            reasons = reasons
+            reasons = reasons,
+            latencyMs = latencyMs
         )
     }
 

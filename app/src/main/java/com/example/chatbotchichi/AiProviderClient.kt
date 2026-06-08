@@ -101,6 +101,7 @@ object AiProviderClient {
             val candidates = deterministicCandidates + generateCandidateReplies(config, room, sender, normalizedMessage, history, prompt, styleGuide)
             logCandidateSummary(candidates)
             val bestCandidate = ReplyQualityEvaluator.selectBest(candidates)
+            ReplyCandidateStatsStore.recordBatch(context, candidates, bestCandidate?.source)
             val rawResponse = bestCandidate?.raw.orEmpty()
 
             if (bestCandidate != null) {
@@ -432,7 +433,7 @@ object AiProviderClient {
         candidates.forEach { candidate ->
             Log.d(
                 TAG,
-                "Candidate source=${candidate.source}, score=${candidate.score}, reasons=${candidate.reasons}, replyLength=${candidate.reply.length}"
+                "Candidate source=${candidate.source}, score=${candidate.score}, reasons=${candidate.reasons}, replyLength=${candidate.reply.length}, latencyMs=${candidate.latencyMs}"
             )
         }
     }
@@ -463,9 +464,11 @@ object AiProviderClient {
             specs.map { spec ->
                 async(Dispatchers.Default) {
                     Log.d(TAG, "Generating ${spec.source} candidate prompt length=${spec.prompt.length} chars")
+                    val startedAt = System.currentTimeMillis()
                     val rawResponse = LlmEngine.generate(spec.prompt, maxTokens = spec.maxTokens)
-                    Log.d(TAG, "${spec.source} raw LLM response length: ${rawResponse.length}")
-                    evaluateCandidate(spec.source, rawResponse, config, message, history)
+                    val latencyMs = System.currentTimeMillis() - startedAt
+                    Log.d(TAG, "${spec.source} raw LLM response length: ${rawResponse.length}, latencyMs=$latencyMs")
+                    evaluateCandidate(spec.source, rawResponse, config, message, history, latencyMs)
                 }
             }.awaitAll()
         }
@@ -514,7 +517,8 @@ object AiProviderClient {
         raw: String,
         config: AutoReplyConfig,
         message: String,
-        history: List<RoomHistoryMessage>
+        history: List<RoomHistoryMessage>,
+        latencyMs: Long = 0L
     ): ReplyQualityEvaluator.Candidate {
         return ReplyQualityEvaluator.evaluate(
             source = source,
@@ -522,7 +526,8 @@ object AiProviderClient {
             reply = cleanResponse(raw),
             config = config,
             message = message,
-            history = history
+            history = history,
+            latencyMs = latencyMs
         )
     }
 

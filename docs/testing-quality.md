@@ -75,6 +75,7 @@ maestro test .maestro
 - 알림 수집과 답장 시도 분리 가드 로직
 - OFF 상태 또는 방별 답장 비활성화일 때도 메시지 수집은 유지되고 답장만 막히는 가드 로직
 - 전송 실패와 스킵 reason 이 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `reply off`, `low signal`, `model not loaded` 같은 표준 카테고리로 집계되고 최근 실패/스킵 reason 이 남는 통계 가드
+- 후보 응답 source 별 생성/선택/빈 응답/저품질/latency 집계가 대화 원문 없이 계산되는 가드
 - primary/style_rewrite/human_style/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
 - 친구방, 팀방, 학교방, 낮은 신호, 모르는 사실, 방 메모리 사실 확인, 수동 예시 우선순위 충돌을 포함한 기본 응답 품질 시나리오
 - 애매한 지시에는 아는 척하지 않고 짧게 확인 질문을 하는 응답 품질 시나리오
@@ -158,6 +159,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 존댓말 이력이 쌓인 방에서도 수동 친구방 예시가 있으면 수동 예시에 가까운 답장만 `manual_example_override` 시나리오를 통과함
 - [ ] primary/style_rewrite/human_style/compact candidate lane 이 같은 품질 게이트에서 비교되고, emergency lane 은 초기 후보가 약할 때만 추가됨
 - [ ] primary/style_rewrite/human_style/compact/emergency 후보 평가 결과와 선택 이유가 로그로 남음
+- [ ] 후보 source 별 생성/선택/빈 응답/저품질/latency 집계가 남고, 프롬프트/원문 응답/방 이름/발화자는 장기 저장하지 않음
 - [ ] 규칙 기반 후보와 Gemma 후보가 같은 품질 게이트에서 평가됨
 
 ### 에뮬레이터 검증
@@ -184,6 +186,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 최근 대화의 구체 사실을 물었을 때 그 사실을 포함해 답함
 - [ ] 페르소나/말투 설정이 다른 두 방에서 서로 다른 답장 스타일로 반영됨
 - [ ] 긴 프롬프트 실패 시 primary, style_rewrite, human_style, compact, emergency 후보 비교가 빈 응답을 줄이는지 확인
+- [ ] 긴 프롬프트 실패 후 후보 source 별 빈 응답/저품질/latency 누적 통계가 튜닝 근거로 남는지 확인
 - [ ] 생성 시간이 실사용 가능한 범위인지 기록
 
 ### 실제 카카오톡 end-to-end

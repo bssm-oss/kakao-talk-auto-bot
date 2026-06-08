@@ -7,6 +7,7 @@
 - SharedPreferences : 전역 UI 설정, 가져오기 메타데이터
 - `StyleProfilePrefs` SharedPreferences : 학습된 사용자/방 말투 사용 여부와 수동 수정값
 - `ReplyStatsPrefs` SharedPreferences : 수신/전송/스킵/실패 누적 횟수와 실패/스킵 원인별 카운트
+- `ReplyCandidateStatsPrefs` SharedPreferences : 후보 응답 lane 별 생성/선택/빈 응답/저품질/latency 누적 집계. 프롬프트, 원문 응답, 방 이름, 발화자는 저장하지 않습니다.
 - `redact_log_copies` SharedPreferences 값 : 로그 복사 시 방 이름, 발화자, 메시지 본문을 가릴지 여부. 기본값은 켜짐입니다.
 - `logs/app.log` : 최근 로그. 기본 보관 한도는 최근 100줄이며, 로그 파일 수정 시각이 7일을 넘으면 다음 로그 append/read 시 자동 삭제합니다.
 
@@ -59,5 +60,7 @@
 메인 화면에서 최근 로그를 즉시 삭제할 수 있습니다. 로그 삭제는 로컬 로그 파일만 지우며, 방 메모리와 답장 통계는 유지합니다.
 
 메인 화면의 응답 통계는 전송 성공률, 실패 원인, 스킵 원인을 함께 표시합니다. 실패가 있으면 최다 실패 원인을 우선 보여주고, 실패가 없으면 최다 스킵 원인을 표시합니다. 상세 줄에는 상위 실패/스킵 원인뿐 아니라 최근 실패 reason 과 최근 스킵 reason 도 남겨 실기기에서 마지막으로 막힌 지점을 빠르게 볼 수 있게 합니다. `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `reply exception`, 전역 AI 답장 OFF, 방별 답장 OFF, 응답 설정 없는 방, 의미 없는 짧은 메시지 같은 이유를 분리해 실제 기기에서 어디가 자주 막히는지 볼 수 있게 합니다.
+
+후보 응답 통계는 primary/style_rewrite/human_style/compact/emergency 및 규칙 기반 후보 source 별로 누적합니다. 저장되는 값은 source 이름, 생성 횟수, 선택 횟수, 빈 응답 횟수, 품질 게이트 미달 횟수, 총/최대 생성 시간뿐입니다. 이 값은 실기기에서 어떤 후보 전략이 느리거나 자주 비는지 확인하기 위한 운영 지표이며, 대화 본문이나 모델 raw output 을 장기 저장하지 않습니다.
 
 `replyToRoomDetailed` 는 Boolean 대신 `SendResult(sent, reason)` 을 반환합니다. 기존 `replyToRoom` Boolean API는 유지하지만, 엔진 보조 로그와 통계는 상세 reason을 사용해 AI 생성 성공 후 카카오톡 전송 단계에서 막힌 원인을 추적합니다.
