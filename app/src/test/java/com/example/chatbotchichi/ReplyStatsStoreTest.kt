@@ -70,7 +70,9 @@ class ReplyStatsStoreTest {
 
     @Test
     fun normalizeReason_collapsesSkipAndModelReasons() {
-        assertEquals("reply off", ReplyStatsStore.normalizeReason("AI 답장 OFF · 메시지 수집 중"))
+        assertEquals("global reply off", ReplyStatsStore.normalizeReason("AI 답장 OFF · 메시지 수집 중"))
+        assertEquals("room reply off", ReplyStatsStore.normalizeReason("방별 답장이 OFF 상태입니다."))
+        assertEquals("no room config", ReplyStatsStore.normalizeReason("응답 설정이 없는 방입니다."))
         assertEquals("low signal", ReplyStatsStore.normalizeReason("의미 없는 짧은 메시지입니다."))
         assertEquals("model not loaded", ReplyStatsStore.normalizeReason("LLM 모델이 로드되지 않았습니다. 모델 다운로드를 기다려주세요."))
     }
@@ -117,14 +119,14 @@ class ReplyStatsStoreTest {
                 SessionReplier.REASON_PENDING_INTENT_SEND_FAILED to 3
             ),
             skipReasons = mapOf(
-                "reply off" to 2,
+                "global reply off" to 2,
                 "low signal" to 1
             )
         ).detailSummary()
 
         assertTrue(detail.contains("실패: pendingIntent send failed 3회"))
         assertTrue(detail.contains("no session 1회"))
-        assertTrue(detail.contains("스킵: reply off 2회"))
+        assertTrue(detail.contains("스킵: global reply off 2회"))
         assertTrue(detail.contains("low signal 1회"))
     }
 

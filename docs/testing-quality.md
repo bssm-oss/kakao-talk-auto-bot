@@ -74,7 +74,7 @@ maestro test .maestro
 - 트리거 섹션이 없거나 빈 값인 레거시 설정이 모든 메시지 모드로 승격되지 않는 JSON 파싱 가드
 - 알림 수집과 답장 시도 분리 가드 로직
 - OFF 상태 또는 방별 답장 비활성화일 때도 메시지 수집은 유지되고 답장만 막히는 가드 로직
-- 전송 실패와 스킵 reason 이 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `reply off`, `low signal`, `model not loaded`, `ai quality rejected`, `ai generation exception`, `canned reply empty` 같은 표준 카테고리로 집계되고 최근 실패/스킵 reason 과 마지막 전송/실패/스킵 이벤트 시각이 남는 통계 가드
+- 전송 실패와 스킵 reason 이 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `global reply off`, `room reply off`, `no room config`, `low signal`, `model not loaded`, `ai quality rejected`, `ai generation exception`, `canned reply empty` 같은 표준 카테고리로 집계되고 최근 실패/스킵 reason 과 마지막 전송/실패/스킵 이벤트 시각이 남는 통계 가드
 - 후보 응답 source 별 생성/선택/빈 응답/저품질/latency 집계가 대화 원문 없이 계산되는 가드
 - source 별 후보 통계 보정점이 가까운 후보의 tie-breaker 로만 작동하고 명백히 나쁜 답변을 이기지 못하는 선택 가드
 - 여러 candidate lane 이 같은 답장을 반복하면 중복 후보가 `duplicate_reply` 로 감점되어 선택을 왜곡하지 않는 가드
