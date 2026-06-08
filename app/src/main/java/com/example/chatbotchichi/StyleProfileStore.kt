@@ -42,6 +42,15 @@ object StyleProfileStore {
                 }
                 return details.joinToString(" · ")
             }
+
+        val resetGuidance: String
+            get() = when {
+                !enabled -> "학습 말투가 꺼져 있어 현재 답장에는 반영되지 않습니다."
+                override.isNotBlank() -> "수동 수정값이 우선 적용됩니다. 자동 추출값만 다시 보려면 수정 초기화를 사용하세요."
+                generated.isBlank() || sampleCount <= 0 -> "대화가 쌓이면 자동으로 다시 추출됩니다."
+                confidence in 1..54 -> "신뢰도가 낮습니다. 잘못 배웠다면 학습 원본 삭제 후 새 대화를 쌓으세요."
+                else -> "필요하면 학습 원본 삭제로 이 방의 자동 말투를 처음부터 다시 쌓을 수 있습니다."
+            }
     }
 
     data class StyleGuideParts(

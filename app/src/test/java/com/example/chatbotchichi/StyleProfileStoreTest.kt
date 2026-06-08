@@ -132,4 +132,42 @@ class StyleProfileStoreTest {
         assertTrue(state.confidenceSummary.contains("수동 수정"))
         assertTrue(!state.confidenceSummary.contains("보조 힌트"))
     }
+
+    @Test
+    fun learnedStyleState_resetGuidance_explainsLowConfidenceRelearningPath() {
+        val state = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "",
+            generated = "방 전체 말투 기준: 친한 친구방처럼 가볍고 짧은 반응이 중심",
+            confidence = 24,
+            sampleCount = 1
+        )
+
+        assertTrue(state.resetGuidance.contains("신뢰도가 낮습니다"))
+        assertTrue(state.resetGuidance.contains("학습 원본 삭제"))
+        assertTrue(state.resetGuidance.contains("새 대화"))
+    }
+
+    @Test
+    fun learnedStyleState_resetGuidance_distinguishesManualOverrideAndDisabledState() {
+        val manual = StyleProfileStore.LearnedStyleState(
+            enabled = true,
+            override = "팀방에서는 별일없습니다!처럼 짧게",
+            generated = "방 전체 말투 기준: 친한 친구방처럼 가벼움",
+            confidence = 92,
+            sampleCount = 12
+        )
+        val disabled = StyleProfileStore.LearnedStyleState(
+            enabled = false,
+            override = "",
+            generated = "방 전체 말투 기준: 학교/팀방처럼 존댓말과 격식이 중심",
+            confidence = 78,
+            sampleCount = 8
+        )
+
+        assertTrue(manual.resetGuidance.contains("수동 수정값이 우선"))
+        assertTrue(manual.resetGuidance.contains("수정 초기화"))
+        assertTrue(disabled.resetGuidance.contains("꺼져 있어"))
+        assertTrue(disabled.resetGuidance.contains("반영되지 않습니다"))
+    }
 }

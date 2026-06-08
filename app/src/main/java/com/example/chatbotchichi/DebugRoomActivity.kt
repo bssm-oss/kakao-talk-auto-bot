@@ -187,9 +187,9 @@ class DebugRoomActivity : AppCompatActivity() {
         switchLearnedRoomStyle.isChecked = state.enabled
         editLearnedRoomStyle.setText(state.override)
         learnedRoomStylePreview.text = if (state.generated.isBlank()) {
-            "자동 추출된 방 말투가 아직 없습니다. 대화가 쌓이면 답장 때 자동으로 참고합니다."
+            "자동 추출된 방 말투가 아직 없습니다. ${state.resetGuidance}"
         } else {
-            "자동 추출 (${state.confidenceSummary}): ${state.generated}"
+            "자동 추출 (${state.confidenceSummary}): ${state.generated}\n${state.resetGuidance}"
         }
     }
 
