@@ -52,6 +52,11 @@ object ReplyQualityEvaluator {
             score -= 18
             reasons.add("unguarded_guess")
         }
+        val styleMismatch = manualStyleMismatchReason(normalized, config.roomStyle)
+        if (styleMismatch != null) {
+            score -= 24
+            reasons.add(styleMismatch)
+        }
         if (matchesManualStyleHint(normalized, config.roomStyle)) {
             score += 8
             reasons.add("manual_room_style_match")
@@ -107,11 +112,38 @@ object ReplyQualityEvaluator {
     }
 
     private fun matchesManualStyleHint(reply: String, roomStyle: String): Boolean {
-        if (roomStyle.isBlank()) return false
-        val casual = roomStyle.contains("반말") || roomStyle.contains("가볍")
-        val formal = roomStyle.contains("존댓말") || roomStyle.contains("팀") || roomStyle.contains("학교")
+        val casual = prefersCasualStyle(roomStyle)
+        val formal = !casual && prefersFormalStyle(roomStyle)
         return (casual && !reply.endsWith("요") && !reply.contains("습니다")) ||
             (formal && (reply.endsWith("요") || reply.contains("습니다") || reply.contains("입니다")))
+    }
+
+    private fun manualStyleMismatchReason(reply: String, roomStyle: String): String? {
+        val casual = prefersCasualStyle(roomStyle)
+        val formal = !casual && prefersFormalStyle(roomStyle)
+        val replyLooksFormal = reply.endsWith("요") || reply.contains("습니다") || reply.contains("입니다")
+        val replyLooksCasual = listOf("야", "해", "어", "됐어", "할게", "같아", "몰라").any { reply.endsWith(it) } ||
+            listOf("말하는 거야", "아니야", "없긴해").any { reply.contains(it) }
+
+        return when {
+            casual && replyLooksFormal -> "manual_room_style_mismatch_formal"
+            formal && replyLooksCasual -> "manual_room_style_mismatch_casual"
+            else -> null
+        }
+    }
+
+    private fun prefersCasualStyle(roomStyle: String): Boolean {
+        return roomStyle.contains("반말") ||
+            roomStyle.contains("친한") ||
+            roomStyle.contains("가볍") ||
+            roomStyle.contains("캐주얼")
+    }
+
+    private fun prefersFormalStyle(roomStyle: String): Boolean {
+        return roomStyle.contains("존댓말") ||
+            roomStyle.contains("팀") ||
+            roomStyle.contains("학교") ||
+            roomStyle.contains("정중")
     }
 
     private fun hasRelevantKnownFact(
