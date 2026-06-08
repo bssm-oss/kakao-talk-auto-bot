@@ -34,6 +34,68 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_penalizesFormalToneInCasualFriendRoom() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 가볍게 반말로 답장"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "별일 없습니다.",
+                reply = "별일 없습니다.",
+                config = config,
+                message = "뭐 있어?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "compact",
+                raw = "아무것도 없긴해",
+                reply = "아무것도 없긴해",
+                config = config,
+                message = "뭐 있어?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("compact", best?.source)
+        assertTrue(candidates.first().reasons.contains("manual_room_style_mismatch_formal"))
+        assertTrue(candidates.last().reasons.contains("manual_room_style_match"))
+    }
+
+    @Test
+    fun selectBest_penalizesCasualToneInSchoolRoom() {
+        val config = AutoReplyJson.defaultConfig("학교방").copy(
+            roomStyle = "학교 단톡. 존댓말로 단정하게 답장"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "별일 없어",
+                reply = "별일 없어",
+                config = config,
+                message = "별일 있나요?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "compact",
+                raw = "별일없습니다!",
+                reply = "별일없습니다!",
+                config = config,
+                message = "별일 있나요?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("compact", best?.source)
+        assertTrue(candidates.first().reasons.contains("manual_room_style_mismatch_casual"))
+        assertTrue(candidates.last().reasons.contains("manual_room_style_match"))
+    }
+
+    @Test
     fun builtInScenarios_coverRequiredQualityCases() {
         val ids = ReplyQualityScenarios.builtIns().map { it.id }.toSet()
 
