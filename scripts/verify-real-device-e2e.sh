@@ -45,6 +45,28 @@ manual_kakao_complete() {
   fi
 }
 
+manual_kakao_pending_reason() {
+  if [[ "$(manual_kakao_complete)" == "true" ]]; then
+    echo "none"
+  elif [[ -n "${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON:-}" ]]; then
+    echo "remoteinput_failed"
+  elif [[ "$(bool_env "${MANUAL_KAKAO_NOTIFICATION_ACCESS_CONFIRMED:-false}")" != "true" ]]; then
+    echo "notification_access_unconfirmed"
+  elif [[ -z "${MANUAL_KAKAO_TEST_ROOM:-}" ]]; then
+    echo "missing_test_room"
+  elif [[ -z "${MANUAL_KAKAO_TEST_SENDER:-}" ]]; then
+    echo "missing_test_sender"
+  elif [[ "$(bool_env "${MANUAL_KAKAO_IN_LOG_CONFIRMED:-false}")" != "true" ]]; then
+    echo "in_log_unconfirmed"
+  elif [[ "$(bool_env "${MANUAL_KAKAO_OUT_LOG_CONFIRMED:-false}")" != "true" ]]; then
+    echo "out_log_unconfirmed"
+  elif [[ "$(bool_env "${MANUAL_KAKAO_REPLY_VISIBLE_IN_KAKAOTALK:-false}")" != "true" ]]; then
+    echo "reply_not_visible"
+  else
+    echo "pending_evidence"
+  fi
+}
+
 print_manual_kakao_template() {
   cat <<EOF
 manual_kakao_e2e_required=true
@@ -57,6 +79,7 @@ manual_kakao_reply_visible_in_kakaotalk=$(bool_env "${MANUAL_KAKAO_REPLY_VISIBLE
 manual_kakao_remoteinput_failure_reason=${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON:-}
 manual_kakao_evidence_note=${MANUAL_KAKAO_EVIDENCE_NOTE:-}
 manual_kakao_complete=$(manual_kakao_complete)
+manual_kakao_pending_reason=$(manual_kakao_pending_reason)
 manual_kakao_steps=1) enable notification access, 2) send KakaoTalk message from another account, 3) confirm IN log with the expected room/sender, 4) confirm OUT log or OUT_FAIL reason, 5) confirm the reply appears in KakaoTalk
 EOF
 }
