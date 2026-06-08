@@ -14,6 +14,14 @@
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
 ```
 
+ARM64 실기기에서 Gemma 기본 모델과 실제 런타임 경로를 확인할 때는 아래 스크립트를 사용합니다.
+
+```bash
+scripts/verify-real-device-e2e.sh
+```
+
+이 스크립트는 한 대의 ARM64 실기기 연결을 요구하고, debug APK와 androidTest APK 설치, Gemma 계측 테스트 실행, 모델 파일 크기/SHA-256 확인, 로그캣 저장까지 수행합니다. 카카오톡 알림 수신과 실제 자동 답장 표시는 계정/알림 권한이 필요한 수동 E2E 단계로 남기며, 스크립트가 생성하는 `outputs/real-device-e2e/*-summary.txt` 에 수동 확인 항목을 남깁니다.
+
 UI 흐름을 바꿨다면 아래도 같이 확인합니다.
 
 ```bash
@@ -83,6 +91,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 
 - [ ] `./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease` 통과
 - [ ] `git diff --check` 통과
+- [ ] `scripts/verify-real-device-e2e.sh` 가 ARM64 실기기에서 통과
 - [ ] 트리거 기본값이 빈 값이나 레거시 설정에서 `모든 메시지` 로 잘못 승격되지 않음
 - [ ] `AI가 판단`, `모든 메시지`, `호출어/멘션만`, `질문/명령만` 모드가 각각 의도대로 동작함
 - [ ] `AI가 판단` 모드에서 낮은 신호 메시지는 모델 파일이 없어도 실패가 아니라 skip으로 기록됨
@@ -102,6 +111,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 모르는 사실은 추측하지 않고 모른다고 짧게 답함
 - [ ] AI 메타 문구, 프롬프트 반복, 지나치게 긴 후보가 최종 답장으로 선택되지 않음
 - [ ] primary/compact/emergency 후보 평가 결과와 선택 이유가 로그로 남음
+- [ ] 규칙 기반 후보와 Gemma 후보가 같은 품질 게이트에서 평가됨
 
 ### 에뮬레이터 검증
 
@@ -219,3 +229,5 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
   3. 모델 readiness / load 성공 로그 또는 UI 상태 확인
   4. 실제 프롬프트에 대해 생성 결과 1회 이상 확인
 - 위 네 가지 중 하나라도 빠지면 상태는 "빌드/테스트 통과, 런타임 미검증" 으로 기록합니다.
+
+`scripts/verify-real-device-e2e.sh` 는 위 1-4번 중 모델 다운로드/해시/로드/생성까지 자동 검증합니다. 실제 카카오톡 메시지 수신과 RemoteInput 자동 전송은 다른 카카오톡 계정에서 메시지를 보내고 앱 로그의 `IN`/`OUT` 과 카카오톡 대화창 표시가 일치하는지 별도로 확인해야 합니다.

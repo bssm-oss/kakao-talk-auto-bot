@@ -12,16 +12,18 @@ object ReplyStatsStore {
         val sent: Int,
         val skipped: Int,
         val failed: Int,
-        val failureReasons: Map<String, Int>
+        val failureReasons: Map<String, Int>,
+        val skipReasons: Map<String, Int>
     ) {
         fun summary(): String {
             val topFailure = failureReasons.maxByOrNull { it.value }
-            val failureText = if (topFailure == null) {
-                "실패 원인 없음"
-            } else {
-                "최다 실패: ${topFailure.key} ${topFailure.value}회"
+            val topSkip = skipReasons.maxByOrNull { it.value }
+            val reasonText = when {
+                topFailure != null -> "최다 실패: ${topFailure.key} ${topFailure.value}회"
+                topSkip != null -> "최다 스킵: ${topSkip.key} ${topSkip.value}회"
+                else -> "원인 없음"
             }
-            return "수신 $incoming · 전송 $sent · 스킵 $skipped · 실패 $failed · $failureText"
+            return "수신 $incoming · 전송 $sent · 스킵 $skipped · 실패 $failed · $reasonText"
         }
     }
 
@@ -37,31 +39,22 @@ object ReplyStatsStore {
             else -> return
         }
         root.put(key, root.optInt(key, 0) + 1)
-        if (label == "OUT_FAIL") {
-            val failures = root.optJSONObject("failureReasons") ?: JSONObject()
-            val normalizedReason = reason?.trim()?.ifBlank { null } ?: "unknown"
-            failures.put(normalizedReason, failures.optInt(normalizedReason, 0) + 1)
-            root.put("failureReasons", failures)
+        when (label) {
+            "OUT_FAIL" -> incrementReason(root, "failureReasons", reason)
+            "OUT_SKIP" -> incrementReason(root, "skipReasons", reason)
         }
         prefs.edit().putString(KEY_COUNTS, root.toString()).apply()
     }
 
     fun snapshot(context: Context): Snapshot {
         val root = readCounts(context)
-        val failures = root.optJSONObject("failureReasons") ?: JSONObject()
-        val failureReasons = buildMap {
-            val keys = failures.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                put(key, failures.optInt(key, 0))
-            }
-        }
         return Snapshot(
             incoming = root.optInt("incoming", 0),
             sent = root.optInt("sent", 0),
             skipped = root.optInt("skipped", 0),
             failed = root.optInt("failed", 0),
-            failureReasons = failureReasons
+            failureReasons = readReasonMap(root, "failureReasons"),
+            skipReasons = readReasonMap(root, "skipReasons")
         )
     }
 
@@ -78,6 +71,24 @@ object ReplyStatsStore {
             JSONObject(prefs.getString(KEY_COUNTS, null).orEmpty().ifBlank { "{}" })
         } catch (_: Exception) {
             JSONObject()
+        }
+    }
+
+    private fun incrementReason(root: JSONObject, key: String, reason: String?) {
+        val reasons = root.optJSONObject(key) ?: JSONObject()
+        val normalizedReason = reason?.trim()?.ifBlank { null } ?: "unknown"
+        reasons.put(normalizedReason, reasons.optInt(normalizedReason, 0) + 1)
+        root.put(key, reasons)
+    }
+
+    private fun readReasonMap(root: JSONObject, key: String): Map<String, Int> {
+        val reasons = root.optJSONObject(key) ?: JSONObject()
+        return buildMap {
+            val keys = reasons.keys()
+            while (keys.hasNext()) {
+                val reason = keys.next()
+                put(reason, reasons.optInt(reason, 0))
+            }
         }
     }
 }
