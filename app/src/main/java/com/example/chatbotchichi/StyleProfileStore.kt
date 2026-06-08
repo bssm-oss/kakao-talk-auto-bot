@@ -75,15 +75,28 @@ object StyleProfileStore {
     fun learnedStylePreviewText(
         subject: String,
         state: LearnedStyleState,
-        emptyMessage: String
+        emptyMessage: String,
+        manualStyle: String = ""
     ): String {
         val normalizedSubject = subject.trim().ifBlank { "말투" }
+        val conflictWarning = learnedStyleConflictWarning(manualStyle, state)
         val body = when {
             state.hasManualOverride -> "수동 수정 적용 중 (${state.confidenceSummary}): ${state.override.trim()}\n${state.resetGuidance}"
             state.generated.isBlank() -> "$emptyMessage ${state.resetGuidance}"
             else -> "자동 추출 (${state.confidenceSummary}): ${state.generated}\n${state.resetGuidance}"
         }
-        return body.replace("학습 말투", "학습된 $normalizedSubject")
+        return listOf(body, conflictWarning)
+            .filter { it.isNotBlank() }
+            .joinToString("\n")
+            .replace("학습 말투", "학습된 $normalizedSubject")
+    }
+
+    internal fun learnedStyleConflictWarning(manualStyle: String, state: LearnedStyleState): String {
+        if (!state.enabled || state.hasManualOverride || state.generated.isBlank()) return ""
+        val manualTone = styleTone(manualStyle)
+        val generatedTone = styleTone(state.generated)
+        if (manualTone == Tone.UNKNOWN || generatedTone == Tone.UNKNOWN || manualTone == generatedTone) return ""
+        return "수동 방 스타일과 자동 학습값이 충돌합니다. 답장에서는 수동 방 스타일이 우선이며, 잘못 배웠다면 학습 원본 삭제를 사용하세요."
     }
 
     fun buildPromptStyleGuide(
@@ -389,6 +402,26 @@ object StyleProfileStore {
             sampleCount >= 3 -> 42
             sampleCount > 0 -> 24
             else -> 0
+        }
+    }
+
+    private enum class Tone {
+        CASUAL,
+        FORMAL,
+        UNKNOWN
+    }
+
+    private fun styleTone(text: String): Tone {
+        val normalized = text.trim()
+        if (normalized.isBlank()) return Tone.UNKNOWN
+        val formal = listOf("존댓말", "격식", "학교", "팀방", "팀 단톡", "습니다", "합니다", "입니다", "공손")
+            .any { normalized.contains(it) }
+        val casual = listOf("반말", "친한", "가볍", "캐주얼", "친구방", "ㅋㅋ", "없긴해", "짧은 반응")
+            .any { normalized.contains(it) }
+        return when {
+            formal && !casual -> Tone.FORMAL
+            casual && !formal -> Tone.CASUAL
+            else -> Tone.UNKNOWN
         }
     }
 

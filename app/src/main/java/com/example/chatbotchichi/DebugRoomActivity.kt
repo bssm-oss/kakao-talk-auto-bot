@@ -191,7 +191,8 @@ class DebugRoomActivity : AppCompatActivity() {
         learnedRoomStylePreview.text = StyleProfileStore.learnedStylePreviewText(
             subject = "방 말투",
             state = state,
-            emptyMessage = "자동 추출된 방 말투가 아직 없습니다."
+            emptyMessage = "자동 추출된 방 말투가 아직 없습니다.",
+            manualStyle = editRoomStyle.text?.toString().orEmpty()
         )
     }
 
