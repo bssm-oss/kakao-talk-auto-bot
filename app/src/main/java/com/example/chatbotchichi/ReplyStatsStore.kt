@@ -162,6 +162,9 @@ object ReplyStatsStore {
             lowered.contains(SessionReplier.REASON_PENDING_INTENT_SEND_FAILED.lowercase()) -> SessionReplier.REASON_PENDING_INTENT_SEND_FAILED
             lowered.contains(SessionReplier.REASON_EXCEPTION.lowercase()) -> SessionReplier.REASON_EXCEPTION
             lowered.contains("send_failed_after_generation") -> "send_failed_after_generation"
+            normalized.contains("AI 답장 OFF") -> "global reply off"
+            normalized.contains("방별 답장이 OFF") -> "room reply off"
+            normalized.contains("응답 설정이 없는 방") -> "no room config"
             lowered.contains("off") || normalized.contains("답장 OFF") -> "reply off"
             normalized.contains("의미 없는 짧은 메시지") -> "low signal"
             normalized.contains("응답 조건") || normalized.contains("조건을 충족") -> "condition not met"
