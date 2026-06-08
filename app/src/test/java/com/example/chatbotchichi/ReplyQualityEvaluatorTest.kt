@@ -283,6 +283,37 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_penalizesFalseDelayApologyAgainstManualExample() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 없는 늦답 사과를 지어내지 말고 짧게 반말. 예시: 아무것도 없긴해"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "늦게 답해서 미안 아무것도 없긴해",
+                reply = "늦게 답해서 미안 아무것도 없긴해",
+                config = config,
+                message = "오늘 뭐함",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "human_style",
+                raw = "아무것도 없긴해",
+                reply = "아무것도 없긴해",
+                config = config,
+                message = "오늘 뭐함",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("human_style", best?.source)
+        assertTrue(candidates.first().reasons.contains("false_delay_apology"))
+        assertTrue(candidates.last().reasons.contains("manual_example_match"))
+    }
+
+    @Test
     fun selectBest_penalizesTherapyEmpathyBoilerplateAgainstManualExample() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             roomStyle = "친한 친구방. 상담사처럼 감정 해석하지 말고 짧게 반말. 예시: 아 빡세긴 하네"
@@ -684,6 +715,7 @@ class ReplyQualityEvaluatorTest {
             "friend_no_helper_followup",
             "friend_no_generic_encouragement",
             "friend_no_generic_casual_ack",
+            "friend_no_false_delay_apology",
             "friend_no_therapy_empathy",
             "friend_no_reaction_spam"
         )
@@ -707,6 +739,7 @@ class ReplyQualityEvaluatorTest {
         assertTrue("no helper followup trait missing", "no_helper_followup" in coverage.traitIds)
         assertTrue("no generic encouragement trait missing", "no_generic_encouragement" in coverage.traitIds)
         assertTrue("no generic casual ack trait missing", "no_generic_casual_ack" in coverage.traitIds)
+        assertTrue("no false delay apology trait missing", "no_false_delay_apology" in coverage.traitIds)
         assertTrue("no therapy empathy trait missing", "no_therapy_empathy" in coverage.traitIds)
         assertTrue("no reaction spam trait missing", "no_reaction_spam" in coverage.traitIds)
     }
@@ -744,6 +777,7 @@ class ReplyQualityEvaluatorTest {
             "friend_no_helper_followup" to "지금은 좀 애매해",
             "friend_no_generic_encouragement" to "아 빡세긴 하네",
             "friend_no_generic_casual_ack" to "아 빡세긴 하네",
+            "friend_no_false_delay_apology" to "아무것도 없긴해",
             "friend_no_therapy_empathy" to "아 빡세긴 하네",
             "friend_no_reaction_spam" to "아 빡세긴 하네"
         )
@@ -771,6 +805,7 @@ class ReplyQualityEvaluatorTest {
         val friendNoHelperFollowup = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_helper_followup" }
         val friendNoGenericEncouragement = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_generic_encouragement" }
         val friendNoGenericCasualAck = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_generic_casual_ack" }
+        val friendNoFalseDelayApology = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_false_delay_apology" }
         val friendNoTherapyEmpathy = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_therapy_empathy" }
         val friendNoReactionSpam = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_reaction_spam" }
 
@@ -791,6 +826,8 @@ class ReplyQualityEvaluatorTest {
         assertTrue(!ReplyQualityScenarios.evaluateReply("힘내!", friendNoGenericEncouragement).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("그렇구나", friendNoGenericCasualAck).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("그럴 수 있지", friendNoGenericCasualAck).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("늦게 답해서 미안 아무것도 없긴해", friendNoFalseDelayApology).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("답장 늦어서 미안", friendNoFalseDelayApology).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("그 마음 이해해. 많이 힘들었겠다.", friendNoTherapyEmpathy).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("ㅋㅋㅋㅋㅋㅋㅋㅋ", friendNoReactionSpam).passed)
     }
