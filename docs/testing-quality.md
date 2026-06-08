@@ -49,7 +49,7 @@ MANUAL_KAKAO_EVIDENCE_NOTE="IN/OUT 로그와 카카오톡 대화창 답장 표�
 scripts/verify-real-device-e2e.sh
 ```
 
-위 값이 모두 충족되면 요약 파일의 `manual_kakao_complete=true` 로 기록되고 최종 `status=complete` 가 됩니다. 모델 다운로드/해시/계측 테스트만 통과했지만 실제 카카오톡 수신/전송 증거가 빠졌으면 `status=manual_kakao_pending` 으로 남습니다. `notification_listener_enabled=true` 는 기기 설정의 알림 접근 권한 상태를 자동으로 읽은 값이고, `manual_kakao_notification_access_confirmed=true` 는 사람이 실제 카카오톡 수신/전송 검증 흐름에서 권한 상태를 확인했다는 별도 증거입니다.
+위 값이 모두 충족되고 `MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON` 이 비어 있으면 요약 파일의 `manual_kakao_complete=true` 로 기록되고 최종 `status=complete` 가 됩니다. 모델 다운로드/해시/계측 테스트만 통과했지만 실제 카카오톡 수신/전송 증거가 빠졌거나 RemoteInput 실패 reason 이 남아 있으면 `status=manual_kakao_pending` 으로 남습니다. `notification_listener_enabled=true` 는 기기 설정의 알림 접근 권한 상태를 자동으로 읽은 값이고, `manual_kakao_notification_access_confirmed=true` 는 사람이 실제 카카오톡 수신/전송 검증 흐름에서 권한 상태를 확인했다는 별도 증거입니다.
 
 UI 흐름을 바꿨다면 아래도 같이 확인합니다.
 
@@ -217,6 +217,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] AI 생성 실패, AI 품질 게이트 실패, 고정 답장 설정 실패가 각각 `ai generation exception`, `ai quality rejected`, `canned reply empty` 로 집계됨
 - [ ] AI 답장 생성 후 `replyToRoomDetailed` 이 실패하면 엔진 레벨에서도 같은 전송 원인을 포함한 `OUT_FAIL` 이 남음
 - [ ] `outputs/real-device-e2e/*-summary.txt` 의 `manual_kakao_in_log_confirmed`, `manual_kakao_out_log_confirmed`, `manual_kakao_reply_visible_in_kakaotalk`, `manual_kakao_complete` 가 실제 확인 결과로 채워짐
+- [ ] `manual_kakao_remoteinput_failure_reason` 이 비어 있지 않으면 다른 수동 증거가 true 여도 `manual_kakao_complete=false` 로 남음
 - [ ] 모델 검증만 통과하고 수동 카카오톡 증거가 비어 있으면 최종 상태가 `manual_kakao_pending` 으로 남음
 - [ ] OFF 상태 전환 직후 수신 메시지는 저장되지만 답장은 나가지 않음
 - [ ] OFF 상태 전환 직후 수신 메시지는 `OUT_SKIP` 에 OFF 원인이 남음

@@ -37,7 +37,8 @@ manual_kakao_complete() {
     -n "${MANUAL_KAKAO_TEST_SENDER:-}" &&
     "${in_log}" == "true" &&
     "${out_log}" == "true" &&
-    "${reply_visible}" == "true" ]]; then
+    "${reply_visible}" == "true" &&
+    -z "${MANUAL_KAKAO_REMOTEINPUT_FAILURE_REASON:-}" ]]; then
     echo "true"
   else
     echo "false"
