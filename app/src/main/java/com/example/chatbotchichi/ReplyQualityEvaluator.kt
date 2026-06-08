@@ -42,6 +42,10 @@ object ReplyQualityEvaluator {
             score -= 18
             reasons.add("assistant_boilerplate")
         }
+        if (looksSelfReferentialBusinessTone(normalized)) {
+            score -= 18
+            reasons.add("self_referential_business_tone")
+        }
         if (looksOverExplained(normalized)) {
             score -= 20
             reasons.add("over_explained")
@@ -154,6 +158,21 @@ object ReplyQualityEvaluator {
             "알려드릴게요",
             "확인해보겠습니다",
             "좋은 질문"
+        ).any { reply.contains(it) }
+    }
+
+    internal fun looksSelfReferentialBusinessTone(reply: String): Boolean {
+        val selfReference = listOf("제가", "저는", "저희", "제가요").any { reply.contains(it) }
+        if (!selfReference) return false
+        return listOf(
+            "확인해보겠습니다",
+            "확인해 보겠습니다",
+            "진행하겠습니다",
+            "처리하겠습니다",
+            "공유드리겠습니다",
+            "답변드리겠습니다",
+            "도와드리겠습니다",
+            "말씀드리겠습니다"
         ).any { reply.contains(it) }
     }
 
