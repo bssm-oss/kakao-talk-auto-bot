@@ -230,6 +230,7 @@ object AiProviderClient {
     ): String {
         return buildString {
             append("짧고 자연스럽게 한국어 카톡 답장만 출력해라. 답을 모르면 짧게 모른다고 말해라. 최근 대화와 메모에 근거가 있으면 그걸 우선 써라.\n")
+            append("사용자 직접 예시와 수동 방 말투가 있으면 학습된 말투보다 우선한다.\n")
             if (styleGuide.isNotBlank()) {
                 append(styleGuide.take(COMPACT_STYLE_GUIDE_LIMIT))
                 append("\n")
@@ -348,6 +349,7 @@ object AiProviderClient {
     ): String {
         return buildString {
             append("한국어로 짧게 한 문장만 답해라. 설명하지 마라. 추측하지 말고 페르소나와 최근 맥락을 최대한 유지해라.\n")
+            append("사용자 직접 예시와 수동 방 말투가 있으면 학습된 말투보다 우선한다.\n")
             if (styleGuide.isNotBlank()) {
                 append(styleGuide.take(EMERGENCY_STYLE_GUIDE_LIMIT))
                 append("\n")
