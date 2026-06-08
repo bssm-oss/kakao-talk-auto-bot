@@ -376,6 +376,37 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_penalizesFormalGratitudeAgainstManualExample() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 과하게 감사하거나 공손하게 마무리하지 말고 짧게 반말. 예시: 아무것도 없긴해"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "알려줘서 감사합니다!",
+                reply = "알려줘서 감사합니다!",
+                config = config,
+                message = "오늘 뭐 있어?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "human_style",
+                raw = "아무것도 없긴해",
+                reply = "아무것도 없긴해",
+                config = config,
+                message = "오늘 뭐 있어?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("human_style", best?.source)
+        assertTrue(candidates.first().reasons.contains("formal_gratitude_boilerplate"))
+        assertTrue(candidates.last().reasons.contains("manual_example_match"))
+    }
+
+    @Test
     fun selectBest_penalizesShortPromptEchoAgainstHumanLikeReply() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             roomStyle = "친한 친구방. 가볍게 반말. 상대 말을 따라 쓰지 말고 예시처럼 답장. 예시: 아무것도 없긴해"
@@ -717,7 +748,8 @@ class ReplyQualityEvaluatorTest {
             "friend_no_generic_casual_ack",
             "friend_no_false_delay_apology",
             "friend_no_therapy_empathy",
-            "friend_no_reaction_spam"
+            "friend_no_reaction_spam",
+            "friend_no_formal_gratitude"
         )
 
         assertTrue("required quality matrix missing: ${coverage.scenarioIds}", coverage.hasRequiredScenarios(requiredIds))
@@ -742,6 +774,7 @@ class ReplyQualityEvaluatorTest {
         assertTrue("no false delay apology trait missing", "no_false_delay_apology" in coverage.traitIds)
         assertTrue("no therapy empathy trait missing", "no_therapy_empathy" in coverage.traitIds)
         assertTrue("no reaction spam trait missing", "no_reaction_spam" in coverage.traitIds)
+        assertTrue("no formal gratitude trait missing", "no_formal_gratitude" in coverage.traitIds)
     }
 
     @Test
@@ -779,7 +812,8 @@ class ReplyQualityEvaluatorTest {
             "friend_no_generic_casual_ack" to "아 빡세긴 하네",
             "friend_no_false_delay_apology" to "아무것도 없긴해",
             "friend_no_therapy_empathy" to "아 빡세긴 하네",
-            "friend_no_reaction_spam" to "아 빡세긴 하네"
+            "friend_no_reaction_spam" to "아 빡세긴 하네",
+            "friend_no_formal_gratitude" to "아무것도 없긴해"
         )
 
         ReplyQualityScenarios.builtIns().forEach { scenario ->
@@ -808,6 +842,7 @@ class ReplyQualityEvaluatorTest {
         val friendNoFalseDelayApology = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_false_delay_apology" }
         val friendNoTherapyEmpathy = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_therapy_empathy" }
         val friendNoReactionSpam = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_reaction_spam" }
+        val friendNoFormalGratitude = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_formal_gratitude" }
 
         assertTrue(!ReplyQualityScenarios.evaluateReply("AI 모델로는 답변할 수 없습니다.", unknown).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("됐어.", ambiguous).passed)
@@ -830,5 +865,6 @@ class ReplyQualityEvaluatorTest {
         assertTrue(!ReplyQualityScenarios.evaluateReply("답장 늦어서 미안", friendNoFalseDelayApology).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("그 마음 이해해. 많이 힘들었겠다.", friendNoTherapyEmpathy).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("ㅋㅋㅋㅋㅋㅋㅋㅋ", friendNoReactionSpam).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("알려줘서 감사합니다!", friendNoFormalGratitude).passed)
     }
 }

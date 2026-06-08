@@ -70,6 +70,10 @@ object ReplyQualityEvaluator {
             score -= 26
             reasons.add("reaction_spam")
         }
+        if (looksLikeFormalGratitudeBoilerplate(normalized, config.roomStyle)) {
+            score -= 24
+            reasons.add("formal_gratitude_boilerplate")
+        }
         if (looksSelfReferentialBusinessTone(normalized)) {
             score -= 18
             reasons.add("self_referential_business_tone")
@@ -349,6 +353,23 @@ object ReplyQualityEvaluator {
         val mostlyReaction = reactionCount >= 5 && reactionCount * 2 >= compact.length
 
         return hasLongReactionRun || (mostlyReaction && semanticCount <= 5)
+    }
+
+    internal fun looksLikeFormalGratitudeBoilerplate(reply: String, roomStyle: String): Boolean {
+        if (!prefersCasualStyle(roomStyle)) return false
+        if (extractManualExamples(roomStyle).isEmpty()) return false
+
+        val normalized = normalizeForExampleMatch(reply)
+        val formalThanks = listOf(
+            "감사합니다",
+            "고맙습니다",
+            "도움이됐어요",
+            "도움됐어요",
+            "덕분에도움",
+            "좋은정보감사",
+            "알려줘서감사"
+        )
+        return formalThanks.any { normalized.contains(normalizeForExampleMatch(it)) }
     }
 
     internal fun looksSelfReferentialBusinessTone(reply: String): Boolean {

@@ -385,6 +385,22 @@ object ReplyQualityScenarios {
                 ),
                 expectedTraits = setOf("casual", "short", "manual_example", "no_reaction_spam"),
                 minimumScore = 65
+            ),
+            Scenario(
+                id = "friend_no_formal_gratitude",
+                room = "친구방",
+                sender = "민수",
+                message = "오늘 뭐 있어?",
+                config = AutoReplyJson.defaultConfig("친구방").copy(
+                    roomStyle = "친한 친구방. 과하게 감사하거나 공손하게 마무리하지 말고 짧게 반말. 예시: 아무것도 없긴해",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("민수", "오늘 뭐 있어?", true, 1L),
+                    RoomHistoryMessage("나", "아무것도 없긴해", false, 2L)
+                ),
+                expectedTraits = setOf("casual", "short", "manual_example", "no_formal_gratitude"),
+                minimumScore = 65
             )
         )
     }
@@ -431,7 +447,8 @@ object ReplyQualityScenarios {
             ScenarioExample("friend_no_generic_casual_ack", "아 빡세긴 하네"),
             ScenarioExample("friend_no_false_delay_apology", "아무것도 없긴해"),
             ScenarioExample("friend_no_therapy_empathy", "아 빡세긴 하네"),
-            ScenarioExample("friend_no_reaction_spam", "아 빡세긴 하네")
+            ScenarioExample("friend_no_reaction_spam", "아 빡세긴 하네"),
+            ScenarioExample("friend_no_formal_gratitude", "아무것도 없긴해")
         )
     }
 
@@ -633,6 +650,13 @@ object ReplyQualityScenarios {
         }
         if ("no_reaction_spam" in scenario.expectedTraits) {
             if ("reaction_spam" in candidate.reasons) {
+                score -= 45
+            } else {
+                score += 20
+            }
+        }
+        if ("no_formal_gratitude" in scenario.expectedTraits) {
+            if ("formal_gratitude_boilerplate" in candidate.reasons) {
                 score -= 45
             } else {
                 score += 20
