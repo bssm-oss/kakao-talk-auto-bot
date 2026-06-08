@@ -50,6 +50,10 @@ object ReplyQualityEvaluator {
             score -= 22
             reasons.add("helper_followup_boilerplate")
         }
+        if (looksLikeGenericEncouragementBoilerplate(normalized, config.roomStyle)) {
+            score -= 24
+            reasons.add("generic_encouragement_boilerplate")
+        }
         if (looksLikeTherapyEmpathyBoilerplate(normalized, config.roomStyle)) {
             score -= 24
             reasons.add("therapy_empathy_boilerplate")
@@ -223,6 +227,26 @@ object ReplyQualityEvaluator {
         if (!helperTail) return false
         val sentenceLikeBreaks = reply.count { it == '.' || it == '!' || it == '?' || it == '。' || it == '？' || it == '！' }
         return reply.length >= 18 || sentenceLikeBreaks >= 2
+    }
+
+    internal fun looksLikeGenericEncouragementBoilerplate(reply: String, roomStyle: String): Boolean {
+        if (!prefersCasualStyle(roomStyle)) return false
+        if (extractManualExamples(roomStyle).isEmpty()) return false
+
+        val normalized = normalizeForExampleMatch(reply)
+        val standaloneEncouragements = setOf(
+            "파이팅",
+            "화이팅",
+            "힘내",
+            "힘내자",
+            "응원할게",
+            "잘될거야",
+            "괜찮을거야"
+        )
+        if (normalized in standaloneEncouragements) return true
+
+        val hasGenericEncouragement = standaloneEncouragements.any { normalized.contains(it) }
+        return hasGenericEncouragement && normalized.length <= 10
     }
 
     internal fun looksLikeTherapyEmpathyBoilerplate(reply: String, roomStyle: String): Boolean {
