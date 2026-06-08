@@ -26,7 +26,9 @@ class ReplyQualityReportTest {
         val requiredCovered = setOf(
             "low_signal_skip",
             "ambiguous_clarify",
+            "school_ambiguous_formal",
             "unknown_fact_guard",
+            "friend_unknown_fact_guard",
             "room_memory_fact"
         )
 
@@ -36,8 +38,12 @@ class ReplyQualityReportTest {
             assertTrue("$scenarioId should pass without LLM: $result", result.passed)
         }
         assertEquals("pre_model_skip", byId.getValue("low_signal_skip").source)
+        assertEquals("requires_llm", byId.getValue("low_signal_with_context_ack").source)
+        assertTrue("low signal with context should not be pre-model skipped", !byId.getValue("low_signal_with_context_ack").coveredWithoutLlm)
         assertEquals("ambiguous_clarify", byId.getValue("ambiguous_clarify").source)
+        assertEquals("ambiguous_clarify", byId.getValue("school_ambiguous_formal").source)
         assertEquals("unknown_guard", byId.getValue("unknown_fact_guard").source)
+        assertEquals("unknown_guard", byId.getValue("friend_unknown_fact_guard").source)
         assertEquals("deadline_fact", byId.getValue("room_memory_fact").source)
     }
 
@@ -52,6 +58,9 @@ class ReplyQualityReportTest {
         assertTrue(output.exists())
         assertTrue(report.contains("# Reply Quality Baseline"))
         assertTrue(report.contains("| friend_light |"))
+        assertTrue(report.contains("| low_signal_with_context_ack |"))
+        assertTrue(report.contains("| school_ambiguous_formal |"))
+        assertTrue(report.contains("| friend_unknown_fact_guard |"))
         assertTrue(report.contains("| room_memory_fact |"))
         assertTrue(report.contains("| manual_example_override |"))
         assertTrue(report.contains("| manual_example_override | 친구방 | casual, manual_example, short |"))

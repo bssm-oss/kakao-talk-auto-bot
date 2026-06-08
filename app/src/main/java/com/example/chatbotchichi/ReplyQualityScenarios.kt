@@ -105,6 +105,23 @@ object ReplyQualityScenarios {
                 minimumScore = 50
             ),
             Scenario(
+                id = "low_signal_with_context_ack",
+                room = "친구방",
+                sender = "민수",
+                message = "ㅇㅋ",
+                config = AutoReplyJson.defaultConfig("친구방").copy(
+                    roomStyle = "친한 친구방. 가볍게 반말",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("민수", "그럼 오늘 7시에 학교 앞에서 보자", true, 1L),
+                    RoomHistoryMessage("나", "좋아 그때 갈게", false, 2L),
+                    RoomHistoryMessage("민수", "늦으면 바로 말해줘", true, 3L)
+                ),
+                expectedTraits = setOf("ack", "casual", "short"),
+                minimumScore = 45
+            ),
+            Scenario(
                 id = "ambiguous_clarify",
                 room = "프로젝트방",
                 sender = "민수",
@@ -121,6 +138,22 @@ object ReplyQualityScenarios {
                 minimumScore = 45
             ),
             Scenario(
+                id = "school_ambiguous_formal",
+                room = "학교방",
+                sender = "선생님",
+                message = "그거 준비됐나요?",
+                config = AutoReplyJson.defaultConfig("학교방").copy(
+                    roomStyle = "학교 단톡. 존댓말. 모호한 요청은 단정하지 말고 확인 질문",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("선생님", "문서 초안과 발표 자료를 둘 다 확인해 주세요.", true, 1L),
+                    RoomHistoryMessage("나", "먼저 문서 초안부터 정리하겠습니다.", false, 2L)
+                ),
+                expectedTraits = setOf("clarify", "formal", "short"),
+                minimumScore = 55
+            ),
+            Scenario(
                 id = "unknown_fact_guard",
                 room = "학교방",
                 sender = "지우",
@@ -131,6 +164,19 @@ object ReplyQualityScenarios {
                 ),
                 history = emptyList(),
                 expectedTraits = setOf("unknown_guard", "formal")
+            ),
+            Scenario(
+                id = "friend_unknown_fact_guard",
+                room = "친구방",
+                sender = "민수",
+                message = "내일 발표 몇 시야?",
+                config = AutoReplyJson.defaultConfig("친구방").copy(
+                    roomStyle = "친한 친구방. 모르는 일정은 추측하지 말고 짧게 반말",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = emptyList(),
+                expectedTraits = setOf("unknown_guard", "casual", "short"),
+                minimumScore = 55
             ),
             Scenario(
                 id = "room_memory_fact",
@@ -191,8 +237,11 @@ object ReplyQualityScenarios {
             ScenarioExample("team_formal", "별일없습니다!"),
             ScenarioExample("school_formal_notice", "별일 없습니다."),
             ScenarioExample("low_signal_skip", ""),
+            ScenarioExample("low_signal_with_context_ack", "응 알겠어"),
             ScenarioExample("ambiguous_clarify", "문서 말하는 거야, 발표 자료 말하는 거야?"),
+            ScenarioExample("school_ambiguous_formal", "문서 초안 말씀하시는 건가요, 발표 자료 말씀하시는 건가요?"),
             ScenarioExample("unknown_fact_guard", "아직 확인된 내용은 못 찾았습니다."),
+            ScenarioExample("friend_unknown_fact_guard", "아직 확인된 건 못 찾았어."),
             ScenarioExample("room_memory_fact", "6월 12일 18시까지입니다."),
             ScenarioExample("manual_example_override", "아무것도 없긴해")
         )
@@ -314,9 +363,10 @@ object ReplyQualityScenarios {
         var score = 0
         val normalized = reply.trim()
         if ("skip" in scenario.expectedTraits && normalized.isBlank()) score += 50
+        if ("ack" in scenario.expectedTraits && listOf("응", "알겠", "오케이", "ㅇㅋ", "갈게", "할게").any { normalized.contains(it) }) score += 25
         if ("short" in scenario.expectedTraits && normalized.length in 1..80) score += 20
         if ("casual" in scenario.expectedTraits && !normalized.contains("습니다") && !normalized.endsWith("요")) score += 20
-        if ("formal" in scenario.expectedTraits && (normalized.contains("습니다") || normalized.endsWith("요") || normalized.contains("입니다"))) score += 20
+        if ("formal" in scenario.expectedTraits && (normalized.contains("습니다") || normalized.contains("요") || normalized.contains("입니다"))) score += 20
         if ("clarify" in scenario.expectedTraits && listOf("뭐", "어떤", "문서", "발표", "그거").any { normalized.contains(it) }) score += 25
         if ("unknown_guard" in scenario.expectedTraits && listOf("몰라", "확인", "못 찾", "모르").any { normalized.contains(it) }) score += 25
         if ("grounded_fact" in scenario.expectedTraits && listOf("6월 12일", "18시", "12일").any { normalized.contains(it) }) score += 25
