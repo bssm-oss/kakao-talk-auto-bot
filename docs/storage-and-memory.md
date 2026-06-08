@@ -59,7 +59,7 @@
 
 메인 화면에서 최근 로그를 즉시 삭제할 수 있습니다. 로그 삭제는 로컬 로그 파일만 지우며, 방 메모리와 답장 통계는 유지합니다.
 
-메인 화면의 응답 통계는 전송 성공률, 실패 원인, 스킵 원인을 함께 표시합니다. 실패가 있으면 최다 실패 원인을 우선 보여주고, 실패가 없으면 최다 스킵 원인을 표시합니다. 상세 줄에는 상위 실패/스킵 원인뿐 아니라 최근 실패 reason, 최근 스킵 reason, 마지막 전송/실패/스킵 이벤트의 상대 시각도 남겨 실기기에서 마지막으로 막힌 지점을 빠르게 볼 수 있게 합니다. `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `reply exception`, `ai quality rejected`, `ai generation exception`, `canned reply empty`, 전역 AI 답장 OFF, 방별 답장 OFF, 응답 설정 없는 방, 의미 없는 짧은 메시지 같은 이유를 분리해 실제 기기에서 어디가 자주 막히는지 볼 수 있게 합니다.
+메인 화면의 응답 통계는 전송 성공률, 실패 원인, 스킵 원인을 함께 표시합니다. 실패가 있으면 최다 실패 원인을 우선 보여주고, 실패가 없으면 최다 스킵 원인을 표시합니다. 상세 줄에는 상위 실패/스킵 원인뿐 아니라 최근 실패 reason, 최근 스킵 reason, 마지막 전송/실패/스킵 이벤트의 상대 시각, 최근 또는 최다 실패 원인에 대한 `확인 필요` 액션 힌트도 남겨 실기기에서 마지막으로 막힌 지점을 빠르게 볼 수 있게 합니다. `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed`, `reply exception`, `ai quality rejected`, `ai generation exception`, `canned reply empty`, 전역 AI 답장 OFF, 방별 답장 OFF, 응답 설정 없는 방, 의미 없는 짧은 메시지 같은 이유를 분리해 실제 기기에서 어디가 자주 막히는지 볼 수 있게 합니다.
 
 후보 응답 통계는 primary/style_rewrite/human_style/compact/emergency 및 규칙 기반 후보 source 별로 누적합니다. 저장되는 값은 source 이름, 생성 횟수, 선택 횟수, 빈 응답 횟수, 품질 게이트 미달 횟수, 총/최대 생성 시간뿐입니다. 이 값은 실기기에서 어떤 후보 전략이 느리거나 자주 비는지 확인하기 위한 운영 지표이며, 대화 본문이나 모델 raw output 을 장기 저장하지 않습니다. 샘플이 충분히 쌓인 source 는 다음 후보 선택에서 작은 신뢰도 보정값으로만 반영합니다.
 

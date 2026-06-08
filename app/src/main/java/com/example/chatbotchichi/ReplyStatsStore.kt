@@ -42,8 +42,9 @@ object ReplyStatsStore {
             val failures = reasonSummary("실패", failureReasons, limit)
             val skips = reasonSummary("스킵", skipReasons, limit)
             val recent = recentReasonSummary()
+            val action = failureActionSummary()
             val timeline = recentTimelineSummary()
-            return listOf(failures, skips, recent)
+            return listOf(failures, skips, recent, action)
                 .plus(timeline)
                 .filter { it.isNotBlank() }
                 .ifEmpty { listOf("원인 없음") }
@@ -65,6 +66,14 @@ object ReplyStatsStore {
                 if (!lastSkipReason.isNullOrBlank()) add("최근 스킵: $lastSkipReason")
             }
             return parts.joinToString(", ")
+        }
+
+        private fun failureActionSummary(): String {
+            val reason = lastFailureReason
+                ?.takeIf { it.isNotBlank() }
+                ?: failureReasons.maxByOrNull { it.value }?.key
+                ?: return ""
+            return failureActionHint(reason)?.let { "확인 필요: $it" }.orEmpty()
         }
 
         private fun recentTimelineSummary(): String {
@@ -193,6 +202,22 @@ object ReplyStatsStore {
                 val reason = keys.next()
                 put(reason, reasons.optInt(reason, 0))
             }
+        }
+    }
+
+    internal fun failureActionHint(reason: String?): String? {
+        val normalized = normalizeReason(reason)
+        return when (normalized) {
+            SessionReplier.REASON_NO_SESSION -> "카카오톡 알림 수신 후 세션 캐시 생성 여부"
+            SessionReplier.REASON_NO_REMOTE_INPUT -> "카카오톡 알림 액션에 답장 RemoteInput 포함 여부"
+            SessionReplier.REASON_PENDING_INTENT_NULL -> "알림 답장 액션의 PendingIntent 존재 여부"
+            SessionReplier.REASON_PENDING_INTENT_SEND_FAILED -> "PendingIntent 전송 예외와 카카오톡 알림 권한/상태"
+            SessionReplier.REASON_EXCEPTION -> "replyToRoom 예외 로그와 알림 액션 파싱 상태"
+            "model not loaded" -> "Gemma 모델 다운로드와 해시 검증 상태"
+            "ai quality rejected" -> "후보 lane 점수와 품질 게이트 실패 이유"
+            "ai generation exception" -> "LiteRT-LM 생성 예외와 모델 런타임 상태"
+            "canned reply empty" -> "고정 답장 목록과 템플릿 설정"
+            else -> null
         }
     }
 
