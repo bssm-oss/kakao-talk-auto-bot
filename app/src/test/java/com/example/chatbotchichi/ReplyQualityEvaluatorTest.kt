@@ -221,6 +221,37 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_penalizesGenericEncouragementAgainstManualExample() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. generic 응원만 던지지 말고 상황에 짧게 반응. 예시: 아 빡세긴 하네"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "파이팅!",
+                reply = "파이팅!",
+                config = config,
+                message = "오늘 좀 빡세다",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "human_style",
+                raw = "아 빡세긴 하네",
+                reply = "아 빡세긴 하네",
+                config = config,
+                message = "오늘 좀 빡세다",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("human_style", best?.source)
+        assertTrue(candidates.first().reasons.contains("generic_encouragement_boilerplate"))
+        assertTrue(candidates.last().reasons.contains("manual_example_match"))
+    }
+
+    @Test
     fun selectBest_penalizesTherapyEmpathyBoilerplateAgainstManualExample() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             roomStyle = "친한 친구방. 상담사처럼 감정 해석하지 말고 짧게 반말. 예시: 아 빡세긴 하네"
@@ -620,6 +651,7 @@ class ReplyQualityEvaluatorTest {
             "friend_no_business_ack",
             "friend_no_service_apology",
             "friend_no_helper_followup",
+            "friend_no_generic_encouragement",
             "friend_no_therapy_empathy",
             "friend_no_reaction_spam"
         )
@@ -641,6 +673,7 @@ class ReplyQualityEvaluatorTest {
         assertTrue("no business ack trait missing", "no_business_ack" in coverage.traitIds)
         assertTrue("no service apology trait missing", "no_service_apology" in coverage.traitIds)
         assertTrue("no helper followup trait missing", "no_helper_followup" in coverage.traitIds)
+        assertTrue("no generic encouragement trait missing", "no_generic_encouragement" in coverage.traitIds)
         assertTrue("no therapy empathy trait missing", "no_therapy_empathy" in coverage.traitIds)
         assertTrue("no reaction spam trait missing", "no_reaction_spam" in coverage.traitIds)
     }
@@ -676,6 +709,7 @@ class ReplyQualityEvaluatorTest {
             "friend_no_business_ack" to "아무것도 없긴해",
             "friend_no_service_apology" to "지금은 좀 애매해",
             "friend_no_helper_followup" to "지금은 좀 애매해",
+            "friend_no_generic_encouragement" to "아 빡세긴 하네",
             "friend_no_therapy_empathy" to "아 빡세긴 하네",
             "friend_no_reaction_spam" to "아 빡세긴 하네"
         )
@@ -701,6 +735,7 @@ class ReplyQualityEvaluatorTest {
         val friendNoBusinessAck = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_business_ack" }
         val friendNoServiceApology = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_service_apology" }
         val friendNoHelperFollowup = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_helper_followup" }
+        val friendNoGenericEncouragement = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_generic_encouragement" }
         val friendNoTherapyEmpathy = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_therapy_empathy" }
         val friendNoReactionSpam = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_reaction_spam" }
 
@@ -717,6 +752,8 @@ class ReplyQualityEvaluatorTest {
         assertTrue(!ReplyQualityScenarios.evaluateReply("확인했습니다!", friendNoBusinessAck).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("죄송합니다. 필요한 사항이 있으면 안내드리겠습니다.", friendNoServiceApology).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("지금은 좀 애매해. 필요하면 더 알려줘!", friendNoHelperFollowup).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("파이팅!", friendNoGenericEncouragement).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("힘내!", friendNoGenericEncouragement).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("그 마음 이해해. 많이 힘들었겠다.", friendNoTherapyEmpathy).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("ㅋㅋㅋㅋㅋㅋㅋㅋ", friendNoReactionSpam).passed)
     }
