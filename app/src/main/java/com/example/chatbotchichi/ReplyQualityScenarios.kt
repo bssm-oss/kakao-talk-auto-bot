@@ -167,7 +167,7 @@ object ReplyQualityScenarios {
                     RoomHistoryMessage("나", "좋아 그때 갈게", false, 2L),
                     RoomHistoryMessage("민수", "늦으면 바로 말해줘", true, 3L)
                 ),
-                expectedTraits = setOf("ack", "casual", "short"),
+                expectedTraits = setOf("ack", "casual", "short", "low_signal_brief_ack"),
                 minimumScore = 45
             ),
             Scenario(
@@ -442,6 +442,9 @@ object ReplyQualityScenarios {
         }
         if ("concise_no_overexplained" in scenario.expectedTraits) {
             if ("over_explained" in candidate.reasons || "assistant_boilerplate" in candidate.reasons) score -= 40 else score += 20
+        }
+        if ("low_signal_brief_ack" in scenario.expectedTraits) {
+            if ("low_signal_overreply" in candidate.reasons || "over_explained" in candidate.reasons) score -= 40 else score += 20
         }
         if (ReplyQualityEvaluator.containsAiMetaText(normalized)) score -= 30
         if (normalized.length > 120) score -= 20
