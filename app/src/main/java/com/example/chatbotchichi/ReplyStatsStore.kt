@@ -42,9 +42,9 @@ object ReplyStatsStore {
             val failures = reasonSummary("실패", failureReasons, limit)
             val skips = reasonSummary("스킵", skipReasons, limit)
             val recent = recentReasonSummary()
-            val action = failureActionSummary()
+            val actions = actionHintsSummary(limit)
             val timeline = recentTimelineSummary()
-            return listOf(failures, skips, recent, action)
+            return listOf(failures, skips, recent, actions)
                 .plus(timeline)
                 .filter { it.isNotBlank() }
                 .ifEmpty { listOf("원인 없음") }
@@ -68,18 +68,26 @@ object ReplyStatsStore {
             return parts.joinToString(", ")
         }
 
-        private fun failureActionSummary(): String {
-            val failureReason = lastFailureReason
-                ?.takeIf { it.isNotBlank() }
-                ?: failureReasons.maxByOrNull { it.value }?.key
-            if (!failureReason.isNullOrBlank()) {
-                return actionHint(failureReason)?.let { "확인 필요: $it" }.orEmpty()
+        private fun actionHintsSummary(limit: Int): String {
+            val reasons = buildList {
+                if (!lastFailureReason.isNullOrBlank()) add(lastFailureReason)
+                if (!lastSkipReason.isNullOrBlank()) add(lastSkipReason)
+                failureReasons.entries
+                    .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+                    .forEach { add(it.key) }
+                skipReasons.entries
+                    .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+                    .forEach { add(it.key) }
             }
-            val skipReason = lastSkipReason
-                ?.takeIf { it.isNotBlank() }
-                ?: skipReasons.maxByOrNull { it.value }?.key
-                ?: return ""
-            return actionHint(skipReason)?.let { "확인 필요: $it" }.orEmpty()
+            val hints = reasons
+                .mapNotNull { reason ->
+                    val hint = actionHint(reason) ?: return@mapNotNull null
+                    "${normalizeReason(reason)}: $hint"
+                }
+                .distinct()
+                .take(limit.coerceAtLeast(1))
+            if (hints.isEmpty()) return ""
+            return "확인 필요: ${hints.joinToString(", ")}"
         }
 
         private fun recentTimelineSummary(): String {
