@@ -199,8 +199,11 @@ class ReplyQualityEvaluatorTest {
             "team_formal",
             "school_formal_notice",
             "low_signal_skip",
+            "low_signal_with_context_ack",
             "ambiguous_clarify",
+            "school_ambiguous_formal",
             "unknown_fact_guard",
+            "friend_unknown_fact_guard",
             "room_memory_fact",
             "manual_example_override"
         )
@@ -213,6 +216,7 @@ class ReplyQualityEvaluatorTest {
         assertTrue("grounded fact trait missing", "grounded_fact" in coverage.traitIds)
         assertTrue("manual example trait missing", "manual_example" in coverage.traitIds)
         assertTrue("skip trait missing", "skip" in coverage.traitIds)
+        assertTrue("ack trait missing", "ack" in coverage.traitIds)
     }
 
     @Test
@@ -233,8 +237,11 @@ class ReplyQualityEvaluatorTest {
             "team_formal" to "별일없습니다!",
             "school_formal_notice" to "별일 없습니다.",
             "low_signal_skip" to "",
+            "low_signal_with_context_ack" to "응 알겠어",
             "ambiguous_clarify" to "문서 말하는 거야, 발표 자료 말하는 거야?",
+            "school_ambiguous_formal" to "문서 초안 말씀하시는 건가요, 발표 자료 말씀하시는 건가요?",
             "unknown_fact_guard" to "아직 확인된 내용은 못 찾았습니다.",
+            "friend_unknown_fact_guard" to "아직 확인된 건 못 찾았어.",
             "room_memory_fact" to "6월 12일 18시까지입니다.",
             "manual_example_override" to "아무것도 없긴해"
         )
