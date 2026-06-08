@@ -179,7 +179,24 @@ class ReplyStatsStoreTest {
         ).detailSummary()
 
         assertTrue(detail.contains("최근 실패: no remoteInput"))
-        assertTrue(detail.contains("확인 필요: 카카오톡 알림 액션에 답장 RemoteInput 포함 여부"))
+        assertTrue(detail.contains("no remoteInput: 카카오톡 알림 액션에 답장 RemoteInput 포함 여부"))
+    }
+
+    @Test
+    fun detailSummary_includesActionHintsForBothFailuresAndSkips() {
+        val detail = ReplyStatsStore.Snapshot(
+            incoming = 10,
+            sent = 1,
+            skipped = 4,
+            failed = 2,
+            failureReasons = mapOf(SessionReplier.REASON_PENDING_INTENT_SEND_FAILED to 2),
+            skipReasons = mapOf("global reply off" to 3, "low signal" to 1),
+            lastFailureReason = SessionReplier.REASON_PENDING_INTENT_SEND_FAILED,
+            lastSkipReason = "global reply off"
+        ).detailSummary(limit = 3)
+
+        assertTrue(detail.contains("pendingIntent send failed: PendingIntent 전송 예외와 카카오톡 알림 권한/상태"))
+        assertTrue(detail.contains("global reply off: 상단 전체 AI 답장 스위치 상태"))
     }
 
     @Test
@@ -197,7 +214,7 @@ class ReplyStatsStoreTest {
         ).detailSummary()
 
         assertTrue(detail.contains("실패: no session 3회"))
-        assertTrue(detail.contains("확인 필요: 카카오톡 알림 수신 후 세션 캐시 생성 여부"))
+        assertTrue(detail.contains("no session: 카카오톡 알림 수신 후 세션 캐시 생성 여부"))
     }
 
     @Test
@@ -217,7 +234,7 @@ class ReplyStatsStoreTest {
         ).detailSummary()
 
         assertTrue(detail.contains("최근 스킵: low signal"))
-        assertTrue(detail.contains("확인 필요: AI 판단 모드의 낮은 신호 스킵 기준과 최근 대화 맥락"))
+        assertTrue(detail.contains("low signal: AI 판단 모드의 낮은 신호 스킵 기준과 최근 대화 맥락"))
     }
 
     @Test
@@ -235,7 +252,7 @@ class ReplyStatsStoreTest {
         ).detailSummary()
 
         assertTrue(detail.contains("스킵: room reply off 3회"))
-        assertTrue(detail.contains("확인 필요: 대상 방별 답장 활성화 스위치"))
+        assertTrue(detail.contains("room reply off: 대상 방별 답장 활성화 스위치"))
     }
 
     @Test
