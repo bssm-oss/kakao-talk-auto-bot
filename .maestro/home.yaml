@@ -6,3 +6,4 @@ appId: com.example.kakaotalkautobot
 - assertVisible: "AI 자동 답장"
 - assertVisible: "응답 설정"
 - assertVisible: "대상 방"
+- assertVisible: "최근 로그"

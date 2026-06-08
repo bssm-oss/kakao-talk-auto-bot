@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var roomHistorySummaryText: TextView
     private lateinit var roomEmptyText: TextView
     private lateinit var logText: TextView
+    private lateinit var clearLogsButton: MaterialButton
     private lateinit var copyLogsButton: MaterialButton
     private lateinit var recyclerView: RecyclerView
     private lateinit var roomAdapter: RoomTargetAdapter
@@ -81,6 +82,7 @@ class MainActivity : AppCompatActivity() {
         roomHistorySummaryText = findViewById(R.id.text_room_history_summary)
         roomEmptyText = findViewById(R.id.text_room_empty)
         logText = findViewById(R.id.log_text)
+        clearLogsButton = findViewById(R.id.btn_clear_logs)
         copyLogsButton = findViewById(R.id.btn_copy_logs)
         recyclerView = findViewById(R.id.recycler_rooms)
         replySwitch = findViewById(R.id.switch_ai_replies)
@@ -96,6 +98,7 @@ class MainActivity : AppCompatActivity() {
             false
         }
 
+        clearLogsButton.setOnClickListener { confirmClearLogs() }
         copyLogsButton.setOnClickListener { copyAllLogsToClipboard() }
         redactLogsSwitch.isChecked = AppSettings.shouldRedactLogCopies(this)
         redactLogsSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -319,6 +322,25 @@ class MainActivity : AppCompatActivity() {
                 val clip = ClipData.newPlainText("자동답장 로그", copyText)
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(this, "로그가 복사되었습니다.", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun confirmClearLogs() {
+        val allLogs = LogStore.getAll(this)
+        if (allLogs.isBlank()) {
+            Toast.makeText(this, "삭제할 로그가 없습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("로그 삭제")
+            .setMessage("로컬에 저장된 최근 로그를 삭제합니다. 답장 통계와 방 메모리는 유지됩니다.")
+            .setPositiveButton("삭제") { _, _ ->
+                LogStore.clear(this)
+                logLines.clear()
+                renderLogPreview()
+                Toast.makeText(this, "로그를 삭제했습니다.", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("취소", null)
             .show()

@@ -135,15 +135,33 @@
                         android:minLines="2" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_reset_learned_room_style"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_3"
-                    android:text="학습 말투 초기화"
-                    android:textColor="@color/colorTextPrimary"
-                    app:strokeColor="@color/colorBorder" />
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_reset_learned_room_style"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/touch_target"
+                        android:layout_marginEnd="@dimen/space_2"
+                        android:layout_weight="1"
+                        android:text="수정 초기화"
+                        android:textColor="@color/colorTextPrimary"
+                        app:strokeColor="@color/colorBorder" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_clear_room_learning_source"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/touch_target"
+                        android:layout_weight="1"
+                        android:text="학습 원본 삭제"
+                        android:textColor="@color/colorDanger"
+                        app:strokeColor="@color/colorDanger" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="match_parent"

@@ -21,6 +21,7 @@ class DebugRoomActivity : AppCompatActivity() {
     private lateinit var learnedRoomStylePreview: TextView
     private lateinit var editLearnedRoomStyle: TextInputEditText
     private lateinit var resetLearnedRoomStyleButton: MaterialButton
+    private lateinit var clearRoomLearningSourceButton: MaterialButton
     private lateinit var spinnerReplyMode: Spinner
     private lateinit var spinnerTriggerMode: Spinner
     private lateinit var editTriggerValue: TextInputEditText
@@ -46,6 +47,7 @@ class DebugRoomActivity : AppCompatActivity() {
         learnedRoomStylePreview = findViewById(R.id.text_learned_room_style_preview)
         editLearnedRoomStyle = findViewById(R.id.edit_learned_room_style)
         resetLearnedRoomStyleButton = findViewById(R.id.btn_reset_learned_room_style)
+        clearRoomLearningSourceButton = findViewById(R.id.btn_clear_room_learning_source)
         spinnerReplyMode = findViewById(R.id.spinner_reply_mode)
         spinnerTriggerMode = findViewById(R.id.spinner_trigger_mode)
         editTriggerValue = findViewById(R.id.edit_trigger_value)
@@ -91,6 +93,27 @@ class DebugRoomActivity : AppCompatActivity() {
             editLearnedRoomStyle.setText("")
             bindLearnedRoomStyle(roomName)
             Toast.makeText(this, "학습된 방 말투 수정을 초기화했습니다.", Toast.LENGTH_SHORT).show()
+        }
+
+        clearRoomLearningSourceButton.setOnClickListener {
+            val roomName = editRoomName.text?.toString()?.trim().orEmpty()
+            if (roomName.isBlank()) {
+                Toast.makeText(this, "방 이름을 먼저 입력해주세요.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("학습 원본 삭제")
+                .setMessage("'${roomName}' 방의 저장된 대화 이력과 자동 메모리 요약을 삭제합니다. 방 메모리와 수동 방 말투는 유지됩니다.")
+                .setPositiveButton("삭제") { _, _ ->
+                    RoomStore.clearRoomHistory(this, roomName)
+                    AutoMemoryStore.clear(this, roomName)
+                    StyleProfileStore.resetRoomLearnedStyle(this, roomName)
+                    editLearnedRoomStyle.setText("")
+                    bindRoom(roomName)
+                    Toast.makeText(this, "학습 원본 대화를 삭제했습니다.", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("취소", null)
+                .show()
         }
 
         saveButton.setOnClickListener {
