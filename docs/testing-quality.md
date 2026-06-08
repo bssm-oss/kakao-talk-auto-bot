@@ -78,7 +78,7 @@ maestro test .maestro
 - 후보 응답 source 별 생성/선택/빈 응답/저품질/latency 집계가 대화 원문 없이 계산되는 가드
 - source 별 후보 통계 보정점이 가까운 후보의 tie-breaker 로만 작동하고 명백히 나쁜 답변을 이기지 못하는 선택 가드
 - 여러 candidate lane 이 같은 답장을 반복하면 중복 후보가 `duplicate_reply` 로 감점되어 선택을 왜곡하지 않는 가드
-- primary/style_rewrite/human_style/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
+- primary/style_rewrite/human_style/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 자기 지칭 업무체, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
 - 친구방, 팀방, 학교방, 친구방 짧은 echo 방지, 근거 있는 질문의 generic ack 방지, 학교방 장황한 부연 방지, 낮은 신호, 맥락 있는 낮은 신호의 과잉 답장 방지, 모르는 사실, 방 메모리 사실 확인, 수동 예시 우선순위 충돌을 포함한 기본 응답 품질 시나리오
 - 애매한 지시에는 아는 척하지 않고 방 말투에 맞춰 반말/존댓말 확인 질문을 하는 응답 품질 시나리오
 - 기본 응답 품질 시나리오의 Markdown 리포트 생성과 비-LLM 엔진 baseline 경로 검증
@@ -161,7 +161,8 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 애매한 말의 확인 질문 후보는 친구방/학교방 말투에 맞게 반말/존댓말을 구분함
 - [ ] 방 메모리, 최근 대화, CSV 이력이 답장 근거로 함께 들어감
 - [ ] 모르는 사실은 추측하지 않고 모른다고 짧게 답함
-- [ ] AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 지나치게 긴 후보가 최종 답장으로 선택되지 않음
+- [ ] AI 메타 문구, 챗봇식 상투어, 자기 지칭 업무체, 프롬프트 반복, 지나치게 긴 후보가 최종 답장으로 선택되지 않음
+- [ ] `제가 확인해보겠습니다` 같은 자기 지칭 업무체 후보는 `self_referential_business_tone` 으로 감점됨
 - [ ] 사용자 직접 예시와 가까운 답장은 `manual_example_match` 로 보상됨
 - [ ] 존댓말 이력이 쌓인 방에서도 수동 친구방 예시가 있으면 수동 예시에 가까운 답장만 `manual_example_override` 시나리오를 통과함
 - [ ] primary/style_rewrite/human_style/compact candidate lane 이 같은 품질 게이트에서 비교되고, emergency lane 은 초기 후보가 약할 때만 추가됨

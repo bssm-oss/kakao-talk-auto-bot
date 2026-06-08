@@ -97,6 +97,37 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_penalizesSelfReferentialBusinessToneAgainstManualExample() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 가볍게 반말. 예시: 아무것도 없긴해"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "제가 확인해보겠습니다.",
+                reply = "제가 확인해보겠습니다.",
+                config = config,
+                message = "오늘 별일 있어?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "human_style",
+                raw = "아무것도 없긴해",
+                reply = "아무것도 없긴해",
+                config = config,
+                message = "오늘 별일 있어?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("human_style", best?.source)
+        assertTrue(candidates.first().reasons.contains("self_referential_business_tone"))
+        assertTrue(candidates.last().reasons.contains("manual_example_match"))
+    }
+
+    @Test
     fun selectBest_penalizesShortPromptEchoAgainstHumanLikeReply() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             roomStyle = "친한 친구방. 가볍게 반말. 상대 말을 따라 쓰지 말고 예시처럼 답장. 예시: 아무것도 없긴해"
@@ -474,5 +505,6 @@ class ReplyQualityEvaluatorTest {
         assertTrue(!ReplyQualityScenarios.evaluateReply("네 확인했습니다.", noGenericAck).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("별일 없습니다. 추가로 필요한 내용이 있으면 말씀해 주세요.", concise).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("응 알겠어. 필요하면 추가로 알려줘.", lowSignalAck).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("제가 확인해보겠습니다.", manualOverride).passed)
     }
 }

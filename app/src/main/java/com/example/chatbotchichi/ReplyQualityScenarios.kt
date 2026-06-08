@@ -433,6 +433,7 @@ object ReplyQualityScenarios {
         if ("manual_example" in scenario.expectedTraits) {
             if ("manual_example_match" in candidate.reasons) score += 25
             if (candidate.reasons.any { it.startsWith("manual_room_style_mismatch") }) score -= 20
+            if ("self_referential_business_tone" in candidate.reasons) score -= 35
         }
         if ("no_echo" in scenario.expectedTraits) {
             if ("short_prompt_echo" in candidate.reasons || "prompt_echo" in candidate.reasons) score -= 40 else score += 20
