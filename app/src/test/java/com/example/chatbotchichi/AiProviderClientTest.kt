@@ -351,7 +351,7 @@ class AiProviderClientTest {
 
         val best = ReplyQualityEvaluator.selectBest(candidates)
         assertEquals("deadline_fact", best?.source)
-        assertEquals("6월 12일 18시까지로 알고 있어.", best?.reply)
+        assertEquals("6월 12일 18시까지입니다.", best?.reply)
         assertTrue(best?.reasons?.contains("grounded_fact") == true)
     }
 

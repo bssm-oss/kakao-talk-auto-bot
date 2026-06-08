@@ -20,7 +20,7 @@
 scripts/generate-reply-quality-report.sh
 ```
 
-리포트는 `app/build/reports/reply-quality/report.md` 에 생성되며, 각 시나리오의 기대 trait, 점수, 최소 기준, 통과 여부를 표로 남깁니다.
+리포트는 `app/build/reports/reply-quality/report.md` 에 생성됩니다. `Expected Reply Examples` 는 각 시나리오의 기대 예문, trait, 점수, 최소 기준, 통과 여부를 표로 남기고, `Engine Baseline Without LLM` 은 모델 호출 없이 실제 엔진이 처리할 수 있는 `pre_model_skip`, `ambiguous_clarify`, `unknown_guard`, `deadline_fact` 경로의 source/coverage/pass 결과를 남깁니다. 친구방/팀방/학교방처럼 모델 생성이 필요한 말투 응답은 `requires_llm` 으로 표시해 실기기 LLM 검증과 분리합니다.
 
 ARM64 실기기에서 Gemma 기본 모델과 실제 런타임 경로를 확인할 때는 아래 스크립트를 사용합니다.
 
@@ -78,7 +78,7 @@ maestro test .maestro
 - primary/style_rewrite/compact/emergency 후보 중 AI 메타 문구, 챗봇식 상투어, 프롬프트 반복, 과한 추측을 피하고 방 말투/근거에 맞는 답장을 고르는 품질 게이트
 - 친구방, 팀방, 학교방, 낮은 신호, 모르는 사실, 방 메모리 사실 확인을 포함한 기본 응답 품질 시나리오
 - 애매한 지시에는 아는 척하지 않고 짧게 확인 질문을 하는 응답 품질 시나리오
-- 기본 응답 품질 시나리오의 Markdown 리포트 생성
+- 기본 응답 품질 시나리오의 Markdown 리포트 생성과 비-LLM 엔진 baseline 경로 검증
 - 로그 복사 시 방 이름, 발화자, 메시지 본문을 가리는 개인정보 보호 처리
 - 로컬 로그 파일이 최근 100줄과 7일 보관 기간을 넘지 않도록 정리되는 가드
 - 학습된 말투의 샘플 수 기반 신뢰도 계산
@@ -147,6 +147,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] 팀 단톡 예시에서는 `별일없습니다!` 같은 단정한 존댓말 응답이 나옴
 - [ ] 학교 단톡 예시에서는 `별일 없습니다.` 같은 단정한 존댓말 응답이 나옴
 - [ ] `app/build/reports/reply-quality/report.md` 에 고정 시나리오별 score/min/pass 결과가 생성됨
+- [ ] `app/build/reports/reply-quality/report.md` 의 `Engine Baseline Without LLM` 섹션에 `pre_model_skip`, `ambiguous_clarify`, `unknown_guard`, `deadline_fact` 경로가 covered/pass 로 기록됨
 - [ ] 수동 방 말투와 반대되는 후보는 최종 선택에서 감점됨
 - [ ] 애매한 말에는 확인 질문을 하고, 임의로 완료/불가를 단정하지 않음
 - [ ] 애매한 말의 확인 질문 후보는 친구방/학교방 말투에 맞게 반말/존댓말을 구분함

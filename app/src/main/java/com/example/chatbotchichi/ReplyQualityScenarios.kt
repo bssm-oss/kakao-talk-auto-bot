@@ -35,6 +35,16 @@ object ReplyQualityScenarios {
         val reply: String
     )
 
+    data class EngineBaselineResult(
+        val scenarioId: String,
+        val source: String,
+        val reply: String,
+        val score: Int,
+        val passed: Boolean,
+        val coveredWithoutLlm: Boolean,
+        val expectedTraits: Set<String>
+    )
+
     fun builtIns(): List<Scenario> {
         return listOf(
             Scenario(
@@ -188,13 +198,20 @@ object ReplyQualityScenarios {
     ): String {
         val scenarioById = scenarios.associateBy { it.id }
         val results = evaluateBaselineReplies(scenarios, examples)
+        val engineResults = evaluateEngineBaselines(scenarios)
+        val coveredEngineResults = engineResults.filter { it.coveredWithoutLlm }
         val passedCount = results.count { it.passed }
+        val enginePassedCount = coveredEngineResults.count { it.passed }
         return buildString {
             appendLine("# Reply Quality Baseline")
             appendLine()
             appendLine("- scenarios: ${results.size}")
             appendLine("- passed: $passedCount")
             appendLine("- failed: ${results.size - passedCount}")
+            appendLine("- engine_covered_without_llm: ${coveredEngineResults.size}")
+            appendLine("- engine_passed_without_llm: $enginePassedCount")
+            appendLine()
+            appendLine("## Expected Reply Examples")
             appendLine()
             appendLine("| scenario | room | traits | score | min | passed | reply |")
             appendLine("| --- | --- | --- | ---: | ---: | --- | --- |")
@@ -203,6 +220,72 @@ object ReplyQualityScenarios {
                 appendLine(
                     "| ${result.scenarioId} | ${scenario.room} | ${result.expectedTraits.sorted().joinToString(", ")} | " +
                         "${result.score} | ${scenario.minimumScore} | ${if (result.passed) "yes" else "no"} | ${escapeMarkdownTable(result.reply)} |"
+                )
+            }
+            appendLine()
+            appendLine("## Engine Baseline Without LLM")
+            appendLine()
+            appendLine("| scenario | source | covered | traits | score | min | passed | reply |")
+            appendLine("| --- | --- | --- | --- | ---: | ---: | --- | --- |")
+            engineResults.forEach { result ->
+                val scenario = requireNotNull(scenarioById[result.scenarioId])
+                appendLine(
+                    "| ${result.scenarioId} | ${result.source} | ${if (result.coveredWithoutLlm) "yes" else "no"} | " +
+                        "${result.expectedTraits.sorted().joinToString(", ")} | ${result.score} | ${scenario.minimumScore} | " +
+                        "${if (result.coveredWithoutLlm && result.passed) "yes" else "n/a"} | ${escapeMarkdownTable(result.reply)} |"
+                )
+            }
+        }
+    }
+
+    fun evaluateEngineBaselines(scenarios: List<Scenario> = builtIns()): List<EngineBaselineResult> {
+        return scenarios.map { scenario ->
+            if (
+                AiProviderClient.shouldSkipLowSignalBeforeModelLoad(
+                    config = scenario.config,
+                    message = scenario.message,
+                    history = scenario.history
+                )
+            ) {
+                val result = evaluateReply("", scenario)
+                return@map EngineBaselineResult(
+                    scenarioId = scenario.id,
+                    source = "pre_model_skip",
+                    reply = "",
+                    score = result.score,
+                    passed = result.passed,
+                    coveredWithoutLlm = true,
+                    expectedTraits = scenario.expectedTraits
+                )
+            }
+
+            val bestCandidate = ReplyQualityEvaluator.selectBest(
+                AiProviderClient.buildDeterministicCandidates(
+                    config = scenario.config,
+                    message = scenario.message,
+                    history = scenario.history
+                )
+            )
+            if (bestCandidate == null) {
+                EngineBaselineResult(
+                    scenarioId = scenario.id,
+                    source = "requires_llm",
+                    reply = "",
+                    score = 0,
+                    passed = false,
+                    coveredWithoutLlm = false,
+                    expectedTraits = scenario.expectedTraits
+                )
+            } else {
+                val result = evaluateReply(bestCandidate.reply, scenario)
+                EngineBaselineResult(
+                    scenarioId = scenario.id,
+                    source = bestCandidate.source,
+                    reply = bestCandidate.reply,
+                    score = result.score,
+                    passed = result.passed,
+                    coveredWithoutLlm = true,
+                    expectedTraits = scenario.expectedTraits
                 )
             }
         }
