@@ -58,6 +58,10 @@ object ReplyQualityEvaluator {
             score -= 24
             reasons.add("generic_casual_ack_boilerplate")
         }
+        if (looksLikeFalseDelayApology(normalized, config.roomStyle, message, history)) {
+            score -= 26
+            reasons.add("false_delay_apology")
+        }
         if (looksLikeTherapyEmpathyBoilerplate(normalized, config.roomStyle)) {
             score -= 24
             reasons.add("therapy_empathy_boilerplate")
@@ -272,6 +276,47 @@ object ReplyQualityEvaluator {
 
         val hasGenericAck = genericAcks.any { normalized.contains(it) }
         return hasGenericAck && normalized.length <= 12
+    }
+
+    internal fun looksLikeFalseDelayApology(
+        reply: String,
+        roomStyle: String,
+        message: String,
+        history: List<RoomHistoryMessage>
+    ): Boolean {
+        if (!prefersCasualStyle(roomStyle)) return false
+        val examples = extractManualExamples(roomStyle).map(::normalizeForExampleMatch)
+        if (examples.isEmpty()) return false
+        if (examples.any { it.contains("미안") || it.contains("죄송") || it.contains("늦") }) return false
+
+        val normalized = normalizeForExampleMatch(reply)
+        val delayApology = (
+            normalized.contains("늦") ||
+                normalized.contains("이제봤") ||
+                normalized.contains("이제확인")
+            ) && (
+            normalized.contains("미안") ||
+                normalized.contains("죄송") ||
+                normalized.contains("쏘리")
+            )
+        if (!delayApology) return false
+
+        val contextText = normalizeForExampleMatch(
+            buildString {
+                append(message)
+                history.takeLast(4).forEach { append(it.message) }
+            }
+        )
+        val delayContext = listOf(
+            "왜늦",
+            "늦었",
+            "답장늦",
+            "답이늦",
+            "연락늦",
+            "이제봄",
+            "이제봤"
+        )
+        return delayContext.none { contextText.contains(it) }
     }
 
     internal fun looksLikeTherapyEmpathyBoilerplate(reply: String, roomStyle: String): Boolean {
