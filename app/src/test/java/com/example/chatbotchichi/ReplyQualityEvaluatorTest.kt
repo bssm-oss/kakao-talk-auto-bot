@@ -190,6 +190,37 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun selectBest_penalizesHelperFollowUpBoilerplateAgainstManualExample() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 도움말이나 응원 꼬리 없이 짧게 반말. 예시: 지금은 좀 애매해"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "지금은 좀 애매해. 필요하면 더 알려줘!",
+                reply = "지금은 좀 애매해. 필요하면 더 알려줘!",
+                config = config,
+                message = "지금 가능?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "human_style",
+                raw = "지금은 좀 애매해",
+                reply = "지금은 좀 애매해",
+                config = config,
+                message = "지금 가능?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(candidates)
+
+        assertEquals("human_style", best?.source)
+        assertTrue(candidates.first().reasons.contains("helper_followup_boilerplate"))
+        assertTrue(candidates.last().reasons.contains("manual_example_match"))
+    }
+
+    @Test
     fun selectBest_penalizesShortPromptEchoAgainstHumanLikeReply() {
         val config = AutoReplyJson.defaultConfig("친구방").copy(
             roomStyle = "친한 친구방. 가볍게 반말. 상대 말을 따라 쓰지 말고 예시처럼 답장. 예시: 아무것도 없긴해"
@@ -525,7 +556,8 @@ class ReplyQualityEvaluatorTest {
             "room_memory_fact",
             "manual_example_override",
             "friend_no_business_ack",
-            "friend_no_service_apology"
+            "friend_no_service_apology",
+            "friend_no_helper_followup"
         )
 
         assertTrue("required quality matrix missing: ${coverage.scenarioIds}", coverage.hasRequiredScenarios(requiredIds))
@@ -544,6 +576,7 @@ class ReplyQualityEvaluatorTest {
         assertTrue("no overclaim trait missing", "no_overclaim" in coverage.traitIds)
         assertTrue("no business ack trait missing", "no_business_ack" in coverage.traitIds)
         assertTrue("no service apology trait missing", "no_service_apology" in coverage.traitIds)
+        assertTrue("no helper followup trait missing", "no_helper_followup" in coverage.traitIds)
     }
 
     @Test
@@ -575,7 +608,8 @@ class ReplyQualityEvaluatorTest {
             "room_memory_fact" to "6월 12일 18시까지입니다.",
             "manual_example_override" to "아무것도 없긴해",
             "friend_no_business_ack" to "아무것도 없긴해",
-            "friend_no_service_apology" to "지금은 좀 애매해"
+            "friend_no_service_apology" to "지금은 좀 애매해",
+            "friend_no_helper_followup" to "지금은 좀 애매해"
         )
 
         ReplyQualityScenarios.builtIns().forEach { scenario ->
@@ -598,6 +632,7 @@ class ReplyQualityEvaluatorTest {
         val lowSignalAck = ReplyQualityScenarios.builtIns().first { it.id == "low_signal_with_context_ack" }
         val friendNoBusinessAck = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_business_ack" }
         val friendNoServiceApology = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_service_apology" }
+        val friendNoHelperFollowup = ReplyQualityScenarios.builtIns().first { it.id == "friend_no_helper_followup" }
 
         assertTrue(!ReplyQualityScenarios.evaluateReply("AI 모델로는 답변할 수 없습니다.", unknown).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("됐어.", ambiguous).passed)
@@ -611,5 +646,6 @@ class ReplyQualityEvaluatorTest {
         assertTrue(!ReplyQualityScenarios.evaluateReply("제가 확인해보겠습니다.", manualOverride).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("확인했습니다!", friendNoBusinessAck).passed)
         assertTrue(!ReplyQualityScenarios.evaluateReply("죄송합니다. 필요한 사항이 있으면 안내드리겠습니다.", friendNoServiceApology).passed)
+        assertTrue(!ReplyQualityScenarios.evaluateReply("지금은 좀 애매해. 필요하면 더 알려줘!", friendNoHelperFollowup).passed)
     }
 }

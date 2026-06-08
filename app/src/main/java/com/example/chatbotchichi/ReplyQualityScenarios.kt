@@ -289,6 +289,22 @@ object ReplyQualityScenarios {
                 ),
                 expectedTraits = setOf("casual", "short", "manual_example", "no_service_apology"),
                 minimumScore = 65
+            ),
+            Scenario(
+                id = "friend_no_helper_followup",
+                room = "친구방",
+                sender = "민수",
+                message = "지금 가능?",
+                config = AutoReplyJson.defaultConfig("친구방").copy(
+                    roomStyle = "친한 친구방. 자동응답기처럼 도움말이나 응원 꼬리를 붙이지 말고 짧게 반말. 예시: 지금은 좀 애매해",
+                    trigger = TriggerConfig("ai_judge", "")
+                ),
+                history = listOf(
+                    RoomHistoryMessage("민수", "지금 가능?", true, 1L),
+                    RoomHistoryMessage("나", "지금은 좀 애매해", false, 2L)
+                ),
+                expectedTraits = setOf("casual", "short", "manual_example", "no_helper_followup"),
+                minimumScore = 65
             )
         )
     }
@@ -329,7 +345,8 @@ object ReplyQualityScenarios {
             ScenarioExample("room_memory_fact", "6월 12일 18시까지입니다."),
             ScenarioExample("manual_example_override", "아무것도 없긴해"),
             ScenarioExample("friend_no_business_ack", "아무것도 없긴해"),
-            ScenarioExample("friend_no_service_apology", "지금은 좀 애매해")
+            ScenarioExample("friend_no_service_apology", "지금은 좀 애매해"),
+            ScenarioExample("friend_no_helper_followup", "지금은 좀 애매해")
         )
     }
 
@@ -489,6 +506,13 @@ object ReplyQualityScenarios {
         }
         if ("no_service_apology" in scenario.expectedTraits) {
             if ("service_apology_boilerplate" in candidate.reasons || "assistant_boilerplate" in candidate.reasons) {
+                score -= 45
+            } else {
+                score += 20
+            }
+        }
+        if ("no_helper_followup" in scenario.expectedTraits) {
+            if ("helper_followup_boilerplate" in candidate.reasons || "assistant_boilerplate" in candidate.reasons) {
                 score -= 45
             } else {
                 score += 20
