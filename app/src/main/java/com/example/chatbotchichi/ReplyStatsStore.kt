@@ -14,6 +14,7 @@ object ReplyStatsStore {
         val failed: Int,
         val failureReasons: Map<String, Int>,
         val skipReasons: Map<String, Int>,
+        val lastSentAtMillis: Long = 0L,
         val lastFailureReason: String? = null,
         val lastFailureAtMillis: Long = 0L,
         val lastSkipReason: String? = null,
@@ -41,7 +42,9 @@ object ReplyStatsStore {
             val failures = reasonSummary("실패", failureReasons, limit)
             val skips = reasonSummary("스킵", skipReasons, limit)
             val recent = recentReasonSummary()
+            val timeline = recentTimelineSummary()
             return listOf(failures, skips, recent)
+                .plus(timeline)
                 .filter { it.isNotBlank() }
                 .ifEmpty { listOf("원인 없음") }
                 .joinToString(" · ")
@@ -63,6 +66,16 @@ object ReplyStatsStore {
             }
             return parts.joinToString(", ")
         }
+
+        private fun recentTimelineSummary(): String {
+            val parts = buildList {
+                if (lastSentAtMillis > 0L) add("전송 ${formatAge(lastSentAtMillis)}")
+                if (lastFailureAtMillis > 0L) add("실패 ${formatAge(lastFailureAtMillis)}")
+                if (lastSkipAtMillis > 0L) add("스킵 ${formatAge(lastSkipAtMillis)}")
+            }
+            if (parts.isEmpty()) return ""
+            return "최근 이벤트: ${parts.joinToString(", ")}"
+        }
     }
 
     @Synchronized
@@ -78,6 +91,9 @@ object ReplyStatsStore {
         }
         root.put(key, root.optInt(key, 0) + 1)
         when (label) {
+            "OUT" -> {
+                root.put("lastSentAtMillis", System.currentTimeMillis())
+            }
             "OUT_FAIL" -> {
                 val normalizedReason = incrementReason(root, "failureReasons", reason)
                 root.put("lastFailureReason", normalizedReason)
@@ -101,6 +117,7 @@ object ReplyStatsStore {
             failed = root.optInt("failed", 0),
             failureReasons = readReasonMap(root, "failureReasons"),
             skipReasons = readReasonMap(root, "skipReasons"),
+            lastSentAtMillis = root.optLong("lastSentAtMillis", 0L),
             lastFailureReason = root.optString("lastFailureReason").ifBlank { null },
             lastFailureAtMillis = root.optLong("lastFailureAtMillis", 0L),
             lastSkipReason = root.optString("lastSkipReason").ifBlank { null },
@@ -165,6 +182,17 @@ object ReplyStatsStore {
                 val reason = keys.next()
                 put(reason, reasons.optInt(reason, 0))
             }
+        }
+    }
+
+    internal fun formatAge(eventAtMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {
+        if (eventAtMillis <= 0L) return "없음"
+        val elapsedSeconds = ((nowMillis - eventAtMillis).coerceAtLeast(0L) / 1000L).toInt()
+        return when {
+            elapsedSeconds < 60 -> "${elapsedSeconds}초 전"
+            elapsedSeconds < 3600 -> "${elapsedSeconds / 60}분 전"
+            elapsedSeconds < 86400 -> "${elapsedSeconds / 3600}시간 전"
+            else -> "${elapsedSeconds / 86400}일 전"
         }
     }
 }
