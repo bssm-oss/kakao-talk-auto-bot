@@ -161,6 +161,69 @@ class ReplyQualityEvaluatorTest {
     }
 
     @Test
+    fun dedupeCandidates_marksRepeatedRepliesAsDuplicate() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 가볍게 반말"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "응 알겠어",
+                reply = "응 알겠어",
+                config = config,
+                message = "오늘 가능?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "compact",
+                raw = "응, 알겠어.",
+                reply = "응, 알겠어.",
+                config = config,
+                message = "오늘 가능?",
+                history = emptyList()
+            )
+        )
+
+        val deduped = ReplyQualityEvaluator.dedupeCandidates(candidates)
+
+        assertEquals(2, deduped.size)
+        assertTrue(deduped.any { it.reasons.contains("duplicate_reply") })
+        assertTrue(deduped.any { it.score > 0 && !it.reasons.contains("duplicate_reply") })
+    }
+
+    @Test
+    fun selectBest_ignoresDuplicateReplyEvenWithSourcePrior() {
+        val config = AutoReplyJson.defaultConfig("친구방").copy(
+            roomStyle = "친한 친구방. 가볍게 반말"
+        )
+        val candidates = listOf(
+            ReplyQualityEvaluator.evaluate(
+                source = "primary",
+                raw = "가능해",
+                reply = "가능해",
+                config = config,
+                message = "오늘 가능?",
+                history = emptyList()
+            ),
+            ReplyQualityEvaluator.evaluate(
+                source = "human_style",
+                raw = "가능해",
+                reply = "가능해",
+                config = config,
+                message = "오늘 가능?",
+                history = emptyList()
+            )
+        )
+
+        val best = ReplyQualityEvaluator.selectBest(
+            candidates = candidates,
+            sourcePriors = mapOf("human_style" to 6)
+        )
+
+        assertEquals("primary", best?.source)
+    }
+
+    @Test
     fun selectBest_penalizesCasualToneInSchoolRoom() {
         val config = AutoReplyJson.defaultConfig("학교방").copy(
             roomStyle = "학교 단톡. 존댓말로 단정하게 답장"
