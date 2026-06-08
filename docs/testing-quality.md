@@ -20,7 +20,13 @@ ARM64 실기기에서 Gemma 기본 모델과 실제 런타임 경로를 확인�
 scripts/verify-real-device-e2e.sh
 ```
 
-이 스크립트는 한 대의 ARM64 실기기 연결을 요구하고, debug APK와 androidTest APK 설치, Gemma 계측 테스트 실행, 모델 파일 크기/SHA-256 확인, 로그캣 저장까지 수행합니다. 카카오톡 알림 수신과 실제 자동 답장 표시는 계정/알림 권한이 필요한 수동 E2E 단계로 남기며, 스크립트가 생성하는 `outputs/real-device-e2e/*-summary.txt` 에 수동 확인 항목을 남깁니다.
+이 스크립트는 한 대의 ARM64 실기기 연결을 요구하고, debug APK와 androidTest APK 설치, Gemma 계측 테스트 실행, 모델 파일 크기/SHA-256 확인, 로그캣 저장까지 수행합니다. 카카오톡 알림 수신과 실제 자동 답장 표시는 계정/알림 권한이 필요한 수동 E2E 단계로 남기며, 스크립트가 생성하는 `outputs/real-device-e2e/*-summary.txt` 에 `manual_kakao_*` 증거 필드를 남깁니다.
+
+실기기 없이 수동 증거 필드 형식만 확인하려면 다음을 실행합니다.
+
+```bash
+scripts/verify-real-device-e2e.sh --print-manual-template
+```
 
 UI 흐름을 바꿨다면 아래도 같이 확인합니다.
 
@@ -159,6 +165,7 @@ UI 문구를 바꾸면 관련 Maestro 흐름도 같이 고쳐야 합니다.
 - [ ] PendingIntent RemoteInput 전송 성공 로그와 실제 카카오톡 대화창 답장 표시가 일치함
 - [ ] 전송 실패 시 `OUT_FAIL` 로그에 `no session`, `no remoteInput`, `pendingIntent null`, `pendingIntent send failed` 같은 원인이 남고 앱이 죽지 않음
 - [ ] AI 답장 생성 후 `replyToRoomDetailed` 이 실패하면 엔진 레벨에서도 같은 전송 원인을 포함한 `OUT_FAIL` 이 남음
+- [ ] `outputs/real-device-e2e/*-summary.txt` 의 `manual_kakao_in_log_confirmed`, `manual_kakao_out_log_confirmed`, `manual_kakao_reply_visible_in_kakaotalk` 가 실제 확인 결과로 채워짐
 - [ ] OFF 상태 전환 직후 수신 메시지는 저장되지만 답장은 나가지 않음
 - [ ] OFF 상태 전환 직후 수신 메시지는 `OUT_SKIP` 에 OFF 원인이 남음
 

@@ -12,6 +12,26 @@ EXPECTED_MODEL_SHA="181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139
 OUT_DIR="${ROOT_DIR}/outputs/real-device-e2e"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
+print_manual_kakao_template() {
+  cat <<'EOF'
+manual_kakao_e2e_required=true
+manual_kakao_notification_access_confirmed=false
+manual_kakao_test_room=
+manual_kakao_test_sender=
+manual_kakao_in_log_confirmed=false
+manual_kakao_out_log_confirmed=false
+manual_kakao_reply_visible_in_kakaotalk=false
+manual_kakao_remoteinput_failure_reason=
+manual_kakao_evidence_note=
+manual_kakao_steps=1) enable notification access, 2) send KakaoTalk message from another account, 3) confirm IN log with the expected room/sender, 4) confirm OUT log or OUT_FAIL reason, 5) confirm the reply appears in KakaoTalk
+EOF
+}
+
+if [[ "${1:-}" == "--print-manual-template" ]]; then
+  print_manual_kakao_template
+  exit 0
+fi
+
 if [[ ! -x "${ADB_BIN}" ]]; then
   echo "adb not found: ${ADB_BIN}" >&2
   echo "Set ADB=/path/to/adb or install Android platform-tools." >&2
@@ -75,8 +95,7 @@ MODEL_SHA="$("${ADB_BIN}" -s "${SERIAL}" shell run-as "${PACKAGE_NAME}" sha256su
   echo "model_sha256=${MODEL_SHA}"
   echo "expected_model_sha256=${EXPECTED_MODEL_SHA}"
   echo "logcat_file=${LOGCAT_FILE}"
-  echo "manual_kakao_e2e_required=true"
-  echo "manual_kakao_steps=enable notification access, send KakaoTalk message from another account, confirm IN log, confirm OUT log, confirm reply appears in KakaoTalk"
+  print_manual_kakao_template
 } | tee -a "${SUMMARY_FILE}"
 
 if [[ "${TEST_STATUS}" -ne 0 ]]; then
