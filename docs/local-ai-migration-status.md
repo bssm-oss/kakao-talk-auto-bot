@@ -8,7 +8,7 @@
 - 설정 UI를 **Gemma 4 로컬 전용** 흐름으로 정리하고 예전 OpenAI 설정은 읽을 때 자동 정규화
 - 로컬 답장 실행 경로를 raw `Thread` 대신 coroutine 기반 백그라운드 실행으로 정리
 - 더 이상 쓰지 않는 `SharedHttpClient` 및 OkHttp 의존성 제거
-- primary/compact/emergency 프롬프트 모두에서 페르소나, 방 메모, 최근 대화 맥락 유지 강화
+- primary/style_rewrite/human_style/compact/emergency 프롬프트 모두에서 페르소나, 방 메모, 최근 대화 맥락 유지 강화
 - grounding을 우회하던 small-talk fast-path 제거
 
 ## 유지한 범위
